@@ -388,7 +388,7 @@ function ServicesCardsA({
   const tablet = options?.viewport === "tablet";
 
   return (
-    <section className="bg-white px-5 pb-20 pt-[192px] font-[var(--font-inter)] md:px-10 md:pb-28 xl:px-20">
+    <section className="bg-white px-5 pb-20 pt-32 font-[var(--font-inter)] md:px-10 md:pt-[192px] md:pb-28 xl:px-20">
       <div className="mx-auto max-w-[1600px]">
         <div className="flex items-center justify-between gap-6 border-b border-black/15 pb-14">
           <EditableText
