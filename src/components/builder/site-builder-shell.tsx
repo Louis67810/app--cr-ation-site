@@ -864,7 +864,7 @@ function DeviceFrame({
           } as React.CSSProperties
         }
       >
-        <main className="min-h-screen bg-white text-[#0f1112]">
+        <main className={`site-viewport-${mode} min-h-screen bg-white text-[#0f1112]`}>
           {page.sections.map((section) => (
             <SectionCanvasFrame
               key={`${mode}-${section.id}`}

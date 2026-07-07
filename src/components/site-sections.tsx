@@ -183,7 +183,7 @@ function SiteHeaderGlassA({
       <div className="mx-auto flex min-h-20 max-w-[1600px] items-center justify-between px-5 py-[10px] md:px-10 xl:px-20">
         <TemplateLink
           href="/"
-          className="flex h-11 w-24 items-center justify-center rounded-lg bg-white/10 text-xs font-medium text-white/70"
+          className="typo-body-small flex h-11 w-24 items-center justify-center rounded-lg bg-white/10 text-white/70"
           ariaLabel="Accueil"
           disabled={options?.disableLinks}
         >
@@ -194,7 +194,7 @@ function SiteHeaderGlassA({
           />
         </TemplateLink>
         <nav
-          className={`items-center text-[18px] leading-[102.88%] tracking-[-0.03em] text-white ${
+          className={`typo-button items-center text-white ${
             compact ? "hidden" : "flex"
           } ${tablet ? "gap-4" : "gap-7"}`}
         >
@@ -256,22 +256,14 @@ function HeroFullImageA({
               value={fields.title}
               path={["title"]}
               options={options}
-              className={`font-serif leading-none text-white ${
-                compact ? "text-5xl" : tablet ? "text-6xl" : "text-5xl md:text-7xl"
-              }`}
+              className="typo-h1 text-white"
             />
             <EditableText
               as="p"
               value={fields.subtitle}
               path={["subtitle"]}
               options={options}
-              className={`mt-7 max-w-[660px] font-normal text-white/88 ${
-                compact
-                  ? "text-sm leading-7"
-                  : tablet
-                    ? "text-base leading-8"
-                    : "text-base leading-8 md:text-xl md:leading-10"
-              }`}
+              className="typo-body-large mt-7 max-w-[660px] text-white/88"
             />
             <div className={`mt-7 flex flex-wrap gap-3 ${compact ? "hidden" : ""}`}>
               <SiteCta
@@ -303,7 +295,7 @@ function HeroFullImageA({
               className="h-auto w-[68px]"
             />
             <div className="mt-4 border-t border-white/[0.06] pt-4">
-              <div className="flex flex-wrap items-center gap-[11px] text-[16px] leading-none">
+              <div className="typo-body-small flex flex-wrap items-center gap-[11px]">
                 <EditableText
                   value={fields.reviewRatingLabel}
                   path={["reviewRatingLabel"]}
@@ -361,14 +353,14 @@ function SocialProofBandA({
               value={stat.value}
               path={["stats", index, "value"]}
               options={options}
-              className="block font-serif text-5xl leading-none text-[#00d494]"
+              className="typo-stat block text-[#00d494]"
             />
             <EditableText
               as="p"
               value={stat.label}
               path={["stats", index, "label"]}
               options={options}
-              className="mx-auto mt-4 max-w-[390px] text-sm font-medium leading-7 text-white/75"
+              className="typo-body-small mx-auto mt-4 max-w-[390px] text-white/75"
             />
           </div>
         ))}
@@ -396,7 +388,7 @@ function ServicesCardsA({
             value={fields.title}
             path={["title"]}
             options={options}
-            className="font-serif text-5xl leading-none text-[#0f1112] md:text-6xl"
+            className="typo-h2 text-[#0f1112]"
           />
           <div className="hidden md:block">
             <SiteCta
@@ -426,14 +418,14 @@ function ServicesCardsA({
                   value={service.title}
                   path={["services", index, "title"]}
                   options={options}
-                  className="text-2xl font-semibold text-white"
+                  className="typo-h5 text-white"
                 />
                 <EditableText
                   as="p"
                   value={service.description}
                   path={["services", index, "description"]}
                   options={options}
-                  className="mt-4 max-w-md text-sm font-medium leading-7 text-white/75 md:text-base md:leading-8"
+                  className="typo-body-small mt-4 max-w-md text-white/75"
                 />
                 <SiteCta
                   variant="explore"
