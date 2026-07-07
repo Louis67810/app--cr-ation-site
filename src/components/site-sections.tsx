@@ -241,7 +241,7 @@ function HeroFullImageA({
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${fields.backgroundImageUrl})` }}
       />
-      <div className="absolute inset-0 bg-[radial-gradient(54%_54%_at_50%_50%,rgba(0,0,0,0.08)_0%,rgba(0,0,0,0.86)_100%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(40.85%_40.85%_at_50%_50%,rgba(0,0,0,0.2232)_0%,rgba(0,0,0,0.93)_100%)]" />
       <div className="relative z-10 mx-auto flex min-h-[var(--site-hero-height,95vh)] max-w-[1600px] items-end px-5 pb-12 pt-28 md:px-10 md:pb-20 xl:px-20">
         <div
           className={`grid w-full items-end ${
