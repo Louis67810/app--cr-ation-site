@@ -242,7 +242,11 @@ function HeroFullImageA({
         style={{ backgroundImage: `url(${fields.backgroundImageUrl})` }}
       />
       <div className="absolute inset-0 bg-[radial-gradient(40.85%_40.85%_at_50%_50%,rgba(0,0,0,0.2232)_0%,rgba(0,0,0,0.93)_100%)]" />
-      <div className="relative z-10 mx-auto flex min-h-[var(--site-hero-height,95vh)] max-w-[1600px] items-end px-5 pb-12 pt-28 md:px-10 md:pb-20 xl:px-20">
+      <div
+        className={`relative z-10 mx-auto flex min-h-[var(--site-hero-height,95vh)] max-w-[1600px] items-end px-5 pb-12 md:px-10 md:pb-20 xl:px-20 ${
+          compact ? "pt-44" : "pt-44 md:pt-28"
+        }`}
+      >
         <div
           className={`grid w-full items-end ${
             compact || tablet
@@ -265,7 +269,11 @@ function HeroFullImageA({
               options={options}
               className="typo-body-large mt-7 max-w-[660px] text-white/88"
             />
-            <div className={`mt-7 flex flex-wrap gap-3 ${compact ? "hidden" : ""}`}>
+            <div
+              className={`hero-cta-group mt-7 flex flex-wrap gap-3 ${
+                compact ? "flex-col" : "max-md:flex-col"
+              }`}
+            >
               <SiteCta
                 variant="secondary"
                 href={fields.primaryCta.href}
@@ -339,14 +347,14 @@ function SocialProofBandA({
             ? "grid-cols-1"
             : tablet
               ? "grid-cols-3"
-              : "sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]"
+              : "md:grid-cols-3 lg:grid-cols-[repeat(auto-fit,minmax(180px,1fr))]"
         }`}
       >
         {fields.stats.map((stat, index) => (
           <div
             key={`${stat.value}-${index}`}
-            className={`px-4 text-center md:px-10 ${
-              index > 0 ? "lg:border-l lg:border-white/20" : ""
+            className={`social-proof-item px-4 text-center md:px-10 ${
+              index > 0 ? "social-proof-divider" : ""
             }`}
           >
             <EditableText
@@ -380,7 +388,7 @@ function ServicesCardsA({
   const tablet = options?.viewport === "tablet";
 
   return (
-    <section className="bg-white px-5 pb-20 pt-32 font-[var(--font-inter)] md:px-10 md:pb-28 xl:px-20">
+    <section className="bg-white px-5 pb-20 pt-[192px] font-[var(--font-inter)] md:px-10 md:pb-28 xl:px-20">
       <div className="mx-auto max-w-[1600px]">
         <div className="flex items-center justify-between gap-6 border-b border-black/15 pb-14">
           <EditableText
@@ -401,31 +409,31 @@ function ServicesCardsA({
           </div>
         </div>
         <div
-          className={`mt-20 grid gap-6 ${
-            compact ? "grid-cols-1" : tablet ? "grid-cols-2" : "md:grid-cols-3"
+          className={`mt-20 grid gap-5 ${
+            compact || tablet ? "grid-cols-1" : "lg:grid-cols-3"
           }`}
         >
           {fields.services.map((service, index) => (
             <article
               key={`${service.href}-${index}`}
-              className="service-card-shadow relative aspect-[514/638] min-h-[520px] overflow-hidden rounded-[18px] border border-black/[0.06] bg-cover bg-center"
+              className="service-card-shadow relative aspect-[514/638] min-h-[520px] w-full overflow-hidden rounded-[18px] border border-black/[0.06] bg-cover bg-center"
               style={{ backgroundImage: `url(${service.imageUrl})` }}
             >
-              <div className="absolute inset-x-0 top-[34%] h-[90%] bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,#000_67.48%)]" />
-              <div className="absolute inset-x-6 bottom-6 z-10 lg:inset-x-8 lg:bottom-8">
+              <div className="absolute inset-x-0 bottom-0 h-[60%] bg-[linear-gradient(180deg,rgba(0,0,0,0)_0%,rgba(0,0,0,0.72)_42%,#000_100%)]" />
+              <div className="absolute inset-x-6 bottom-6 z-10 flex flex-col lg:inset-x-8 lg:bottom-8">
                 <EditableText
                   as="h3"
                   value={service.title}
                   path={["services", index, "title"]}
                   options={options}
-                  className="typo-h5 text-white"
+                  className="typo-h4 text-white"
                 />
                 <EditableText
                   as="p"
                   value={service.description}
                   path={["services", index, "description"]}
                   options={options}
-                  className="typo-body-small mt-4 max-w-md text-white/75"
+                  className="typo-body-medium mt-4 w-full text-white/75"
                 />
                 <SiteCta
                   variant="explore"
