@@ -74,7 +74,18 @@ const sectionLabels: Record<SectionInstance["type"], string> = {
   hero: "Hero section",
   "social-proof": "Preuves sociales",
   services: "Prestations",
+  "services-centered": "Prestations centrees",
+  "recent-projects": "Realisations",
+  "work-method": "Methode de travail",
+  "service-areas": "Zones d'intervention",
+  testimonials: "Avis clients",
+  "blog-advice": "Conseils",
+  faq: "FAQ",
+  "site-footer": "Footer",
 };
+
+const defaultGardenImage =
+  "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=1200&q=85";
 
 function createSection(type: SectionInstance["type"]): SectionInstance {
   const id = `${type}-${Date.now()}`;
@@ -130,20 +141,190 @@ function createSection(type: SectionInstance["type"]): SectionInstance {
     };
   }
 
+  if (type === "services") {
+    return {
+      id,
+      type,
+      variant: "cards-a",
+      fields: {
+        title: "Nos prestations",
+        cta: { label: "Tout voir", href: "/prestations" },
+        services: [
+          {
+            title: "Creation de jardin",
+            description: "Description de la prestation.",
+            imageUrl: defaultGardenImage,
+            href: "/prestations/creation-jardin",
+          },
+        ],
+      },
+    };
+  }
+
+  if (type === "services-centered") {
+    return {
+      id,
+      type,
+      variant: "cards-centered-a",
+      fields: {
+        title: "Pourquoi nous choisir ?",
+        cta: { label: "Book a Table", href: "/contact" },
+        socialProof: { ratingLabel: "Excellent", reviewCount: "500 avis" },
+        services: [
+          {
+            title: "Pourquoi nous choisir ?",
+            description: "Description de la prestation.",
+            imageUrl: defaultGardenImage,
+            href: "/prestations/creation-jardin",
+          },
+        ],
+      },
+    };
+  }
+
+  if (type === "recent-projects") {
+    return {
+      id,
+      type,
+      variant: "city-filter-a",
+      fields: {
+        title: "Nos recentes realisations",
+        subtitle: "Decouvrez nos dernieres realisations triees par ville",
+        cta: { label: "Book a Table", href: "/contact" },
+        socialProof: { ratingLabel: "Excellent", reviewCount: "500 avis" },
+        cities: ["Ville 1"],
+        projects: [
+          {
+            city: "Ville 1",
+            imageUrl: defaultGardenImage,
+            alt: "Realisation paysagere",
+            compareEnabled: "oui",
+            beforeImageUrl: defaultGardenImage,
+            afterImageUrl: defaultGardenImage,
+          },
+        ],
+      },
+    };
+  }
+
+  if (type === "work-method") {
+    return {
+      id,
+      type,
+      variant: "alternating-a",
+      fields: {
+        title: "Notre Methode de travail",
+        subtitle: "Decouvrez notre accompagnement de la premiere idee a la livraison",
+        cta: { label: "Book a Table", href: "/contact" },
+        socialProof: { ratingLabel: "Excellent", reviewCount: "500 avis" },
+        steps: [
+          {
+            title: "Analyse du terrain",
+            description: "Nous etudions vos usages, le terrain et les contraintes techniques.",
+            imageUrl: defaultGardenImage,
+          },
+        ],
+      },
+    };
+  }
+
+  if (type === "service-areas") {
+    return {
+      id,
+      type,
+      variant: "image-list-a",
+      fields: {
+        title: "Nos zones d'interventions",
+        subtitle: "Decouvrez les villes ou notre equipe intervient.",
+        cta: { label: "Book a Table", href: "/contact" },
+        socialProof: { ratingLabel: "Excellent", reviewCount: "500 avis" },
+        areas: [
+          { name: "Ville 1", href: "/zones/ville-1", imageUrl: defaultGardenImage },
+        ],
+      },
+    };
+  }
+
+  if (type === "testimonials") {
+    return {
+      id,
+      type,
+      variant: "gallery-a",
+      fields: {
+        title: "Ils nous ont fait confiance",
+        socialProof: { ratingLabel: "Excellent", reviewCount: "500 avis" },
+        images: [defaultGardenImage, defaultGardenImage, defaultGardenImage],
+        reviews: [
+          {
+            author: "Client",
+            avatarUrl: defaultGardenImage,
+            text: "Avis client a personnaliser dans les variables.",
+          },
+        ],
+      },
+    };
+  }
+
+  if (type === "blog-advice") {
+    return {
+      id,
+      type,
+      variant: "posts-a",
+      fields: {
+        title: "Nos conseils",
+        cta: { label: "Book a Table", href: "/blog" },
+        posts: [
+          {
+            category: "Conseils",
+            title: "Titre de l'article",
+            excerpt: "Court resume de l'article pour preparer la future connexion CMS.",
+            imageUrl: defaultGardenImage,
+            href: "/blog/article",
+          },
+        ],
+      },
+    };
+  }
+
+  if (type === "faq") {
+    return {
+      id,
+      type,
+      variant: "accordion-a",
+      fields: {
+        title: "Les questions frequentes",
+        cta: { label: "Book a Table", href: "/contact" },
+        socialProof: { ratingLabel: "Excellent", reviewCount: "500 avis" },
+        items: [{ question: "Question 1", answer: "Reponse a personnaliser." }],
+      },
+    };
+  }
+
   return {
     id,
     type,
-    variant: "cards-a",
+    variant: "landscaper-a",
     fields: {
-      title: "Nos prestations",
-      cta: { label: "Tout voir", href: "/prestations" },
-      services: [
+      title: "Un projet paysager a concretiser ?",
+      subtitle: "Texte du footer a personnaliser.",
+      cta: { label: "Book a Table", href: "/contact" },
+      backgroundImageUrl: defaultGardenImage,
+      logoLabel: "Logo",
+      copyright: "(c) 2026. Tous droits reserves.",
+      addressLabel: "ADRESSE :",
+      address: "Adresse de l'entreprise",
+      contactLabel: "CONTACT:",
+      phone: "00 00 00 00 00",
+      email: "contact@example.com",
+      credit: "Site realise par Apsodia",
+      socialLinks: [
+        { label: "in", href: "#" },
+        { label: "ig", href: "#" },
+      ],
+      linkGroups: [
         {
-          title: "Creation de jardin",
-          description: "Description de la prestation.",
-          imageUrl:
-            "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=1200&q=85",
-          href: "/prestations/creation-jardin",
+          title: "Pages",
+          links: [{ label: "Accueil", href: "/" }],
         },
       ],
     },
@@ -222,13 +403,46 @@ function pathLabel(path: Path) {
     primaryCta: "CTA secondaire",
     secondaryCta: "CTA principal",
     reviewRatingLabel: "Libelle avis",
+    ratingLabel: "Libelle",
     reviewScore: "Note avis",
     reviewCount: "Nombre d'avis",
+    socialProof: "Avis",
     reviewCta: "CTA avis",
     stats: "Statistique",
     services: "Prestation",
     description: "Description",
     imageUrl: "Image",
+    cities: "Ville",
+    name: "Nom",
+    projects: "Realisation",
+    city: "Ville",
+    alt: "Texte alternatif",
+    compareEnabled: "Avant/apres active",
+    beforeImageUrl: "Image avant",
+    afterImageUrl: "Image apres",
+    steps: "Etape",
+    areas: "Zone",
+    reviews: "Avis",
+    author: "Auteur",
+    avatarUrl: "Photo profil",
+    text: "Texte",
+    images: "Image",
+    posts: "Article",
+    category: "Categorie",
+    excerpt: "Resume",
+    items: "Question",
+    question: "Question",
+    answer: "Reponse",
+    copyright: "Copyright",
+    addressLabel: "Libelle adresse",
+    address: "Adresse",
+    contactLabel: "Libelle contact",
+    phone: "Telephone",
+    email: "Email",
+    credit: "Credit",
+    socialLinks: "Reseau",
+    linkGroups: "Colonne",
+    links: "Lien",
   };
 
   return path
@@ -248,10 +462,19 @@ function pathCategory(path: Path) {
 
   if (first === "backgroundImageUrl" || first === "imageUrl") return "Image";
   if (first.toLowerCase().includes("cta") || second.toLowerCase().includes("cta")) return "CTA";
-  if (first === "reviewRatingLabel" || first === "reviewScore" || first === "reviewCount" || first === "reviewCta") return "Avis";
+  if (first === "socialProof" || first === "reviewRatingLabel" || first === "reviewScore" || first === "reviewCount" || first === "reviewCta") return "Avis";
   if (first === "navigation") return "Menu";
   if (first === "stats") return "Statistiques";
   if (first === "services") return "Prestations";
+  if (first === "cities") return "Villes";
+  if (first === "steps") return "Etapes";
+  if (first === "areas") return "Zones";
+  if (first === "reviews") return "Avis clients";
+  if (first === "images") return "Images";
+  if (first === "posts") return "Articles";
+  if (first === "items") return "Questions";
+  if (first === "socialLinks") return "Reseaux sociaux";
+  if (first === "linkGroups") return "Colonnes footer";
   if (first === "logoLabel") return "Logo";
 
   return "Contenu";
@@ -491,6 +714,299 @@ export function SiteBuilderShell({ initialPage }: { initialPage: SitePage }) {
     }));
   }
 
+  function addRecentProjectCity() {
+    if (!selectedSection || selectedSection.type !== "recent-projects") return;
+
+    setPage((currentPage) => ({
+      ...currentPage,
+      sections: currentPage.sections.map((section) => {
+        if (
+          section.id !== selectedSection.id ||
+          section.type !== "recent-projects" ||
+          section.fields.cities.length >= 8
+        ) {
+          return section;
+        }
+
+        return {
+          ...section,
+          fields: {
+            ...section.fields,
+            cities: [...section.fields.cities, `Ville ${section.fields.cities.length + 1}`],
+          },
+        };
+      }),
+    }));
+  }
+
+  function addRecentProject() {
+    if (!selectedSection || selectedSection.type !== "recent-projects") return;
+
+    setPage((currentPage) => ({
+      ...currentPage,
+      sections: currentPage.sections.map((section) => {
+        if (section.id !== selectedSection.id || section.type !== "recent-projects") {
+          return section;
+        }
+
+        const city = section.fields.cities[0] ?? "Ville 1";
+
+        return {
+          ...section,
+          fields: {
+            ...section.fields,
+            projects: [
+              ...section.fields.projects,
+              {
+                city,
+                imageUrl: defaultGardenImage,
+                alt: "Nouvelle realisation",
+                compareEnabled: "non",
+                beforeImageUrl: defaultGardenImage,
+                afterImageUrl: defaultGardenImage,
+              },
+            ],
+          },
+        };
+      }),
+    }));
+  }
+
+  function removeRecentProject(projectIndex: number) {
+    if (!selectedSection || selectedSection.type !== "recent-projects") return;
+
+    setPage((currentPage) => ({
+      ...currentPage,
+      sections: currentPage.sections.map((section) => {
+        if (section.id !== selectedSection.id || section.type !== "recent-projects") {
+          return section;
+        }
+
+        return {
+          ...section,
+          fields: {
+            ...section.fields,
+            projects: section.fields.projects.filter((_, index) => index !== projectIndex),
+          },
+        };
+      }),
+    }));
+  }
+
+  function addWorkMethodStep() {
+    if (!selectedSection || selectedSection.type !== "work-method") return;
+
+    setPage((currentPage) => ({
+      ...currentPage,
+      sections: currentPage.sections.map((section) => {
+        if (
+          section.id !== selectedSection.id ||
+          section.type !== "work-method" ||
+          section.fields.steps.length >= 6
+        ) {
+          return section;
+        }
+
+        return {
+          ...section,
+          fields: {
+            ...section.fields,
+            steps: [
+              ...section.fields.steps,
+              {
+                title: `Etape ${section.fields.steps.length + 1}`,
+                description: "Description de cette etape de travail.",
+                imageUrl: defaultGardenImage,
+              },
+            ],
+          },
+        };
+      }),
+    }));
+  }
+
+  function removeWorkMethodStep() {
+    if (!selectedSection || selectedSection.type !== "work-method") return;
+
+    setPage((currentPage) => ({
+      ...currentPage,
+      sections: currentPage.sections.map((section) => {
+        if (
+          section.id !== selectedSection.id ||
+          section.type !== "work-method" ||
+          section.fields.steps.length <= 1
+        ) {
+          return section;
+        }
+
+        return {
+          ...section,
+          fields: {
+            ...section.fields,
+            steps: section.fields.steps.slice(0, -1),
+          },
+        };
+      }),
+    }));
+  }
+
+  function addRepeatableItem(group: string) {
+    if (!selectedSection) return;
+
+    setPage((currentPage) => ({
+      ...currentPage,
+      sections: currentPage.sections.map((section) => {
+        if (section.id !== selectedSection.id) return section;
+
+        if (section.type === "service-areas" && group === "Zones") {
+          return {
+            ...section,
+            fields: {
+              ...section.fields,
+              areas: [
+                ...section.fields.areas,
+                {
+                  name: `Ville ${section.fields.areas.length + 1}`,
+                  href: `/zones/ville-${section.fields.areas.length + 1}`,
+                  imageUrl: defaultGardenImage,
+                },
+              ],
+            },
+          };
+        }
+
+        if (section.type === "testimonials" && group === "Avis clients") {
+          return {
+            ...section,
+            fields: {
+              ...section.fields,
+              reviews: [
+                ...section.fields.reviews,
+                {
+                  author: "Client",
+                  avatarUrl: defaultGardenImage,
+                  text: "Nouvel avis client.",
+                },
+              ],
+            },
+          };
+        }
+
+        if (section.type === "testimonials" && group === "Images") {
+          return {
+            ...section,
+            fields: {
+              ...section.fields,
+              images: [...section.fields.images, defaultGardenImage],
+            },
+          };
+        }
+
+        if (section.type === "blog-advice" && group === "Articles") {
+          return {
+            ...section,
+            fields: {
+              ...section.fields,
+              posts: [
+                ...section.fields.posts,
+                {
+                  category: "Conseils",
+                  title: "Nouvel article",
+                  excerpt: "Resume de l'article.",
+                  imageUrl: defaultGardenImage,
+                  href: "/blog/nouvel-article",
+                },
+              ],
+            },
+          };
+        }
+
+        if (section.type === "faq" && group === "Questions") {
+          return {
+            ...section,
+            fields: {
+              ...section.fields,
+              items: [
+                ...section.fields.items,
+                { question: "Nouvelle question", answer: "Reponse a personnaliser." },
+              ],
+            },
+          };
+        }
+
+        return section;
+      }),
+    }));
+  }
+
+  function removeRepeatableItem(group: string) {
+    if (!selectedSection) return;
+
+    setPage((currentPage) => ({
+      ...currentPage,
+      sections: currentPage.sections.map((section) => {
+        if (section.id !== selectedSection.id) return section;
+
+        if (
+          section.type === "service-areas" &&
+          group === "Zones" &&
+          section.fields.areas.length > 1
+        ) {
+          return {
+            ...section,
+            fields: { ...section.fields, areas: section.fields.areas.slice(0, -1) },
+          };
+        }
+
+        if (
+          section.type === "testimonials" &&
+          group === "Avis clients" &&
+          section.fields.reviews.length > 1
+        ) {
+          return {
+            ...section,
+            fields: { ...section.fields, reviews: section.fields.reviews.slice(0, -1) },
+          };
+        }
+
+        if (
+          section.type === "testimonials" &&
+          group === "Images" &&
+          section.fields.images.length > 1
+        ) {
+          return {
+            ...section,
+            fields: { ...section.fields, images: section.fields.images.slice(0, -1) },
+          };
+        }
+
+        if (
+          section.type === "blog-advice" &&
+          group === "Articles" &&
+          section.fields.posts.length > 1
+        ) {
+          return {
+            ...section,
+            fields: { ...section.fields, posts: section.fields.posts.slice(0, -1) },
+          };
+        }
+
+        if (
+          section.type === "faq" &&
+          group === "Questions" &&
+          section.fields.items.length > 1
+        ) {
+          return {
+            ...section,
+            fields: { ...section.fields, items: section.fields.items.slice(0, -1) },
+          };
+        }
+
+        return section;
+      }),
+    }));
+  }
+
   function addSection(type: SectionInstance["type"]) {
     const section = createSection(type);
     setPage((currentPage) => ({
@@ -726,6 +1242,13 @@ export function SiteBuilderShell({ initialPage }: { initialPage: SitePage }) {
         onChange={updateSelectedSection}
         onAddSocialProofStat={addSocialProofStat}
         onRemoveSocialProofStat={removeSocialProofStat}
+        onAddRecentProjectCity={addRecentProjectCity}
+        onAddRecentProject={addRecentProject}
+        onRemoveRecentProject={removeRecentProject}
+        onAddWorkMethodStep={addWorkMethodStep}
+        onRemoveWorkMethodStep={removeWorkMethodStep}
+        onAddRepeatableItem={addRepeatableItem}
+        onRemoveRepeatableItem={removeRepeatableItem}
       />
     </main>
   );
@@ -1060,7 +1583,9 @@ function IframePreview({
       {mountNode
         ? createPortal(
             <main className="min-h-screen bg-white text-[#0f1112]">
-              {page.sections.map((section) => renderSection(section))}
+              {page.sections.map((section) => (
+                <div key={section.id}>{renderSection(section)}</div>
+              ))}
             </main>,
             mountNode,
           )
@@ -1283,6 +1808,14 @@ function AddSectionMenu({
     { type: "hero", label: "Hero section" },
     { type: "social-proof", label: "Preuves sociales" },
     { type: "services", label: "Prestations" },
+    { type: "services-centered", label: "Prestations centrees" },
+    { type: "recent-projects", label: "Realisations" },
+    { type: "work-method", label: "Methode de travail" },
+    { type: "service-areas", label: "Zones d'intervention" },
+    { type: "testimonials", label: "Avis clients" },
+    { type: "blog-advice", label: "Conseils" },
+    { type: "faq", label: "FAQ" },
+    { type: "site-footer", label: "Footer" },
   ];
 
   return (
@@ -1439,11 +1972,25 @@ function RightPanel({
   onChange,
   onAddSocialProofStat,
   onRemoveSocialProofStat,
+  onAddRecentProjectCity,
+  onAddRecentProject,
+  onRemoveRecentProject,
+  onAddWorkMethodStep,
+  onRemoveWorkMethodStep,
+  onAddRepeatableItem,
+  onRemoveRepeatableItem,
 }: {
   section?: SectionInstance;
   onChange: (path: Path, value: string) => void;
   onAddSocialProofStat: () => void;
   onRemoveSocialProofStat: () => void;
+  onAddRecentProjectCity: () => void;
+  onAddRecentProject: () => void;
+  onRemoveRecentProject: (projectIndex: number) => void;
+  onAddWorkMethodStep: () => void;
+  onRemoveWorkMethodStep: () => void;
+  onAddRepeatableItem: (group: string) => void;
+  onRemoveRepeatableItem: (group: string) => void;
 }) {
   if (!section) {
     return <aside className="row-start-2 bg-white p-5" />;
@@ -1463,6 +2010,13 @@ function RightPanel({
         onChange={onChange}
         onAddSocialProofStat={onAddSocialProofStat}
         onRemoveSocialProofStat={onRemoveSocialProofStat}
+        onAddRecentProjectCity={onAddRecentProjectCity}
+        onAddRecentProject={onAddRecentProject}
+        onRemoveRecentProject={onRemoveRecentProject}
+        onAddWorkMethodStep={onAddWorkMethodStep}
+        onRemoveWorkMethodStep={onRemoveWorkMethodStep}
+        onAddRepeatableItem={onAddRepeatableItem}
+        onRemoveRepeatableItem={onRemoveRepeatableItem}
       />
     </aside>
   );
@@ -1501,13 +2055,209 @@ function SectionEditor({
   onChange,
   onAddSocialProofStat,
   onRemoveSocialProofStat,
+  onAddRecentProjectCity,
+  onAddRecentProject,
+  onRemoveRecentProject,
+  onAddWorkMethodStep,
+  onRemoveWorkMethodStep,
+  onAddRepeatableItem,
+  onRemoveRepeatableItem,
 }: {
   section: SectionInstance;
   onChange: (path: Path, value: string) => void;
   onAddSocialProofStat: () => void;
   onRemoveSocialProofStat: () => void;
+  onAddRecentProjectCity: () => void;
+  onAddRecentProject: () => void;
+  onRemoveRecentProject: (projectIndex: number) => void;
+  onAddWorkMethodStep: () => void;
+  onRemoveWorkMethodStep: () => void;
+  onAddRepeatableItem: (group: string) => void;
+  onRemoveRepeatableItem: (group: string) => void;
 }) {
+  const [projectMenu, setProjectMenu] = useState<{
+    index: number;
+    x: number;
+    y: number;
+  } | null>(null);
   const groups = groupPaths(getEditableStringPaths(section.fields));
+
+  if (section.type === "recent-projects") {
+    return (
+      <div className="mt-2" onClick={() => setProjectMenu(null)}>
+        <div className="border-t border-[#eeeeee] py-3">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-[12px] font-semibold text-[#111111]">Villes</h2>
+            <button
+              type="button"
+              onClick={onAddRecentProjectCity}
+              disabled={section.fields.cities.length >= 8}
+              className="flex h-7 items-center gap-1 rounded-[8px] px-2 text-[11px] font-semibold text-[#666666] hover:bg-[#f3f3f3] disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              <Plus size={13} />
+              Ville
+            </button>
+          </div>
+          <div className="grid gap-2">
+            {section.fields.cities.map((city, index) => (
+              <label
+                key={`${city}-${index}`}
+                className="grid grid-cols-[98px_minmax(0,1fr)] items-start gap-3"
+              >
+                <span className="pt-2.5 text-[12px] font-medium leading-4 text-[#666666]">
+                  Ville {index + 1}
+                </span>
+                <input
+                  value={city}
+                  onChange={(event) => {
+                    const nextCity = event.target.value;
+                    onChange(["cities", index], nextCity);
+                    section.fields.projects.forEach((project, projectIndex) => {
+                      if (project.city === city) {
+                        onChange(["projects", projectIndex, "city"], nextCity);
+                      }
+                    });
+                  }}
+                  className="h-10 rounded-[10px] border-0 bg-[#f3f3f3] px-3 text-[12px] font-medium text-[#111111] outline-none transition focus:bg-[#eeeeee]"
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-[#eeeeee] py-3">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-[12px] font-semibold text-[#111111]">
+              Realisations
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onAddRecentProject}
+            className="mb-3 flex h-10 w-full items-center justify-center gap-2 rounded-[10px] bg-[#f3f3f3] text-[12px] font-semibold text-[#111111] transition hover:bg-[#eeeeee]"
+          >
+            <Plus size={15} />
+            Ajouter
+          </button>
+
+          <div className="relative grid gap-3">
+            {section.fields.projects.map((project, projectIndex) => (
+              <div
+                key={`${project.imageUrl}-${projectIndex}`}
+                className="rounded-[10px] border border-[#eeeeee] p-3"
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  setProjectMenu({
+                    index: projectIndex,
+                    x: event.nativeEvent.offsetX + 8,
+                    y: event.currentTarget.offsetTop + 8,
+                  });
+                }}
+              >
+                <div className="mb-3 text-[12px] font-semibold text-[#111111]">
+                  Realisation {projectIndex + 1}
+                </div>
+                <div className="grid gap-2">
+                  <label className="grid grid-cols-[98px_minmax(0,1fr)] items-start gap-3">
+                    <span className="pt-2.5 text-[12px] font-medium leading-4 text-[#666666]">
+                      Ville
+                    </span>
+                    <select
+                      value={project.city}
+                      onChange={(event) =>
+                        onChange(["projects", projectIndex, "city"], event.target.value)
+                      }
+                      className="h-10 rounded-[10px] border-0 bg-[#f3f3f3] px-3 text-[12px] font-medium text-[#111111] outline-none transition focus:bg-[#eeeeee]"
+                    >
+                      {section.fields.cities.map((city, cityIndex) => (
+                        <option key={`${city}-${cityIndex}`} value={city}>
+                          {city}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  {(["imageUrl", "alt", "compareEnabled", "beforeImageUrl", "afterImageUrl"] as const).map((key) => {
+                    const path: Path = ["projects", projectIndex, key];
+                    const inputValue = String(project[key] ?? "");
+                    const booleanToggle = key === "compareEnabled";
+                    const multiline = inputValue.length > 74;
+
+                    return (
+                      <label
+                        key={key}
+                        className="grid grid-cols-[98px_minmax(0,1fr)] items-start gap-3"
+                      >
+                        <span className="pt-2.5 text-[12px] font-medium leading-4 text-[#666666]">
+                          {pathLabel([key])}
+                        </span>
+                        {booleanToggle ? (
+                          <div className="flex h-10 rounded-[10px] bg-[#f3f3f3] p-1 text-[12px] font-semibold">
+                            {[
+                              { label: "Oui", value: "oui" },
+                              { label: "Non", value: "non" },
+                            ].map((option) => {
+                              const active =
+                                inputValue.trim().toLowerCase() === option.value;
+
+                              return (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  onClick={() => onChange(path, option.value)}
+                                  className={`flex flex-1 items-center justify-center rounded-[8px] transition ${
+                                    active
+                                      ? "bg-white text-[#007aff] shadow-[0_1px_3px_rgba(0,0,0,0.16),0_1px_1px_rgba(0,0,0,0.08)]"
+                                      : "text-[#8c8c8c]"
+                                  }`}
+                                >
+                                  {option.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : multiline ? (
+                          <textarea
+                            value={inputValue}
+                            onChange={(event) => onChange(path, event.target.value)}
+                            className="min-h-20 resize-y rounded-[10px] border-0 bg-[#f3f3f3] px-3 py-2 text-[12px] font-medium leading-5 text-[#111111] outline-none transition focus:bg-[#eeeeee]"
+                          />
+                        ) : (
+                          <input
+                            value={inputValue}
+                            onChange={(event) => onChange(path, event.target.value)}
+                            className="h-10 rounded-[10px] border-0 bg-[#f3f3f3] px-3 text-[12px] font-medium text-[#111111] outline-none transition focus:bg-[#eeeeee]"
+                          />
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            {projectMenu ? (
+              <div
+                className="absolute z-50 w-44 rounded-[10px] border border-[#eeeeee] bg-white p-1 shadow-xl"
+                style={{ left: projectMenu.x, top: projectMenu.y }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    onRemoveRecentProject(projectMenu.index);
+                    setProjectMenu(null);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-[8px] px-3 py-2 text-left text-[12px] font-semibold text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 size={15} />
+                  Supprimer
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-2">
@@ -1539,6 +2289,50 @@ function SectionEditor({
                   <Plus size={14} />
                 </button>
               </div>
+            ) : section.type === "work-method" && group.category === "Etapes" ? (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={onRemoveWorkMethodStep}
+                  disabled={section.fields.steps.length <= 1}
+                  className="flex h-7 w-7 items-center justify-center rounded-[8px] text-[#666666] hover:bg-[#f3f3f3] disabled:cursor-not-allowed disabled:opacity-30"
+                  aria-label="Retirer une etape"
+                >
+                  <Trash2 size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={onAddWorkMethodStep}
+                  disabled={section.fields.steps.length >= 6}
+                  className="flex h-7 w-7 items-center justify-center rounded-[8px] text-[#666666] hover:bg-[#f3f3f3] disabled:cursor-not-allowed disabled:opacity-30"
+                  aria-label="Ajouter une etape"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+            ) : (section.type === "service-areas" && group.category === "Zones") ||
+              (section.type === "testimonials" &&
+                (group.category === "Avis clients" || group.category === "Images")) ||
+              (section.type === "blog-advice" && group.category === "Articles") ||
+              (section.type === "faq" && group.category === "Questions") ? (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => onRemoveRepeatableItem(group.category)}
+                  className="flex h-7 w-7 items-center justify-center rounded-[8px] text-[#666666] hover:bg-[#f3f3f3]"
+                  aria-label={`Retirer ${group.category}`}
+                >
+                  <Trash2 size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onAddRepeatableItem(group.category)}
+                  className="flex h-7 w-7 items-center justify-center rounded-[8px] text-[#666666] hover:bg-[#f3f3f3]"
+                  aria-label={`Ajouter ${group.category}`}
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
             ) : null}
           </div>
 
@@ -1546,6 +2340,7 @@ function SectionEditor({
             {group.paths.map((path) => {
               const value = readAtPath(section.fields, path);
               const inputValue = typeof value === "string" ? value : "";
+              const booleanToggle = path[path.length - 1] === "compareEnabled";
               const multiline = inputValue.length > 74;
 
               return (
@@ -1556,7 +2351,32 @@ function SectionEditor({
                   <span className="pt-2.5 text-[12px] font-medium leading-4 text-[#666666]">
                     {pathLabel(path)}
                   </span>
-                  {multiline ? (
+                  {booleanToggle ? (
+                    <div className="flex h-10 rounded-[10px] bg-[#f3f3f3] p-1 text-[12px] font-semibold">
+                      {[
+                        { label: "Oui", value: "oui" },
+                        { label: "Non", value: "non" },
+                      ].map((option) => {
+                        const active =
+                          inputValue.trim().toLowerCase() === option.value;
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => onChange(path, option.value)}
+                            className={`flex flex-1 items-center justify-center rounded-[8px] transition ${
+                              active
+                                ? "bg-white text-[#007aff] shadow-[0_1px_3px_rgba(0,0,0,0.16),0_1px_1px_rgba(0,0,0,0.08)]"
+                                : "text-[#8c8c8c]"
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : multiline ? (
                     <textarea
                       value={inputValue}
                       onChange={(event) => onChange(path, event.target.value)}

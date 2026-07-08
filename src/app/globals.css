@@ -116,6 +116,19 @@ body {
   background: rgba(255, 255, 255, 0.18);
 }
 
+.site-cta-inverted {
+  background: #00d494;
+  border: 1px solid #092528;
+  box-shadow:
+    0 101px 40px rgba(0, 0, 0, 0.01),
+    0 57px 34px rgba(0, 0, 0, 0.05),
+    0 25px 25px rgba(0, 0, 0, 0.09),
+    0 6px 14px rgba(0, 0, 0, 0.1),
+    inset 0 2px 0 rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(3.7px);
+  text-shadow: 0 1px 0.7px rgba(0, 0, 0, 0.11);
+}
+
 .cta-roll {
   display: inline-flex;
   align-items: center;
@@ -218,6 +231,17 @@ body {
 
 .service-explore-cta:hover {
   background: rgba(255, 255, 255, 0.92);
+}
+
+.recent-projects-section:has(.recent-projects-tabs label:nth-child(1) input:checked) .city-panel-0,
+.recent-projects-section:has(.recent-projects-tabs label:nth-child(2) input:checked) .city-panel-1,
+.recent-projects-section:has(.recent-projects-tabs label:nth-child(3) input:checked) .city-panel-2,
+.recent-projects-section:has(.recent-projects-tabs label:nth-child(4) input:checked) .city-panel-3,
+.recent-projects-section:has(.recent-projects-tabs label:nth-child(5) input:checked) .city-panel-4,
+.recent-projects-section:has(.recent-projects-tabs label:nth-child(6) input:checked) .city-panel-5,
+.recent-projects-section:has(.recent-projects-tabs label:nth-child(7) input:checked) .city-panel-6,
+.recent-projects-section:has(.recent-projects-tabs label:nth-child(8) input:checked) .city-panel-7 {
+  display: contents;
 }
 
 .social-proof-divider {
@@ -458,6 +482,10 @@ body {
     border-top: 1px solid rgba(255, 255, 255, 0.2);
     padding-top: 32px;
   }
+
+  .recent-projects-section {
+    --project-card-height: min(var(--project-card-height), 430px);
+  }
 }
 
 .site-viewport-tablet .typo-h1 {
@@ -586,6 +614,11 @@ body {
 
 .site-viewport-phone .hero-cta-group .site-cta {
   width: 100%;
+}
+
+.site-viewport-tablet .recent-projects-section,
+.site-viewport-phone .recent-projects-section {
+  --project-card-height: min(var(--project-card-height), 430px);
 }
 
 .builder-canvas {
