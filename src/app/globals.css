@@ -16,6 +16,10 @@
   --font-serif: "New York", Georgia, serif;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -27,6 +31,33 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.hub-carousel-scroll {
+  scrollbar-width: none;
+}
+
+.hub-carousel-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes services-hub-ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.services-hub-ticker {
+  animation: services-hub-ticker 32s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .services-hub-ticker {
+    animation-play-state: paused;
+  }
 }
 
 .font-serif {
@@ -244,6 +275,17 @@ body {
   display: contents;
 }
 
+.realisations-page-section:has(.realisations-city-tabs label:nth-child(1) input:checked) .realisations-city-panel-0,
+.realisations-page-section:has(.realisations-city-tabs label:nth-child(2) input:checked) .realisations-city-panel-1,
+.realisations-page-section:has(.realisations-city-tabs label:nth-child(3) input:checked) .realisations-city-panel-2,
+.realisations-page-section:has(.realisations-city-tabs label:nth-child(4) input:checked) .realisations-city-panel-3,
+.realisations-page-section:has(.realisations-city-tabs label:nth-child(5) input:checked) .realisations-city-panel-4,
+.realisations-page-section:has(.realisations-city-tabs label:nth-child(6) input:checked) .realisations-city-panel-5,
+.realisations-page-section:has(.realisations-city-tabs label:nth-child(7) input:checked) .realisations-city-panel-6,
+.realisations-page-section:has(.realisations-city-tabs label:nth-child(8) input:checked) .realisations-city-panel-7 {
+  display: grid;
+}
+
 .social-proof-divider {
   border-left: 1px solid rgba(255, 255, 255, 0.2);
 }
@@ -259,6 +301,69 @@ body {
   text-shadow:
     0.2px 0 #f6bb06,
     -0.2px 0 #f6bb06;
+}
+
+.sector-image-track {
+  animation: sector-image-ticker 38s linear infinite;
+}
+
+.sector-image-track:hover {
+  animation-play-state: paused;
+}
+
+.realisations-ticker-column {
+  animation: realisations-ticker-up 30s linear infinite;
+}
+
+.realisations-ticker-column:hover {
+  animation-play-state: paused;
+}
+
+.realisations-ticker-column:nth-child(2n) {
+  animation-duration: 36s;
+}
+
+.realisations-ticker-column:nth-child(3n) {
+  animation-duration: 42s;
+}
+
+@keyframes sector-image-ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes realisations-ticker-up {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes realisation-progress-fill {
+  from {
+    opacity: 1;
+    transform: scaleX(0);
+  }
+  98% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  to {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+.realisation-progress-bar {
+  animation-name: realisation-progress-fill;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
 }
 
 .typo-h1,

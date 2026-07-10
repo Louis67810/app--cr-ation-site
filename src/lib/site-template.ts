@@ -104,12 +104,328 @@ export type TestimonialsFields = {
 export type BlogAdviceFields = {
   title: string;
   cta: Cta;
-  posts: Array<{
+  posts: BlogPost[];
+};
+
+export type BlogPost = {
+  title: string;
+  excerpt: string;
+  category: string;
+  imageUrl: string;
+  href: string;
+  date: string;
+};
+
+export type ArticleBlock =
+  | {
+      kind: "paragraph";
+      text: string;
+    }
+  | {
+      kind: "heading";
+      level: "h2" | "h3";
+      text: string;
+    }
+  | {
+      kind: "image";
+      imageUrl: string;
+      alt: string;
+    }
+  | {
+      kind: "callout";
+      text: string;
+    }
+  | {
+      kind: "table";
+      title: string;
+      columns: string[];
+      rows: string[][];
+    }
+  | {
+      kind: "cards";
+      cards: Array<{
+        title: string;
+        text: string;
+      }>;
+    }
+  | {
+      kind: "link";
+      text: string;
+      label: string;
+      href: string;
+    }
+  | {
+      kind: "quiz";
+      quizId: string;
+    };
+
+export type ReusableQuiz = {
+  id: string;
+  name: string;
+  title: string;
+  subtitle: string;
+  questions: Array<{
+    question: string;
+    options: string[];
+  }>;
+  nextLabel: string;
+  resultTitle: string;
+  resultText: string;
+  cta: Cta;
+};
+
+export type LeadQualifier = {
+  title: string;
+  submitLabel: string;
+  successTitle: string;
+  successText: string;
+  steps: Array<{
+    id: string;
     title: string;
-    excerpt: string;
+    options: Array<{
+      label: string;
+      value: string;
+      imageSlotLabel: string;
+      imageUrl: string;
+      nextStepId?: string;
+    }>;
+  }>;
+  sideImageUrl: string;
+  sideImageAlt: string;
+  form: {
+    title: string;
+    fields: Array<{
+      label: string;
+      type: string;
+    }>;
+  };
+};
+
+export type ArticleDetailFields = {
+  breadcrumbs: NavigationItem[];
+  title: string;
+  subtitle: string;
+  primaryCta: Cta;
+  secondaryCta: Cta;
+  heroImageUrl: string;
+  heroImageAlt: string;
+  readingTime: string;
+  updatedLabel: string;
+  updatedAt: string;
+  tocTitle: string;
+  sidebarCtaTitle: string;
+  sidebarCta: Cta;
+  socialProof: ReviewProof;
+  blocks: ArticleBlock[];
+  quizzes: ReusableQuiz[];
+  leadQualifier: LeadQualifier;
+  relatedTitle: string;
+  relatedPosts: BlogPost[];
+};
+
+export type SectorHeroFields = {
+  title: string;
+  subtitle: string;
+  cta: Cta;
+  tickerImages: Array<{
+    imageUrl: string;
+    alt: string;
+  }>;
+};
+
+export type SectorServicesFields = {
+  title: string;
+  cta: Cta;
+  services: Array<{
+    icon: string;
+    title: string;
+    description: string;
+  }>;
+};
+
+export type SectorBenefitsFields = {
+  title: string;
+  subtitle: string;
+  cards: Array<{
+    imageUrl: string;
+    title: string;
+    description: string;
+  }>;
+};
+
+export type SectorExtraServicesFields = {
+  title: string;
+  cta: Cta;
+  services: Array<{
+    imageUrl: string;
+    title: string;
+    description: string;
+    href: string;
+  }>;
+};
+
+export type AboutHeroFields = {
+  title: string;
+  subtitle: string;
+  primaryCta: Cta;
+  secondaryCta: Cta;
+  imageUrl: string;
+  imageAlt: string;
+};
+
+export type AboutStoryFields = {
+  imageUrl: string;
+  imageAlt: string;
+  title: string;
+  description: string;
+  highlights: Array<{
+    icon: string;
+    title: string;
+    description: string;
+  }>;
+};
+
+export type HubService = {
+  title: string;
+  description: string;
+  imageUrl: string;
+  href: string;
+};
+
+export type ServicesHubHeroFields = {
+  backgroundImageUrl: string;
+  title: string;
+  subtitle: string;
+  cta: Cta;
+  socialProof: ReviewProof;
+  services: HubService[];
+};
+
+export type ServicesHubBentoFields = {
+  title: string;
+  subtitle: string;
+  services: HubService[];
+};
+
+export type ServicesHubReviewsFields = {
+  title: string;
+  subtitle: string;
+  reviews: Array<{
+    text: string;
+    author: string;
+    city: string;
+    avatarUrl: string;
+    projectTitle: string;
+    projectHref: string;
+    projectImageUrl: string;
+  }>;
+};
+
+export type RealisationsPageFields = {
+  title: string;
+  subtitle: string;
+  cta: Cta;
+  heroImages: Array<{
+    imageUrl: string;
+    alt: string;
+  }>;
+  listTitle: string;
+  filters: string[];
+  cardCtaLabel: string;
+  projects: Array<{
+    city: string;
     category: string;
     imageUrl: string;
+    alt: string;
+    title: string;
     href: string;
+  }>;
+};
+
+export type RealisationDetailBlock =
+  | {
+      kind: "heading";
+      text: string;
+    }
+  | {
+      kind: "paragraph";
+      text: string;
+    }
+  | {
+      kind: "image";
+      imageUrl: string;
+      alt: string;
+    }
+  | {
+      kind: "bento";
+      images: Array<{
+        imageUrl: string;
+        alt: string;
+      }>;
+    }
+  | {
+      kind: "cards";
+      cards: Array<{
+        title: string;
+        text: string;
+        icon?: string;
+      }>;
+    }
+  | {
+      kind: "before-after";
+      title: string;
+      beforeImageUrl: string;
+      afterImageUrl: string;
+      alt: string;
+    };
+
+export type RealisationDetailFields = {
+  breadcrumbs: NavigationItem[];
+  title: string;
+  subtitle: string;
+  primaryCta: Cta;
+  secondaryCta: Cta;
+  heroImageUrl: string;
+  heroImageAlt: string;
+  beforeAfterTitle: string;
+  beforeAfterSlides: Array<{
+    label: string;
+    beforeImageUrl: string;
+    afterImageUrl: string;
+    alt: string;
+  }>;
+  tocTitle: string;
+  testimonial: {
+    text: string;
+    authorName: string;
+    authorRole: string;
+    avatarUrl: string;
+  };
+  blocks: RealisationDetailBlock[];
+  relatedTitle: string;
+  relatedFilters: string[];
+  relatedCardCtaLabel: string;
+  relatedProjects: RealisationsPageFields["projects"];
+};
+
+export type BlogIndexFields = {
+  title: string;
+  searchPlaceholder: string;
+  loadMoreLabel: string;
+  posts: BlogPost[];
+};
+
+export type ContactSectionFields = {
+  title: string;
+  subtitle: string;
+  cta: Cta;
+  backgroundImageUrl: string;
+  formTitle: string;
+  submitLabel: string;
+  socialProof: ReviewProof;
+  fields: Array<{
+    label: string;
+    type: string;
   }>;
 };
 
@@ -153,7 +469,7 @@ export type SectionInstance =
   | {
       id: string;
       type: "site-header";
-      variant: "glass-a";
+      variant: "glass-a" | "light-a";
       fields: SiteHeaderGlassFields;
     }
   | {
@@ -206,9 +522,99 @@ export type SectionInstance =
     }
   | {
       id: string;
+      type: "testimonials";
+      variant: "projects-a";
+      fields: ServicesHubReviewsFields;
+    }
+  | {
+      id: string;
       type: "blog-advice";
       variant: "posts-a";
       fields: BlogAdviceFields;
+    }
+  | {
+      id: string;
+      type: "blog-index";
+      variant: "grid-a";
+      fields: BlogIndexFields;
+    }
+  | {
+      id: string;
+      type: "article-detail";
+      variant: "seo-a";
+      fields: ArticleDetailFields;
+    }
+  | {
+      id: string;
+      type: "sector-hero";
+      variant: "ticker-a";
+      fields: SectorHeroFields;
+    }
+  | {
+      id: string;
+      type: "sector-services";
+      variant: "cards-a";
+      fields: SectorServicesFields;
+    }
+  | {
+      id: string;
+      type: "sector-benefits";
+      variant: "image-cards-a";
+      fields: SectorBenefitsFields;
+    }
+  | {
+      id: string;
+      type: "lead-qualifier";
+      variant: "quiz-a";
+      fields: LeadQualifier;
+    }
+  | {
+      id: string;
+      type: "sector-extra-services";
+      variant: "cards-a";
+      fields: SectorExtraServicesFields;
+    }
+  | {
+      id: string;
+      type: "about-hero";
+      variant: "overlap-a";
+      fields: AboutHeroFields;
+    }
+  | {
+      id: string;
+      type: "about-story";
+      variant: "family-a";
+      fields: AboutStoryFields;
+    }
+  | {
+      id: string;
+      type: "services-hub-hero";
+      variant: "ticker-a";
+      fields: ServicesHubHeroFields;
+    }
+  | {
+      id: string;
+      type: "services-hub-bento";
+      variant: "generator-a";
+      fields: ServicesHubBentoFields;
+    }
+  | {
+      id: string;
+      type: "realisations-page";
+      variant: "index-a";
+      fields: RealisationsPageFields;
+    }
+  | {
+      id: string;
+      type: "realisation-detail";
+      variant: "case-study-a";
+      fields: RealisationDetailFields;
+    }
+  | {
+      id: string;
+      type: "contact-section";
+      variant: "form-a" | "page-a";
+      fields: ContactSectionFields;
     }
   | {
       id: string;

@@ -1,0 +1,87 @@
+"use client";
+
+import { useState } from "react";
+
+function FieldVisualLabel({
+  label,
+  tone = "dark",
+}: {
+  label: string;
+  tone?: "dark" | "light";
+}) {
+  const required = label.includes("*");
+  const cleanLabel = label.replace("*", "").trimEnd();
+  const textClass = tone === "light" ? "text-white" : "text-black";
+
+  return (
+    <span
+      className={`pointer-events-none absolute left-5 top-4 text-[14px] font-bold leading-[25px] transition-opacity peer-focus:opacity-0 peer-[:not(:placeholder-shown)]:opacity-0 ${textClass}`}
+    >
+      {cleanLabel}
+      {required ? <span className="text-[#E73E13]">*</span> : null}
+    </span>
+  );
+}
+
+export function ContactFormSection({
+  fields,
+  submitLabel,
+  size = "default",
+}: {
+  fields: Array<{ label: string; type: string }>;
+  submitLabel: string;
+  size?: "default" | "large";
+}) {
+  const [submitted, setSubmitted] = useState(false);
+
+  return (
+    <form
+      className="grid gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setSubmitted(true);
+      }}
+    >
+      {fields.map((field, index) => {
+        const textarea = field.type === "textarea";
+        const className = `w-full rounded-lg border border-white/[0.08] bg-white/[0.05] px-5 py-4 font-semibold leading-[25px] text-white outline-none placeholder:text-white focus:border-white/20 ${
+          size === "large" ? "text-[16px]" : "text-[14px]"
+        }`;
+
+        return textarea ? (
+          <label key={`${field.label}-${index}`} className="relative block">
+            <textarea
+              aria-label={field.label}
+              required={field.label.includes("*")}
+              placeholder=" "
+              className={`${className} peer min-h-[117px] resize-y`}
+            />
+            <FieldVisualLabel label={field.label} tone="light" />
+          </label>
+        ) : (
+          <label key={`${field.label}-${index}`} className="relative block">
+            <input
+              aria-label={field.label}
+              required={field.label.includes("*")}
+              type={field.type || "text"}
+              placeholder=" "
+              className={`${className} peer`}
+            />
+            <FieldVisualLabel label={field.label} tone="light" />
+          </label>
+        );
+      })}
+      <button
+        type="submit"
+        className="site-cta site-cta-primary cta-roll mt-5 w-full rounded-full text-[#00d494]"
+      >
+        {submitLabel}
+      </button>
+      {submitted ? (
+        <p className="typo-body-small text-white/72">
+          Merci, votre demande a bien ete prise en compte.
+        </p>
+      ) : null}
+    </form>
+  );
+}
