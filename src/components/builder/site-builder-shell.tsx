@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { renderSection } from "@/components/site-sections";
 import type { ArticleBlock, SectionInstance, SitePage } from "@/lib/site-template";
 
@@ -2245,6 +2246,7 @@ export function SiteBuilderShell({
     >
       <TopBar
         projectName={projectName}
+        projectKey={projectKey}
         publishStatus={publishStatus}
         onPublish={publishSite}
         onPreview={() => openPreview()}
@@ -2354,11 +2356,13 @@ export function SiteBuilderShell({
 
 function TopBar({
   projectName,
+  projectKey,
   onPreview,
   onPublish,
   publishStatus,
 }: {
   projectName: string;
+  projectKey: string;
   onPreview: () => void;
   onPublish: () => void;
   publishStatus: PublishStatus;
@@ -2366,8 +2370,8 @@ function TopBar({
   return (
     <header className="col-span-5 grid grid-cols-[1fr_auto_1fr] items-center border-b border-[#e8e8e8] bg-white px-3">
       <div className="flex items-center gap-2">
-        <button
-          type="button"
+        <Link
+          href={`/dashboard?project=${encodeURIComponent(projectKey)}`}
           className="flex h-8 items-center gap-2 rounded-[8px] bg-white px-2 text-[12px] font-semibold text-[#222222] shadow-[0_1px_2px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.08)]"
           aria-label="Retour au dashboard"
         >
@@ -2375,7 +2379,7 @@ function TopBar({
             <ArrowLeft size={13} />
           </span>
           Retour
-        </button>
+        </Link>
       </div>
 
       <div className="text-center text-[12px] font-semibold text-[#1f1f1f]">

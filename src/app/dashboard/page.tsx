@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ project?: string }>;
+  searchParams: Promise<{ project?: string; tab?: string }>;
 }) {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getClaims();
@@ -47,8 +47,12 @@ export default async function DashboardPage({
     });
   }
 
-  const requestedKey = normalizeProjectKey((await searchParams).project);
+  const resolvedSearchParams = await searchParams;
+  const requestedKey = normalizeProjectKey(resolvedSearchParams.project);
   const selected = projects.find((project) => project.key === requestedKey) ?? projects[0];
+  const activeTab = ["overview", "traffic", "pages"].includes(resolvedSearchParams.tab ?? "")
+    ? (resolvedSearchParams.tab as "overview" | "traffic" | "pages")
+    : "overview";
 
-  return <DashboardShell projects={projects} selectedKey={selected.key} />;
+  return <DashboardShell projects={projects} selectedKey={selected.key} activeTab={activeTab} />;
 }
