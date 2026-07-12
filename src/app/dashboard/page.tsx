@@ -50,8 +50,8 @@ export default async function DashboardPage({
   const resolvedSearchParams = await searchParams;
   const requestedKey = normalizeProjectKey(resolvedSearchParams.project);
   const selected = projects.find((project) => project.key === requestedKey) ?? projects[0];
-  const activeTab = ["overview", "traffic", "pages"].includes(resolvedSearchParams.tab ?? "")
-    ? (resolvedSearchParams.tab as "overview" | "traffic" | "pages")
+  const activeTab = ["overview", "traffic", "pages", "cms"].includes(resolvedSearchParams.tab ?? "")
+    ? (resolvedSearchParams.tab as "overview" | "traffic" | "pages" | "cms")
     : "overview";
 
   return <DashboardShell projects={projects} selectedKey={selected.key} activeTab={activeTab} />;

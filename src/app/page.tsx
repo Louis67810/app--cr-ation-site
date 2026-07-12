@@ -1,12 +1,5 @@
-import { renderSection } from "@/components/site-sections";
-import { demoHomePage } from "@/lib/demo-site";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return (
-    <main className="min-h-screen bg-white text-[#0f1112]">
-      {demoHomePage.sections.map((section) => (
-        <div key={section.id}>{renderSection(section)}</div>
-      ))}
-    </main>
-  );
+  redirect("/dashboard");
 }
