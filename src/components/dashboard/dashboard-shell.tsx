@@ -118,6 +118,10 @@ export function DashboardShell({
     }
   }
 
+  if (activeTab === "cms") {
+    return <CmsEditor project={project} />;
+  }
+
   return (
     <main className="min-h-screen bg-white text-[#1c1c1c] lg:grid lg:grid-cols-[212px_1fr]">
       <aside className="border-b border-black/10 bg-[#fcf9f4] px-4 py-4 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
@@ -154,7 +158,7 @@ export function DashboardShell({
             <Link href={tabHref("overview")} className={`${activeTab === "overview" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Home size={18} />Vue d’ensemble</Link>
             <Link href={tabHref("traffic")} className={`${activeTab === "traffic" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><BarChart3 size={18} />Statistiques</Link>
             <Link href={tabHref("pages")} className={`${activeTab === "pages" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><FolderKanban size={18} />Pages du site</Link>
-            <Link href={tabHref("cms")} className={`${activeTab === "cms" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Database size={18} />CMS</Link>
+            <Link href={tabHref("cms")} className="flex h-8 items-center gap-3 rounded-lg px-3 pl-9 hover:bg-black/5"><Database size={18} />CMS</Link>
           </div>
         </nav>
       </aside>
@@ -162,12 +166,12 @@ export function DashboardShell({
       <section className="min-w-0 px-5 py-8 sm:px-8 lg:px-10 lg:py-11 xl:px-12">
         <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="font-serif text-[30px] tracking-[-0.05em]">{activeTab === "cms" ? "CMS du site" : activeTab === "pages" ? "Pages du site" : activeTab === "traffic" ? "Statistiques et trafic" : "Bonjour, voici votre site"}</h1>
-            <p className="mt-2 text-[14px] font-medium text-black/60">{activeTab === "cms" ? `Modifiez et publiez tout le contenu de ${project.name}.` : activeTab === "pages" ? `Gérez toutes les pages de ${project.name}.` : activeTab === "traffic" ? `Suivez les indicateurs disponibles pour ${project.name}.` : `Suivez le contenu, le trafic et la publication de ${project.name}.`}</p>
+            <h1 className="font-serif text-[30px] tracking-[-0.05em]">{activeTab === "pages" ? "Pages du site" : activeTab === "traffic" ? "Statistiques et trafic" : "Bonjour, voici votre site"}</h1>
+            <p className="mt-2 text-[14px] font-medium text-black/60">{activeTab === "pages" ? `Gérez toutes les pages de ${project.name}.` : activeTab === "traffic" ? `Suivez les indicateurs disponibles pour ${project.name}.` : `Suivez le contenu, le trafic et la publication de ${project.name}.`}</p>
           </div>
-          {activeTab !== "cms" ? <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="flex h-9 items-center justify-center gap-2 rounded-[10px] bg-gradient-to-b from-[#323232] to-[#222] px-5 text-[14px] font-semibold text-white shadow-md">
+          <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="flex h-9 items-center justify-center gap-2 rounded-[10px] bg-gradient-to-b from-[#323232] to-[#222] px-5 text-[14px] font-semibold text-white shadow-md">
             <PencilLine size={15} />Nouvelle modification
-          </Link> : null}
+          </Link>
         </header>
 
         {activeTab === "pages" ? <div className="mt-8 flex max-w-[633px] items-center gap-2 rounded-[10px] border border-[#d7dce4] px-3 py-2.5 focus-within:border-black/40">
@@ -247,8 +251,6 @@ export function DashboardShell({
             </div>
           </section>
         ) : null}
-
-        {activeTab === "cms" ? <CmsEditor project={project} /> : null}
 
         {activeTab === "pages" ? <section id="pages" className="mt-10 pb-12">
           <div className="flex items-end justify-between"><div><h2 className="font-serif text-[25px]">Pages du site</h2><p className="mt-1 text-[13px] text-black/45">{filteredPages.length} résultat(s) pour ce projet</p></div><Clock3 size={18} className="text-black/30" /></div>
