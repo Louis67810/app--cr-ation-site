@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { slugifyProjectName } from "@/lib/local-publications";
 import { createClient } from "@/lib/supabase/server";
 import type { SitePage } from "@/lib/site-template";
+import { normalizeProjectKey } from "@/lib/project-key";
 
 export async function POST(request: Request) {
   try {
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
 
     const payload = (await request.json()) as {
       projectName?: string;
+      projectKey?: string;
       pages?: SitePage[];
     };
 
@@ -31,11 +33,12 @@ export async function POST(request: Request) {
     }
 
     const publishedAt = new Date().toISOString();
-    const publishedSlug = `${slugifyProjectName(payload.projectName)}-${ownerId.slice(0, 8)}`;
+    const projectKey = normalizeProjectKey(payload.projectKey);
+    const publishedSlug = `${slugifyProjectName(payload.projectName)}-${ownerId.slice(0, 8)}${projectKey === "default" ? "" : `-${projectKey}`}`;
     const { error } = await supabase.from("site_projects").upsert(
       {
         owner_id: ownerId,
-        project_key: "default",
+        project_key: projectKey,
         project_name: payload.projectName.trim(),
         pages: payload.pages,
         published_slug: publishedSlug,

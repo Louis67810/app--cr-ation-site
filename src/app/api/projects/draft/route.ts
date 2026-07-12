@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { SitePage } from "@/lib/site-template";
+import { normalizeProjectKey } from "@/lib/project-key";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -13,6 +14,7 @@ export async function POST(request: Request) {
 
   const payload = (await request.json()) as {
     projectName?: string;
+    projectKey?: string;
     pages?: SitePage[];
   };
 
@@ -23,7 +25,7 @@ export async function POST(request: Request) {
   const { error } = await supabase.from("site_projects").upsert(
     {
       owner_id: ownerId,
-      project_key: "default",
+      project_key: normalizeProjectKey(payload.projectKey),
       project_name: payload.projectName,
       pages: payload.pages,
       updated_at: new Date().toISOString(),

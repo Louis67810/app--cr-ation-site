@@ -6,7 +6,7 @@ export default async function LoginPage() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
 
-  if (data?.claims?.sub) redirect("/builder");
+  if (data?.claims?.sub) redirect("/dashboard");
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#001c23] px-5 py-16 font-[var(--font-inter)]">

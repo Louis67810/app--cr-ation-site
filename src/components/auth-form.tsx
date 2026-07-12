@@ -42,7 +42,7 @@ export function AuthForm() {
       return;
     }
 
-    router.push("/builder");
+    router.push("/dashboard");
     router.refresh();
   }
 
