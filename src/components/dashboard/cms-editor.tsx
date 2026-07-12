@@ -9,7 +9,6 @@ import {
   LoaderCircle,
   Play,
   Search,
-  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -30,6 +29,22 @@ const collections = [
 ] as const;
 
 const hiddenKeys = new Set(["id", "type", "variant"]);
+const sectionOwners: Record<string, string> = {
+  "recent-projects": "realisations",
+  "realisations-page": "realisations",
+  "realisation-detail": "realisations",
+  "blog-advice": "articles",
+  "blog-index": "articles",
+  "article-detail": "articles",
+  services: "prestations",
+  "services-centered": "prestations",
+  "services-hub-hero": "prestations",
+  "services-hub-bento": "prestations",
+  "sector-hero": "secteurs",
+  "sector-services": "secteurs",
+  "sector-benefits": "secteurs",
+  "sector-extra-services": "secteurs",
+};
 const humanize = (value: string) => value.replace(/([A-Z])/g, " $1").replace(/[-_]/g, " ").replace(/^./, (letter) => letter.toUpperCase());
 const isImage = (key: string) => /image|avatar|photo|logo/i.test(key);
 
@@ -60,6 +75,12 @@ function cellWidth(column: ContentColumn) {
   return column.image ? "110px" : /text|description|subtitle|excerpt|message/i.test(column.key) ? "280px" : "190px";
 }
 
+function isEditableSection(section: SitePage["sections"][number], collectionId: string) {
+  if (section.type === "site-header" || section.type === "site-footer") return false;
+  const owner = sectionOwners[section.type];
+  return collectionId === "all" || !owner || owner === collectionId;
+}
+
 export function CmsEditor({ project }: { project: CmsProject }) {
   const [pages, setPages] = useState(project.pages);
   const [collectionId, setCollectionId] = useState("all");
@@ -74,9 +95,11 @@ export function CmsEditor({ project }: { project: CmsProject }) {
     return rows.flatMap((page) => [
       { key: "title", label: "Titre", path: ["title"], image: false },
       { key: "slug", label: "Slug", path: ["slug"], image: false },
-      ...collectColumns(page.sections as unknown as JsonValue, ["sections"], []),
+      ...page.sections.flatMap((section, index) => isEditableSection(section, collectionId)
+        ? collectColumns(section as unknown as JsonValue, ["sections", index], [humanize(section.type)])
+        : []),
     ]).filter((column) => !seen.has(column.key) && Boolean(seen.add(column.key)));
-  }, [rows]);
+  }, [collectionId, rows]);
 
   function updateCell(pageId: string, path: Path, value: JsonValue) {
     setPages((current) => current.map((page) => page.id === pageId ? setAtPath(page, path, value) : page));
@@ -106,11 +129,7 @@ export function CmsEditor({ project }: { project: CmsProject }) {
   }
 
   return (
-    <main className="grid min-h-screen grid-cols-[124px_minmax(0,1fr)] bg-[#303030] p-[14px_22px_20px_29px] font-[var(--font-inter)] text-[#1c1c1c]">
-      <aside className="bg-[#fcf9f4] px-3 py-4">
-        <Link href={`/dashboard?project=${encodeURIComponent(project.key)}`} className="flex items-center gap-1.5 text-[11px] font-semibold"><span className="grid size-4 place-items-center rounded-full bg-black text-white"><Sparkles size={9} /></span>Atelier</Link>
-      </aside>
-      <section className="min-w-0 bg-white">
+    <section className="min-h-screen min-w-0 bg-white font-[var(--font-inter)] text-[#1c1c1c]">
         <header className="grid h-11 grid-cols-[1fr_auto_1fr] items-center border-b border-black/[0.07] px-4">
           <Link href={`/dashboard?project=${encodeURIComponent(project.key)}`} className="flex h-6 w-fit items-center gap-2 rounded-[4px] border border-black/10 px-3 text-[9px] shadow-sm"><ArrowLeft size={11} />retour</Link>
           <div className="relative">
@@ -130,7 +149,6 @@ export function CmsEditor({ project }: { project: CmsProject }) {
           </table>
           {rows.length === 0 ? <div className="grid h-48 place-items-center text-[11px] text-black/35">Aucune entrée dans cette collection.</div> : null}
         </div>
-      </section>
-    </main>
+    </section>
   );
 }
