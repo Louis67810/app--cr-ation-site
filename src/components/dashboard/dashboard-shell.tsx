@@ -167,7 +167,7 @@ function ProjectPreviewCard({ project }: { project: DashboardProject }) {
       {previews.map((page, index) => {
         const url = previewUrl(page);
         const placement = index === 0 ? "-left-[210px] top-[172px] z-[1]" : index === 1 ? "left-[82px] top-[48px] z-10 shadow-[-54px_218px_90px_rgba(0,0,0,.01),-30px_122px_76px_rgba(0,0,0,.05),-13px_54px_56px_rgba(0,0,0,.09),-3px_14px_31px_rgba(0,0,0,.10)]" : "left-[420px] top-[112px] z-[2]";
-        return <div key={`${page?.id ?? "fallback"}-${index}`} className={`pointer-events-none absolute h-[365px] w-[396px] overflow-hidden rounded-[7px] bg-white transition-transform duration-500 group-hover:-translate-y-1 ${placement}`}><div className="h-[3466px] w-[1800px] origin-top-left [transform:skewX(14deg)_scale(.22)]">{url ? <iframe src={url} title={`Aperçu ${page?.title ?? project.name}`} tabIndex={-1} className="h-[3466px] w-[1800px] border-0 bg-white" /> : <div className="h-[3466px] w-[1800px] bg-[url('/dashboard-site-preview.png')] bg-[length:1800px_auto] bg-top bg-no-repeat" />}</div></div>;
+        return <div key={`${page?.id ?? "fallback"}-${index}`} className={`pointer-events-none absolute h-[365px] w-[396px] origin-top-left overflow-hidden rounded-[7px] bg-white [transform:skewX(14deg)] transition-transform duration-500 group-hover:[transform:skewX(14deg)_translateY(-4px)] ${placement}`}><div className="h-[3466px] w-[1800px] origin-top-left [transform:scale(.22)]">{url ? <iframe src={url} title={`Aperçu ${page?.title ?? project.name}`} tabIndex={-1} className="h-[3466px] w-[1800px] border-0 bg-white" /> : <div className="h-[3466px] w-[1800px] bg-[url('/dashboard-site-preview.png')] bg-[length:1800px_auto] bg-top bg-no-repeat" />}</div></div>;
       })}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] h-[138px] bg-gradient-to-b from-[rgba(250,250,250,.09)] to-[#fafafa]" />
       <span className="absolute bottom-[19px] left-[23px] z-20 flex h-[45px] items-center gap-3 rounded-[11px] border border-black/[0.06] bg-white px-4 text-[16px] tracking-[.01em] text-black/70 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md">Ouvrir le projet<ArrowUpRight size={22} /></span>
@@ -349,3 +349,4 @@ export function DashboardShell({
     </main>
   );
 }
+
