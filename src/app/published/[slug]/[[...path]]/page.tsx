@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { CSSProperties } from "react";
 import { renderSection } from "@/components/site-sections";
 import { getLocalPublication } from "@/lib/local-publications";
 import { createClient } from "@/lib/supabase/server";
@@ -37,10 +38,13 @@ function prefixPublishedLinks<T>(value: T, prefix: string, parentKey = ""): T {
 
 export default async function PublishedSitePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; path?: string[] }>;
+  searchParams: Promise<{ preview?: string }>;
 }) {
   const { slug, path } = await params;
+  const { preview } = await searchParams;
   const supabase = await createClient();
   const { data: remotePublication } = await supabase
     .from("site_projects")
@@ -71,10 +75,18 @@ export default async function PublishedSitePage({
   ) as SectionInstance[];
 
   return (
-    <main className="min-h-screen bg-white text-[#0f1112]">
+    <main
+      className="min-h-screen bg-white text-[#0f1112]"
+      style={
+        preview === "dashboard"
+          ? ({ "--site-hero-height": "855px" } as CSSProperties)
+          : undefined
+      }
+    >
       {sections.map((section) => (
         <div key={section.id}>{renderSection(section)}</div>
       ))}
     </main>
   );
 }
+
