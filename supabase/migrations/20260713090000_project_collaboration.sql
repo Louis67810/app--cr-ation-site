@@ -4,7 +4,7 @@ create table if not exists public.project_invitations (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references auth.users(id) on delete cascade,
   project_key text not null,
-  email text not null,
+  email text,
   token uuid not null unique default gen_random_uuid(),
   status text not null default 'pending' check (status in ('pending', 'accepted')),
   accepted_user_id uuid references auth.users(id) on delete set null,
@@ -27,6 +27,7 @@ create table if not exists public.project_members (
 
 alter table public.project_invitations enable row level security;
 alter table public.project_members enable row level security;
+alter table public.project_invitations alter column email drop not null;
 
 drop policy if exists "owners manage project invitations" on public.project_invitations;
 create policy "owners manage project invitations"
@@ -110,7 +111,7 @@ begin
     raise exception 'Invitation invalide ou déjà utilisée';
   end if;
 
-  if signed_in_email = '' or signed_in_email <> lower(invitation.email) then
+  if signed_in_email = '' or (invitation.email is not null and signed_in_email <> lower(invitation.email)) then
     raise exception 'Cette invitation ne correspond pas à ce compte';
   end if;
 
@@ -119,7 +120,7 @@ begin
   on conflict (owner_id, project_key, user_id) do nothing;
 
   update public.project_invitations
-  set status = 'accepted', accepted_user_id = auth.uid(), accepted_at = now()
+  set status = 'accepted', email = coalesce(invitation.email, signed_in_email), accepted_user_id = auth.uid(), accepted_at = now()
   where id = invitation.id;
 
   return query select invitation.owner_id, invitation.project_key;

@@ -8,8 +8,9 @@ import { createClient } from "@/lib/supabase/client";
 
 const inputClass = "h-[50px] w-full rounded-[8px] border border-black/[0.07] bg-[#f6f6f6] px-5 text-[14px] font-medium text-[#121a2e] outline-none placeholder:text-[#121a2e]/45 focus:border-black/20 disabled:text-[#121a2e]/50";
 
-export function InvitationSignupForm({ token, email, projectName }: { token: string; email: string; projectName: string }) {
+export function InvitationSignupForm({ token, invitedEmail, projectName }: { token: string; invitedEmail: string | null; projectName: string }) {
   const router = useRouter();
+  const [email, setEmail] = useState(invitedEmail ?? "");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [loading, setLoading] = useState(false);
@@ -70,7 +71,7 @@ export function InvitationSignupForm({ token, email, projectName }: { token: str
         <p className="mt-4 text-[16px] font-medium leading-8 tracking-[-0.01em] text-[#121a2e]/70">Créez votre compte pour rejoindre le projet « {projectName} ».</p>
       </div>
       <form onSubmit={submit} className="grid gap-8">
-        <label className="grid gap-2.5 font-serif text-[24px] leading-8 text-[#121a2e]">Email<input type="email" disabled value={email} className={inputClass} /></label>
+        <label className="grid gap-2.5 font-serif text-[24px] leading-8 text-[#121a2e]">Email<input type="email" required autoComplete="email" disabled={Boolean(invitedEmail)} value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} placeholder="votre@email.com" /></label>
         <label className="grid gap-2.5 font-serif text-[24px] leading-8 text-[#121a2e]">Mot de passe<input type="password" required minLength={8} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className={inputClass} placeholder="Minimum 8 caractères" /></label>
         <label className="grid gap-2.5 font-serif text-[24px] leading-8 text-[#121a2e]">Confirmation du mot de passe<input type="password" required minLength={8} autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} className={inputClass} placeholder="Répétez votre mot de passe" /></label>
         {message ? <p className="rounded-[8px] bg-[#f6f6f6] px-4 py-3 text-[13px] leading-5 text-[#121a2e]/70">{message}</p> : null}

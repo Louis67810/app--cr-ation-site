@@ -17,9 +17,9 @@ export async function POST(request: Request) {
     pages?: SitePage[];
     email?: string;
   };
-  const email = payload.email?.trim().toLowerCase();
+  const email = payload.email?.trim().toLowerCase() || null;
 
-  if (!payload.projectKey || !payload.projectName?.trim() || !Array.isArray(payload.pages) || !email || !/^\S+@\S+\.\S+$/.test(email)) {
+  if (!payload.projectKey || !payload.projectName?.trim() || !Array.isArray(payload.pages) || (email !== null && !/^\S+@\S+\.\S+$/.test(email))) {
     return NextResponse.json({ error: "Invitation invalide." }, { status: 400 });
   }
 

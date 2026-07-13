@@ -46,7 +46,7 @@ export type DashboardProject = {
 
 export type DashboardInvitation = {
   id: string;
-  email: string;
+  email: string | null;
   token: string;
   status: "pending" | "accepted";
   accepted_user_id: string | null;
