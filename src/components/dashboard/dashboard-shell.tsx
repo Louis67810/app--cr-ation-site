@@ -5,6 +5,7 @@ import {
   BarChart3,
   Check,
   ChevronDown,
+  ChevronsUpDown,
   CircleAlert,
   Clock3,
   Database,
@@ -16,10 +17,12 @@ import {
   LoaderCircle,
   PanelLeftClose,
   PencilLine,
+  Plus,
   Search,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SitePage } from "@/lib/site-template";
 import { CmsEditor } from "@/components/dashboard/cms-editor";
@@ -175,6 +178,86 @@ function ProjectPreviewCard({ project }: { project: DashboardProject }) {
   );
 }
 
+function ProjectTopbar({
+  projects,
+  project,
+  activeTab,
+}: {
+  projects: DashboardProject[];
+  project: DashboardProject;
+  activeTab: "overview" | "traffic" | "pages" | "cms";
+}) {
+  const router = useRouter();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [createError, setCreateError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    function closeMenu(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+        setCreating(false);
+      }
+    }
+
+    document.addEventListener("mousedown", closeMenu);
+    return () => document.removeEventListener("mousedown", closeMenu);
+  }, []);
+
+  async function createProject(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = projectName.trim();
+    if (!name) return;
+
+    setSubmitting(true);
+    setCreateError("");
+    const response = await fetch("/api/projects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const result = (await response.json()) as { projectKey?: string; error?: string };
+    setSubmitting(false);
+
+    if (!response.ok || !result.projectKey) {
+      setCreateError(result.error ?? "Création impossible.");
+      return;
+    }
+
+    setOpen(false);
+    router.push(`/dashboard?project=${encodeURIComponent(result.projectKey)}&tab=${activeTab}`);
+    router.refresh();
+  }
+
+  return (
+    <header className="col-span-full flex h-14 shrink-0 items-center border-b border-black/10 bg-white px-5 font-[var(--font-inter)]">
+      <div ref={menuRef} className="relative">
+        <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} className="flex h-10 max-w-[320px] items-center gap-3 rounded-[9px] px-1.5 text-[14px] font-semibold text-[#191919] hover:bg-black/[0.035]">
+          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-black text-white"><Sparkles size={10} /></span>
+          <span className="truncate">{project.name}</span>
+          <ChevronsUpDown size={15} className="shrink-0 text-black/55" />
+        </button>
+
+        {open ? <div className="absolute left-0 top-[calc(100%+7px)] z-[80] w-[280px] overflow-hidden rounded-[12px] border border-black/10 bg-white p-1.5 shadow-[0_18px_50px_rgba(0,0,0,.14)]">
+          <div className="max-h-60 overflow-y-auto">
+            {projects.map((item) => <Link key={item.key} href={`/dashboard?project=${encodeURIComponent(item.key)}&tab=${activeTab}`} onClick={() => setOpen(false)} className={`${item.key === project.key ? "bg-black/[0.055]" : "hover:bg-black/[0.035]"} flex h-10 items-center justify-between gap-3 rounded-[8px] px-3 text-[13px]`}><span className="truncate">{item.name}</span>{item.key === project.key ? <Check size={14} /> : null}</Link>)}
+          </div>
+          <div className="my-1.5 border-t border-black/[0.08]" />
+          {creating ? <form onSubmit={createProject} className="p-1.5">
+            <label htmlFor="new-project-name" className="text-[11px] font-medium text-black/55">Nom du nouveau projet</label>
+            <input id="new-project-name" autoFocus value={projectName} onChange={(event) => setProjectName(event.target.value)} maxLength={80} placeholder="Ex. Jardin Dupont" className="mt-2 h-9 w-full rounded-[8px] border border-black/10 px-3 text-[13px] outline-none focus:border-black/30" />
+            {createError ? <p className="mt-1.5 text-[11px] text-red-600">{createError}</p> : null}
+            <div className="mt-2 flex justify-end gap-2"><button type="button" onClick={() => setCreating(false)} className="h-8 px-2 text-[12px] text-black/50">Annuler</button><button type="submit" disabled={!projectName.trim() || submitting} className="h-8 rounded-[8px] bg-black px-3 text-[12px] font-semibold text-white disabled:opacity-40">{submitting ? "Création…" : "Créer"}</button></div>
+          </form> : <button type="button" onClick={() => { setCreating(true); setProjectName(""); setCreateError(""); }} className="flex h-10 w-full items-center gap-2 rounded-[8px] px-3 text-left text-[13px] font-medium hover:bg-black/[0.035]"><Plus size={15} />Créer un projet</button>}
+        </div> : null}
+      </div>
+    </header>
+  );
+}
+
 export function DashboardShell({
   projects,
   selectedKey,
@@ -220,8 +303,9 @@ export function DashboardShell({
   }
 
   return (
-    <main className={`${activeTab === "cms" ? "fixed inset-0 grid h-dvh grid-cols-[212px_minmax(0,1fr)] overflow-hidden" : "min-h-screen lg:grid lg:grid-cols-[212px_1fr]"} bg-white text-[#1c1c1c]`}>
-      <aside className={`${activeTab === "cms" ? "h-dvh overflow-hidden border-r" : "border-b lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r"} border-black/10 bg-[#fcf9f4] px-4 py-4`}>
+    <main className={`${activeTab === "cms" ? "fixed inset-0 grid h-dvh grid-cols-[212px_minmax(0,1fr)] grid-rows-[56px_minmax(0,1fr)] overflow-hidden" : "min-h-screen lg:grid lg:grid-cols-[212px_1fr]"} bg-white text-[#1c1c1c]`}>
+      <ProjectTopbar projects={projects} project={project} activeTab={activeTab} />
+      <aside className={`${activeTab === "cms" ? "row-start-2 h-full overflow-hidden border-r" : "border-b lg:sticky lg:top-14 lg:h-[calc(100vh-56px)] lg:border-b-0 lg:border-r"} border-black/10 bg-[#fcf9f4] px-4 py-4`}>
         <div className="flex h-12 items-center justify-between px-3">
           <Link href="/dashboard" className="flex items-center gap-2 font-serif text-[23px] tracking-[-0.05em]">
             <span className="grid size-7 place-items-center rounded-full bg-[#1c1c1c] text-white"><Sparkles size={14} /></span>
@@ -231,20 +315,7 @@ export function DashboardShell({
         </div>
 
         <div className="mt-8 px-3">
-          <p className="text-[12px] text-[#777]">Projet actif</p>
-          <div className="group relative mt-1">
-            <button className="flex w-full items-center justify-between font-serif text-[21px]" type="button">
-              <span className="max-w-[125px] truncate">{project.name}</span><ChevronDown size={15} />
-            </button>
-            <div className="invisible absolute left-0 top-full z-30 mt-2 w-44 rounded-xl border border-black/10 bg-white p-1 opacity-0 shadow-xl transition group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
-              {projects.map((item) => (
-                <Link key={item.key} href={`/dashboard?project=${encodeURIComponent(item.key)}`} className="block truncate rounded-lg px-3 py-2 text-[13px] hover:bg-black/5">
-                  {item.name}
-                </Link>
-              ))}
-            </div>
-          </div>
-          <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="mt-3 flex h-8 items-center justify-center rounded-md border border-[#d9d9d9] bg-white text-[12px] font-medium shadow-sm hover:bg-black/[0.03]">
+          <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="flex h-8 items-center justify-center rounded-md border border-[#d9d9d9] bg-white text-[12px] font-medium shadow-sm hover:bg-black/[0.03]">
             Ouvrir le projet
           </Link>
         </div>
@@ -260,7 +331,7 @@ export function DashboardShell({
         </nav>
       </aside>
 
-      <section className={activeTab === "cms" ? "h-dvh min-h-0 min-w-0 overflow-hidden" : "min-w-0 px-5 py-8 sm:px-8 lg:px-10 lg:py-11 xl:px-12"}>
+      <section className={activeTab === "cms" ? "row-start-2 h-full min-h-0 min-w-0 overflow-hidden" : "min-w-0 px-5 py-8 sm:px-8 lg:px-10 lg:py-11 xl:px-12"}>
         {activeTab === "cms" ? <CmsEditor project={project} /> : <>
         <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
