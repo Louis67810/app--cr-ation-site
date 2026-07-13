@@ -20,7 +20,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SitePage } from "@/lib/site-template";
 import { CmsEditor } from "@/components/dashboard/cms-editor";
 
@@ -72,6 +72,84 @@ function projectChecks(project: DashboardProject): CheckItem[] {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(value));
+}
+
+type TrafficPeriod = "week" | "month" | "year";
+
+function buildTrafficBars(period: TrafficPeriod, today: Date) {
+  if (period === "year") {
+    return monthLabels.map((label, index) => ({
+      key: `${today.getFullYear()}-${index}`,
+      label,
+      current: index === today.getMonth(),
+      visitors: 0,
+    }));
+  }
+
+  if (period === "month") {
+    const days = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    return Array.from({ length: days }, (_, index) => {
+      const date = new Date(today.getFullYear(), today.getMonth(), index + 1);
+      return {
+        key: date.toISOString(),
+        label: new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(date),
+        current: date.toDateString() === today.toDateString(),
+        visitors: 0,
+      };
+    });
+  }
+
+  const day = today.getDay() || 7;
+  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day + 1);
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index);
+    return {
+      key: date.toISOString(),
+      label: new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric" }).format(date),
+      current: date.toDateString() === today.toDateString(),
+      visitors: 0,
+    };
+  });
+}
+
+function TrafficChart() {
+  const [period, setPeriod] = useState<TrafficPeriod>("month");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const today = useMemo(() => new Date(), []);
+  const bars = useMemo(() => buildTrafficBars(period, today), [period, today]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    const current = container?.querySelector<HTMLElement>("[data-current='true']");
+    if (!container || !current) return;
+    container.scrollLeft = current.offsetLeft - container.clientWidth / 2 + current.clientWidth / 2;
+  }, [period]);
+
+  const periodLabel = period === "week" ? "Cette semaine" : period === "month" ? "Ce mois-ci" : `Année ${today.getFullYear()}`;
+
+  return (
+    <div className="mt-4 rounded-[13px] border border-[#e8ecee] bg-[#f9f9f9] p-6 shadow-[inset_0_0_0_2px_rgba(255,255,255,.35)]">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div><p className="text-[12px] text-black/45">Visiteurs du site</p><p className="mt-1 font-serif text-[28px]">0 visiteur</p><p className="mt-1 text-[10px] text-black/35">Analytics non connecté · {periodLabel}</p></div>
+        <label className="relative">
+          <select value={period} onChange={(event) => setPeriod(event.target.value as TrafficPeriod)} className="h-9 appearance-none rounded-[8px] border border-black/10 bg-white pl-3 pr-9 text-[11px] font-medium outline-none hover:border-black/20">
+            <option value="week">Une semaine</option>
+            <option value="month">Un mois</option>
+            <option value="year">Une année</option>
+          </select>
+          <ChevronDown size={13} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-60" />
+        </label>
+      </div>
+      <div className="mt-9 grid h-[270px] grid-cols-[28px_minmax(0,1fr)] gap-4">
+        <div className="flex flex-col justify-between pb-8 text-[10px] text-[#525866]"><span>100</span><span>75</span><span>50</span><span>0</span></div>
+        <div ref={scrollRef} className="overflow-x-auto overflow-y-hidden scroll-smooth">
+          <div className="relative flex h-full min-w-full items-end gap-2 border-b border-black/10 pb-8 before:absolute before:inset-x-0 before:top-1/4 before:border-t before:border-dashed before:border-black/10 after:absolute after:inset-x-0 after:top-1/2 after:border-t after:border-dashed after:border-black/10">
+            {bars.map((bar) => <div key={bar.key} data-current={bar.current} className={`${period === "month" ? "min-w-[44px]" : period === "year" ? "min-w-[62px]" : "min-w-[72px] flex-1"} relative z-10 flex h-full flex-col justify-end`}><div className={`${bar.current ? "bg-[#00BBFE]" : "bg-[#474749]"} relative h-[12%] min-h-5 w-full rounded-[8px] transition-colors`}>{bar.current ? <span className="absolute left-1/2 top-1.5 -translate-x-1/2 text-[9px] font-semibold text-white">{bar.visitors}</span> : null}</div><span className={`${bar.current ? "font-semibold text-[#00a8e4]" : "text-[#525866]"} absolute left-1/2 top-[calc(100%+8px)] -translate-x-1/2 whitespace-nowrap text-[9px]`}>{bar.label}</span></div>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function DashboardShell({
@@ -220,22 +298,7 @@ export function DashboardShell({
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,.65fr)]">
               <div>
                 <h2 className="font-serif text-[25px]">Trafic du site</h2>
-                <div className="mt-4 rounded-[13px] border border-[#e8ecee] bg-[#f9f9f9] p-6 shadow-[inset_0_0_0_2px_rgba(255,255,255,.35)]">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div><p className="text-[12px] text-black/45">Contenu actuellement mesurable</p><p className="mt-1 font-serif text-[28px]">{sectionCount} blocs publiables</p></div>
-                    <span className="rounded-md border border-black/10 bg-white px-3 py-1.5 text-[11px] font-medium">12 derniers mois</span>
-                  </div>
-                  <div className="mt-9 grid h-[260px] grid-cols-[32px_1fr] gap-4">
-                    <div className="flex flex-col justify-between pb-7 text-[10px] text-[#525866]"><span>20k</span><span>15k</span><span>10k</span><span>0</span></div>
-                    <div className="relative flex items-end gap-2 border-b border-black/10 pb-7 before:absolute before:inset-x-0 before:top-1/4 before:border-t before:border-dashed before:border-black/10 after:absolute after:inset-x-0 after:top-1/2 after:border-t after:border-dashed after:border-black/10">
-                      {monthLabels.map((month, index) => {
-                        const isActive = index === activeMonth;
-                        const height = isActive ? Math.max(32, Math.min(92, 28 + sectionCount * 1.8)) : 9 + ((index * 7) % 13);
-                        return <div key={month} className="relative z-10 flex h-full min-w-0 flex-1 flex-col justify-end"><div className={`${isActive ? "bg-[#474749]" : "bg-[#e7e9eb]"} relative w-full rounded-[8px]`} style={{ height: `${height}%` }}>{isActive ? <span className="absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-[#676769] px-2 py-1 text-[9px] font-semibold text-white">{sectionCount}</span> : null}</div><span className="absolute top-[calc(100%+8px)] left-1/2 -translate-x-1/2 text-[9px] text-[#525866]">{month}</span></div>;
-                      })}
-                    </div>
-                  </div>
-                </div>
+                <TrafficChart />
               </div>
               <div>
                 <h2 className="font-serif text-[25px]">Répartition</h2>
