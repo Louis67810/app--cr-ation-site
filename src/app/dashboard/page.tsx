@@ -34,7 +34,7 @@ export default async function DashboardPage({
     updatedAt: project.updated_at,
   }));
 
-  if (projects.length === 0) {
+  if (!projects.some((project) => project.key === "default")) {
     projects.push({
       key: "default",
       name: "Projet paysagiste",
@@ -56,3 +56,4 @@ export default async function DashboardPage({
 
   return <DashboardShell projects={projects} selectedKey={selected.key} activeTab={activeTab} />;
 }
+
