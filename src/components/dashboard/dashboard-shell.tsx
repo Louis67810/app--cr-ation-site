@@ -233,7 +233,7 @@ function ProjectTopbar({
   }
 
   return (
-    <header className="col-span-full flex h-14 shrink-0 items-center border-b border-black/10 bg-white px-5 font-[var(--font-inter)]">
+    <header className="sticky top-0 z-[70] col-start-2 row-start-1 flex h-14 shrink-0 items-center border-b border-black/10 bg-white/95 px-5 font-[var(--font-inter)] backdrop-blur-xl">
       <div ref={menuRef} className="relative">
         <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} className="flex h-10 max-w-[320px] items-center gap-3 rounded-[9px] px-1.5 text-[14px] font-semibold text-[#191919] hover:bg-black/[0.035]">
           <span className="grid size-5 shrink-0 place-items-center rounded-full bg-black text-white"><Sparkles size={10} /></span>
@@ -305,7 +305,7 @@ export function DashboardShell({
   return (
     <main className={`${activeTab === "cms" ? "fixed inset-0 grid h-dvh grid-cols-[212px_minmax(0,1fr)] grid-rows-[56px_minmax(0,1fr)] overflow-hidden" : "min-h-screen lg:grid lg:grid-cols-[212px_1fr]"} bg-white text-[#1c1c1c]`}>
       <ProjectTopbar projects={projects} project={project} activeTab={activeTab} />
-      <aside className={`${activeTab === "cms" ? "row-start-2 h-full overflow-hidden border-r" : "border-b lg:sticky lg:top-14 lg:h-[calc(100vh-56px)] lg:border-b-0 lg:border-r"} border-black/10 bg-[#fcf9f4] px-4 py-4`}>
+      <aside className={`${activeTab === "cms" ? "col-start-1 row-span-2 row-start-1 h-dvh overflow-hidden border-r" : "border-b lg:sticky lg:top-0 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-screen lg:border-b-0 lg:border-r"} border-black/10 bg-[#fcf9f4] px-4 py-4`}>
         <div className="flex h-12 items-center justify-between px-3">
           <Link href="/dashboard" className="flex items-center gap-2 font-serif text-[23px] tracking-[-0.05em]">
             <span className="grid size-7 place-items-center rounded-full bg-[#1c1c1c] text-white"><Sparkles size={14} /></span>
@@ -331,7 +331,7 @@ export function DashboardShell({
         </nav>
       </aside>
 
-      <section className={activeTab === "cms" ? "row-start-2 h-full min-h-0 min-w-0 overflow-hidden" : "min-w-0 px-5 py-8 sm:px-8 lg:px-10 lg:py-11 xl:px-12"}>
+      <section className={activeTab === "cms" ? "col-start-2 row-start-2 h-full min-h-0 min-w-0 overflow-hidden" : "min-w-0 px-5 py-8 sm:px-8 lg:col-start-2 lg:row-start-2 lg:px-10 lg:py-11 xl:px-12"}>
         {activeTab === "cms" ? <CmsEditor project={project} /> : <>
         <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
