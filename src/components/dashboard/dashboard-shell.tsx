@@ -119,7 +119,7 @@ export function DashboardShell({
   }
 
   return (
-    <main className="min-h-screen bg-white text-[#1c1c1c] lg:grid lg:grid-cols-[212px_1fr]">
+    <main className={`${activeTab === "cms" ? "h-screen overflow-hidden" : "min-h-screen"} bg-white text-[#1c1c1c] lg:grid lg:grid-cols-[212px_1fr]`}>
       <aside className="border-b border-black/10 bg-[#fcf9f4] px-4 py-4 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
         <div className="flex h-12 items-center justify-between px-3">
           <Link href="/dashboard" className="flex items-center gap-2 font-serif text-[23px] tracking-[-0.05em]">
@@ -159,7 +159,7 @@ export function DashboardShell({
         </nav>
       </aside>
 
-      <section className={activeTab === "cms" ? "min-w-0" : "min-w-0 px-5 py-8 sm:px-8 lg:px-10 lg:py-11 xl:px-12"}>
+      <section className={activeTab === "cms" ? "h-screen min-w-0 overflow-hidden" : "min-w-0 px-5 py-8 sm:px-8 lg:px-10 lg:py-11 xl:px-12"}>
         {activeTab === "cms" ? <CmsEditor project={project} /> : <>
         <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
