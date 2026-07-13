@@ -30,6 +30,7 @@ import type { SitePage } from "@/lib/site-template";
 import { CmsEditor } from "@/components/dashboard/cms-editor";
 import { ProjectSettings } from "@/components/dashboard/project-settings";
 import { AssetLibrary } from "@/components/dashboard/asset-library";
+import { GlobalSectionsEditor } from "@/components/dashboard/global-sections-editor";
 
 export type DashboardTab = "overview" | "traffic" | "pages" | "cms" | "assets" | "settings";
 
@@ -448,6 +449,7 @@ export function DashboardShell({
             {filteredPages.map((page) => <Link key={page.id} href={`/builder?project=${encodeURIComponent(project.key)}`} className="group rounded-[13px] border border-[#e8ecee] bg-[#f9f9f9] p-4 transition hover:-translate-y-0.5 hover:shadow-md"><div className="flex items-start justify-between"><span className="grid size-9 place-items-center rounded-lg bg-white text-black/50 shadow-sm"><FileText size={17} /></span><ArrowUpRight size={16} className="text-black/25 transition group-hover:text-black" /></div><p className="mt-5 truncate text-[14px] font-semibold">{page.title}</p><p className="mt-1 truncate text-[12px] text-black/40">{page.slug || "/"} · {page.sections.length} section(s)</p></Link>)}
           </div>
           {filteredPages.length === 0 ? <div className="mt-4 rounded-[13px] border border-dashed border-black/15 p-8 text-center text-[13px] text-black/45">Aucune page ne correspond à « {query} ».</div> : null}
+          <GlobalSectionsEditor project={project} />
         </section> : null}
         </>}
       </section>

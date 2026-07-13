@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { CMS_SECTION_OWNERS } from "@/lib/content-sections";
 import type { SitePage } from "@/lib/site-template";
 
 type CmsProject = { key: string; ownerId: string; name: string; pages: SitePage[]; publishedAt: string | null };
@@ -29,22 +30,6 @@ const collections = [
 ] as const;
 
 const hiddenKeys = new Set(["id", "type", "variant"]);
-const sectionOwners: Record<string, string> = {
-  "recent-projects": "realisations",
-  "realisations-page": "realisations",
-  "realisation-detail": "realisations",
-  "blog-advice": "articles",
-  "blog-index": "articles",
-  "article-detail": "articles",
-  services: "prestations",
-  "services-centered": "prestations",
-  "services-hub-hero": "prestations",
-  "services-hub-bento": "prestations",
-  "sector-hero": "secteurs",
-  "sector-services": "secteurs",
-  "sector-benefits": "secteurs",
-  "sector-extra-services": "secteurs",
-};
 const humanize = (value: string) => value.replace(/([A-Z])/g, " $1").replace(/[-_]/g, " ").replace(/^./, (letter) => letter.toUpperCase());
 const isImage = (key: string) => /image|avatar|photo|logo/i.test(key);
 
@@ -77,8 +62,9 @@ function cellWidth(column: ContentColumn) {
 
 function isEditableSection(section: SitePage["sections"][number], collectionId: string) {
   if (section.type === "site-header" || section.type === "site-footer") return false;
-  const owner = sectionOwners[section.type];
-  return collectionId === "all" || !owner || owner === collectionId;
+  const owner = CMS_SECTION_OWNERS[section.type];
+  if (!owner) return false;
+  return collectionId === "all" || owner === collectionId;
 }
 
 export function CmsEditor({ project, canOpenBuilder }: { project: CmsProject; canOpenBuilder: boolean }) {
