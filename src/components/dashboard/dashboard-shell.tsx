@@ -159,7 +159,7 @@ function ProjectPreviewCard({ project }: { project: DashboardProject }) {
   const previewUrl = (page: SitePage | undefined) => {
     if (!project.publishedSlug || !page) return null;
     const path = page.slug === "/" ? "" : page.slug.startsWith("/") ? page.slug : `/${page.slug}`;
-    return `/published/${project.publishedSlug}${path}`;
+    return `/published/${project.publishedSlug}${path}?preview=dashboard`;
   };
 
   return (
