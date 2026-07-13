@@ -3,19 +3,7 @@
 import { ImagePlus, LoaderCircle, Search, Sparkles, UploadCloud, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardAsset, DashboardProject } from "@/components/dashboard/dashboard-shell";
-
-async function prepareImage(file: File) {
-  if (file.size <= 3.5 * 1024 * 1024 || file.type === "image/gif") return file;
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 2200 / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.86));
-  return blob ? new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }) : file;
-}
+import { prepareImageForUpload } from "@/lib/client-images";
 
 export function AssetLibrary({ project, initialAssets }: { project: DashboardProject; initialAssets: DashboardAsset[] }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -47,7 +35,7 @@ export function AssetLibrary({ project, initialAssets }: { project: DashboardPro
     for (let index = 0; index < images.length; index += 1) {
       setProgress({ current: index + 1, total: images.length });
       try {
-        const prepared = await prepareImage(images[index]);
+        const prepared = await prepareImageForUpload(images[index]);
         const body = new FormData();
         body.append("file", prepared);
         body.append("projectKey", project.key);

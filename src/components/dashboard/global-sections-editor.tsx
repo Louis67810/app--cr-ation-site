@@ -1,17 +1,19 @@
 "use client";
 
-import { Check, ChevronDown, ImageIcon, Layers3, LoaderCircle, Search, Variable } from "lucide-react";
+import { Check, ChevronDown, ImageIcon, Layers3, LoaderCircle, Search, Shuffle, UploadCloud, Variable } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isGlobalEditableSection, SECTION_LABELS } from "@/lib/content-sections";
+import { prepareImageForUpload } from "@/lib/client-images";
 import type { SectionInstance, SitePage } from "@/lib/site-template";
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 type Path = Array<string | number>;
-type Field = { key: string; label: string; path: Path; image: boolean; multiline: boolean; occurrences: number };
+type Field = { key: string; label: string; path: Path; image: boolean; background: boolean; multiline: boolean; occurrences: number };
 type SectionOccurrence = { pageTitle: string; section: SectionInstance };
 type SectionGroup = { key: SectionInstance["type"]; label: string; occurrences: SectionOccurrence[]; fields: Field[] };
 type SectionsProject = { key: string; ownerId: string; name: string; pages: SitePage[] };
+type SectionAsset = { id: string; public_url: string; title: string; alt_text: string; original_name: string; ai_generated: boolean; created_at: string };
 
 function humanize(value: string) {
   return value.replace(/([A-Z])/g, " $1").replace(/[-_]/g, " ").replace(/^./, (letter) => letter.toUpperCase());
@@ -42,8 +44,59 @@ function collectFields(value: JsonValue, path: Path = [], labels: string[] = [])
     path,
     label: labels.slice(-3).join(" · "),
     image: /image|avatar|photo|logo|background/i.test(lastKey),
+    background: /backgroundImageUrl/i.test(lastKey),
     multiline: /text|description|subtitle|excerpt|message|answer|content|quote/i.test(lastKey),
   }];
+}
+
+function seededAssets(assets: SectionAsset[], seed: string) {
+  const result = [...assets];
+  let state = [...seed].reduce((total, character) => ((total * 31) + character.charCodeAt(0)) >>> 0, 2166136261);
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    const target = state % (index + 1);
+    [result[index], result[target]] = [result[target], result[index]];
+  }
+  return result;
+}
+
+function distributeBackgroundAssets(pages: SitePage[], assets: SectionAsset[], seed: string, replaceExisting: boolean) {
+  if (assets.length === 0) return { pages, changed: 0 };
+  const shuffled = seededAssets(assets, seed);
+  const assetUrls = new Set(assets.map((asset) => asset.public_url));
+  const slots: Array<{ pageId: string; sectionId: string; path: Path }> = [];
+  for (const page of pages) {
+    for (const section of page.sections) {
+      if (!isGlobalEditableSection(section.type)) continue;
+      for (const field of collectFields(section.fields as JsonValue)) {
+        if (field.background) slots.push({ pageId: page.id, sectionId: section.id, path: field.path });
+      }
+    }
+  }
+
+  let nextPages = pages;
+  let changed = 0;
+  let cursor = 0;
+  for (const slot of slots) {
+    const currentValue = getAtPath(
+      pages.find((page) => page.id === slot.pageId)?.sections.find((section) => section.id === slot.sectionId)?.fields,
+      slot.path,
+    );
+    const nextUrl = !replaceExisting && typeof currentValue === "string" && assetUrls.has(currentValue)
+      ? currentValue
+      : shuffled[cursor % shuffled.length].public_url;
+    cursor += 1;
+    nextPages = nextPages.map((page) => ({
+      ...page,
+      sections: page.sections.map((section) => {
+        if (page.id !== slot.pageId || section.id !== slot.sectionId || getAtPath(section.fields, slot.path) === undefined) return section;
+        if (getAtPath(section.fields, slot.path) === nextUrl) return section;
+        changed += 1;
+        return { ...section, fields: setAtPath(section.fields, slot.path, nextUrl) } as SectionInstance;
+      }),
+    }));
+  }
+  return { pages: nextPages, changed };
 }
 
 function buildGroups(pages: SitePage[]): SectionGroup[] {
@@ -73,18 +126,54 @@ function buildGroups(pages: SitePage[]): SectionGroup[] {
   }).sort((a, b) => a.label.localeCompare(b.label, "fr"));
 }
 
-export function GlobalSectionsEditor({ project }: { project: SectionsProject }) {
+export function GlobalSectionsEditor({ project, initialAssets }: { project: SectionsProject; initialAssets: SectionAsset[] }) {
   const router = useRouter();
-  const [pages, setPages] = useState(project.pages);
+  const [initialDistribution] = useState(() => distributeBackgroundAssets(
+    project.pages,
+    initialAssets,
+    `${project.key}:${initialAssets.map((asset) => asset.id).join(":")}`,
+    false,
+  ));
+  const [pages, setPages] = useState(initialDistribution.pages);
+  const [assets, setAssets] = useState(initialAssets);
   const groups = useMemo(() => buildGroups(pages), [pages]);
   const [selectedKey, setSelectedKey] = useState<SectionInstance["type"] | null>(null);
   const [query, setQuery] = useState("");
   const [fieldQuery, setFieldQuery] = useState("");
   const [status, setStatus] = useState<"idle" | "saving">("idle");
+  const [pickerKey, setPickerKey] = useState<string | null>(null);
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const selectedGroup = groups.find((group) => group.key === selectedKey) ?? null;
   const filteredGroups = groups.filter((group) => `${group.label} ${group.key}`.toLocaleLowerCase("fr").includes(query.toLocaleLowerCase("fr")));
   const visibleFields = selectedGroup?.fields.filter((field) => field.label.toLocaleLowerCase("fr").includes(fieldQuery.toLocaleLowerCase("fr"))) ?? [];
+
+  useEffect(() => {
+    if (initialDistribution.changed === 0) return;
+    const controller = new AbortController();
+    setStatus("saving");
+    setMessage("Répartition automatique des images Assets…");
+    void fetch("/api/projects/draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        projectKey: project.key,
+        projectOwnerId: project.ownerId,
+        projectName: project.name,
+        pages: initialDistribution.pages,
+      }),
+    }).then(async (response) => {
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Répartition impossible.");
+      setMessage(`${initialDistribution.changed} arrière-plan(s) attribué(s) depuis Assets.`);
+      router.refresh();
+    }).catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setMessage(error instanceof Error ? error.message : "Répartition automatique impossible.");
+    }).finally(() => { if (!controller.signal.aborted) setStatus("idle"); });
+    return () => controller.abort();
+  }, [initialDistribution, project.key, project.name, project.ownerId, router]);
 
   function updateGlobalField(group: SectionGroup, field: Field, value: JsonValue) {
     setPages((currentPages) => currentPages.map((page) => ({
@@ -95,6 +184,36 @@ export function GlobalSectionsEditor({ project }: { project: SectionsProject }) 
       }),
     })));
     setMessage("Modifications non enregistrées");
+  }
+
+  function redistribute() {
+    const distribution = distributeBackgroundAssets(pages, assets, `${project.key}:${Date.now()}`, true);
+    setPages(distribution.pages);
+    setMessage(distribution.changed > 0 ? `${distribution.changed} arrière-plan(s) redistribué(s). Enregistrez pour confirmer.` : "Les arrière-plans utilisent déjà cette répartition.");
+  }
+
+  async function uploadForField(file: File, group: SectionGroup, field: Field) {
+    const key = `${group.key}:${field.key}`;
+    setUploadingKey(key);
+    setMessage("");
+    try {
+      const prepared = await prepareImageForUpload(file);
+      const body = new FormData();
+      body.append("file", prepared);
+      body.append("projectKey", project.key);
+      body.append("projectOwnerId", project.ownerId);
+      const response = await fetch("/api/assets", { method: "POST", body });
+      const result = await response.json() as { asset?: SectionAsset; warning?: string | null; error?: string };
+      if (!response.ok || !result.asset) throw new Error(result.error ?? "Import impossible.");
+      setAssets((current) => [result.asset as SectionAsset, ...current]);
+      updateGlobalField(group, field, result.asset.public_url);
+      setPickerKey(null);
+      setMessage(result.warning ? `Image ajoutée. ${result.warning}` : "Image ajoutée à Assets et sélectionnée. Enregistrez pour confirmer.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Import impossible.");
+    } finally {
+      setUploadingKey(null);
+    }
   }
 
   async function save() {
@@ -124,8 +243,12 @@ export function GlobalSectionsEditor({ project }: { project: SectionsProject }) 
           <div className="flex items-center gap-2"><Layers3 size={19} className="text-black/35" /><h2 className="font-serif text-[25px]">Sections du site</h2></div>
           <p className="mt-1 max-w-2xl text-[13px] leading-5 text-black/45">Chaque composant est regroupé ici. Une variable modifiée est synchronisée sur toutes les pages qui utilisent ce composant.</p>
         </div>
-        <div className="text-[11px] text-black/40">{groups.length} composant(s) global(aux)</div>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-[11px] text-black/40">{groups.length} composant(s) global(aux)</span>
+          <button type="button" onClick={redistribute} disabled={assets.length === 0 || status !== "idle"} className="flex h-9 items-center gap-2 rounded-[9px] border border-black/10 bg-white px-3 text-[11px] font-medium shadow-sm hover:bg-black/[0.02] disabled:cursor-not-allowed disabled:opacity-40"><Shuffle size={13} />Répartir les images</button>
+        </div>
       </div>
+      <p className="mt-3 text-[10px] text-black/35">{assets.length > 0 ? `${assets.length} image(s) disponible(s) dans Assets. Les arrière-plans existants hors Assets sont remplacés automatiquement.` : "Aucun asset disponible : les images actuelles sont conservées jusqu’au premier import."}</p>
 
       <label className="mt-6 flex max-w-[633px] items-center gap-2 rounded-[10px] border border-[#d7dce4] px-3 py-2.5 focus-within:border-black/40">
         <Search size={15} className="text-black/45" />
@@ -157,13 +280,28 @@ export function GlobalSectionsEditor({ project }: { project: SectionsProject }) 
             const value = selectedGroup.occurrences
               .map((occurrence) => getAtPath(occurrence.section.fields, field.path))
               .find((candidate) => candidate !== undefined);
-            return <label key={field.key} className="min-w-0">
-              <span className="flex items-center justify-between gap-3 text-[11px] font-medium text-black/60"><span className="truncate" title={field.label}>{field.label}</span><span className="shrink-0 text-[9px] font-normal text-black/30">{field.occurrences} emplacement(s)</span></span>
-              {field.image ? <div className="mt-2 flex min-h-12 items-center gap-3 rounded-[9px] border border-black/10 bg-[#fbfbfb] p-2 focus-within:border-black/25"><span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-[6px] bg-[#e8e8e8]">{value ? <img src={String(value)} alt="" className="size-full object-cover" /> : <ImageIcon size={14} className="text-black/25" />}</span><input value={value == null ? "" : String(value)} onChange={(event) => updateGlobalField(selectedGroup, field, event.target.value)} placeholder="URL de l’image" className="min-w-0 flex-1 bg-transparent text-[11px] outline-none" /></div>
-                : typeof value === "boolean" ? <span className="mt-2 flex h-11 items-center rounded-[9px] border border-black/10 bg-[#fbfbfb] px-3"><input type="checkbox" checked={value} onChange={(event) => updateGlobalField(selectedGroup, field, event.target.checked)} className="size-4 accent-black" /></span>
-                : field.multiline ? <textarea value={value == null ? "" : String(value)} onChange={(event) => updateGlobalField(selectedGroup, field, event.target.value)} rows={3} className="mt-2 w-full resize-y rounded-[9px] border border-black/10 bg-[#fbfbfb] px-3 py-2.5 text-[11px] leading-5 outline-none focus:border-black/25" />
-                : <input value={value == null ? "" : String(value)} onChange={(event) => updateGlobalField(selectedGroup, field, typeof value === "number" ? Number(event.target.value) : event.target.value)} className="mt-2 h-11 w-full rounded-[9px] border border-black/10 bg-[#fbfbfb] px-3 text-[11px] outline-none focus:border-black/25" />}
-            </label>;
+            const editorKey = `${selectedGroup.key}:${field.key}`;
+            const inputId = `section-${editorKey.replace(/[^a-zA-Z0-9-]/g, "-")}`;
+            const currentAsset = assets.find((asset) => asset.public_url === value);
+            return <div key={field.key} className="min-w-0">
+              {field.background ? <span className="flex items-center justify-between gap-3 text-[11px] font-medium text-black/60"><span className="truncate" title={field.label}>{field.label}</span><span className="shrink-0 text-[9px] font-normal text-black/30">{field.occurrences} emplacement(s)</span></span> : <label htmlFor={inputId} className="flex items-center justify-between gap-3 text-[11px] font-medium text-black/60"><span className="truncate" title={field.label}>{field.label}</span><span className="shrink-0 text-[9px] font-normal text-black/30">{field.occurrences} emplacement(s)</span></label>}
+              {field.background ? <div className="mt-2 rounded-[10px] border border-black/10 bg-[#fbfbfb] p-2.5">
+                <div className="flex items-center gap-3">
+                  <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-[7px] bg-[#e8e8e8]">{value ? <img src={String(value)} alt={currentAsset?.alt_text ?? ""} className="size-full object-cover" /> : <ImageIcon size={15} className="text-black/25" />}</span>
+                  <span className="min-w-0 flex-1"><strong className="block truncate text-[11px] font-medium">{currentAsset?.title ?? (assets.length ? "Image extérieure à Assets" : "Image actuelle")}</strong><span className="mt-1 block truncate text-[9px] text-black/35">{currentAsset ? "Bibliothèque Assets" : assets.length ? "Sera remplacée par un asset" : "Conservée faute d’asset"}</span></span>
+                  {assets.length ? <button type="button" onClick={() => setPickerKey(pickerKey === editorKey ? null : editorKey)} className="h-8 rounded-[8px] border border-black/10 bg-white px-2.5 text-[10px] font-medium shadow-sm hover:bg-black/[0.02]">Choisir</button> : null}
+                  <label className={`${uploadingKey === editorKey ? "pointer-events-none opacity-50" : "cursor-pointer"} flex h-8 items-center gap-1.5 rounded-[8px] bg-[#222] px-2.5 text-[10px] font-medium text-white`}><UploadCloud size={12} />{uploadingKey === editorKey ? "Import…" : "Importer"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploadingKey === editorKey} className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadForField(file, selectedGroup, field); event.currentTarget.value = ""; }} /></label>
+                </div>
+                {pickerKey === editorKey && assets.length ? <div className="mt-3 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto border-t border-black/[0.07] pt-3 sm:grid-cols-4">
+                  {assets.map((asset) => <button key={asset.id} type="button" onClick={() => { updateGlobalField(selectedGroup, field, asset.public_url); setPickerKey(null); }} className={`${asset.public_url === value ? "ring-2 ring-[#00bbfe] ring-offset-2" : "hover:ring-1 hover:ring-black/20"} group overflow-hidden rounded-[8px] bg-white text-left`} title={asset.alt_text}><img src={asset.public_url} alt={asset.alt_text} className="aspect-[4/3] w-full object-cover" /><span className="block truncate px-2 py-1.5 text-[9px]">{asset.title}</span></button>)}
+                </div> : null}
+                {assets.length === 0 ? <input id={inputId} value={value == null ? "" : String(value)} onChange={(event) => updateGlobalField(selectedGroup, field, event.target.value)} placeholder="URL de l’image" className="mt-2 h-8 w-full border-t border-black/[0.06] bg-transparent px-1 pt-2 text-[10px] outline-none" /> : null}
+              </div>
+                : field.image ? <div className="mt-2 flex min-h-12 items-center gap-3 rounded-[9px] border border-black/10 bg-[#fbfbfb] p-2 focus-within:border-black/25"><span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-[6px] bg-[#e8e8e8]">{value ? <img src={String(value)} alt="" className="size-full object-cover" /> : <ImageIcon size={14} className="text-black/25" />}</span><input id={inputId} value={value == null ? "" : String(value)} onChange={(event) => updateGlobalField(selectedGroup, field, event.target.value)} placeholder="URL de l’image" className="min-w-0 flex-1 bg-transparent text-[11px] outline-none" /></div>
+                : typeof value === "boolean" ? <span className="mt-2 flex h-11 items-center rounded-[9px] border border-black/10 bg-[#fbfbfb] px-3"><input id={inputId} type="checkbox" checked={value} onChange={(event) => updateGlobalField(selectedGroup, field, event.target.checked)} className="size-4 accent-black" /></span>
+                : field.multiline ? <textarea id={inputId} value={value == null ? "" : String(value)} onChange={(event) => updateGlobalField(selectedGroup, field, event.target.value)} rows={3} className="mt-2 w-full resize-y rounded-[9px] border border-black/10 bg-[#fbfbfb] px-3 py-2.5 text-[11px] leading-5 outline-none focus:border-black/25" />
+                : <input id={inputId} value={value == null ? "" : String(value)} onChange={(event) => updateGlobalField(selectedGroup, field, typeof value === "number" ? Number(event.target.value) : event.target.value)} className="mt-2 h-11 w-full rounded-[9px] border border-black/10 bg-[#fbfbfb] px-3 text-[11px] outline-none focus:border-black/25" />}
+            </div>;
           })}
         </div>
       </div> : null}
