@@ -1187,8 +1187,8 @@ export function SiteBuilderShell({
   }
 
   useEffect(() => {
-    window.localStorage.setItem("site-builder-draft-v1", JSON.stringify(pages));
-  }, [pages]);
+    window.localStorage.setItem(`site-builder-draft-v1:${projectKey}`, JSON.stringify(pages));
+  }, [pages, projectKey]);
 
   useEffect(() => {
     const saveTimer = window.setTimeout(() => {
