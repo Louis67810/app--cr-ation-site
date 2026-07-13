@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { DashboardShell, type DashboardInvitation, type DashboardProject, type DashboardTab } from "@/components/dashboard/dashboard-shell";
+import { DashboardShell, type DashboardAsset, type DashboardInvitation, type DashboardProject, type DashboardTab } from "@/components/dashboard/dashboard-shell";
 import { demoSitePages } from "@/lib/demo-site";
 import { normalizeProjectKey } from "@/lib/project-key";
 import type { SitePage } from "@/lib/site-template";
@@ -64,7 +64,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const resolvedSearchParams = await searchParams;
   const requestedKey = normalizeProjectKey(resolvedSearchParams.project);
   const selected = projects.find((project) => project.key === requestedKey) ?? projects[0];
-  const allowedTabs: DashboardTab[] = ["overview", "traffic", "pages", "cms", "settings"];
+  const allowedTabs: DashboardTab[] = ["overview", "traffic", "pages", "cms", "assets", "settings"];
   const requestedTab = allowedTabs.includes(resolvedSearchParams.tab as DashboardTab) ? resolvedSearchParams.tab as DashboardTab : "overview";
   const activeTab = requestedTab === "settings" && selected.role !== "admin" ? "overview" : requestedTab;
 
@@ -74,5 +74,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     invitations = (data ?? []) as DashboardInvitation[];
   }
 
-  return <DashboardShell projects={projects} selectedKey={selected.key} activeTab={activeTab} invitations={invitations} />;
+  const { data: assetRows } = await supabase.from("project_assets").select("id, public_url, original_name, title, alt_text, ai_generated, created_at").eq("owner_id", selected.ownerId).eq("project_key", selected.key).order("created_at", { ascending: false });
+  const assets = (assetRows ?? []) as DashboardAsset[];
+
+  return <DashboardShell projects={projects} selectedKey={selected.key} activeTab={activeTab} invitations={invitations} assets={assets} />;
 }

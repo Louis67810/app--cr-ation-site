@@ -13,6 +13,7 @@ import {
   FileText,
   FolderKanban,
   Home,
+  Images,
   Layers3,
   LoaderCircle,
   PanelLeftClose,
@@ -28,8 +29,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { SitePage } from "@/lib/site-template";
 import { CmsEditor } from "@/components/dashboard/cms-editor";
 import { ProjectSettings } from "@/components/dashboard/project-settings";
+import { AssetLibrary } from "@/components/dashboard/asset-library";
 
-export type DashboardTab = "overview" | "traffic" | "pages" | "cms" | "settings";
+export type DashboardTab = "overview" | "traffic" | "pages" | "cms" | "assets" | "settings";
 
 export type DashboardProject = {
   key: string;
@@ -52,6 +54,16 @@ export type DashboardInvitation = {
   accepted_user_id: string | null;
   created_at: string;
   accepted_at: string | null;
+};
+
+export type DashboardAsset = {
+  id: string;
+  public_url: string;
+  original_name: string;
+  title: string;
+  alt_text: string;
+  ai_generated: boolean;
+  created_at: string;
 };
 
 type CheckItem = { label: string; detail: string; valid: boolean };
@@ -279,11 +291,13 @@ export function DashboardShell({
   selectedKey,
   activeTab,
   invitations,
+  assets,
 }: {
   projects: DashboardProject[];
   selectedKey: string;
   activeTab: DashboardTab;
   invitations: DashboardInvitation[];
+  assets: DashboardAsset[];
 }) {
   const project = projects.find((item) => item.key === selectedKey) ?? projects[0];
   const [query, setQuery] = useState("");
@@ -345,13 +359,14 @@ export function DashboardShell({
             <Link href={tabHref("traffic")} className={`${activeTab === "traffic" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><BarChart3 size={18} />Statistiques</Link>
             <Link href={tabHref("pages")} className={`${activeTab === "pages" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><FolderKanban size={18} />Pages du site</Link>
             <Link href={tabHref("cms")} className={`${activeTab === "cms" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Database size={18} />CMS</Link>
+            <Link href={tabHref("assets")} className={`${activeTab === "assets" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Images size={18} />Assets</Link>
             {project.role === "admin" ? <Link href={tabHref("settings")} className={`${activeTab === "settings" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Settings2 size={18} />Paramètres</Link> : null}
           </div>
         </nav>
       </aside>
 
       <section className={activeTab === "cms" ? "col-start-2 row-start-2 h-full min-h-0 min-w-0 overflow-hidden" : "min-w-0 px-5 py-8 sm:px-8 lg:col-start-2 lg:row-start-2 lg:px-10 lg:py-11 xl:px-12"}>
-        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} /> : <>
+        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} /> : <>
         <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-serif text-[30px] tracking-[-0.05em]">{activeTab === "pages" ? "Pages du site" : activeTab === "traffic" ? "Statistiques et trafic" : "Bonjour, voici votre site"}</h1>
