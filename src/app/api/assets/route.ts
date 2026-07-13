@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 
 const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const ALT_TEXT_MODEL = "qwen/qwen3-vl-32b-instruct";
 
 function fallbackMetadata(fileName: string) {
   const cleanName = fileName.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim();
@@ -27,7 +28,7 @@ async function describeImage(file: File, bytes: Buffer) {
         "X-OpenRouter-Title": "Atelier Site Builder",
       },
       body: JSON.stringify({
-        model: process.env.OPENROUTER_VISION_MODEL ?? "google/gemini-2.5-flash",
+        model: ALT_TEXT_MODEL,
         temperature: 0.2,
         max_tokens: 180,
         response_format: { type: "json_object" },
