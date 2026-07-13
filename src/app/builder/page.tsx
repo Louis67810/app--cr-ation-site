@@ -30,6 +30,11 @@ export default async function BuilderPage({
     ? (project.pages as SitePage[])
     : demoSitePages;
 
+  if (!project) {
+    const { data: membership } = await supabase.from("project_members").select("user_id").eq("user_id", ownerId).limit(1).maybeSingle();
+    if (membership || projectKey !== "default") redirect(`/dashboard?project=${encodeURIComponent(projectKey)}`);
+  }
+
   return (
     <SiteBuilderShell
       initialPages={savedPages}

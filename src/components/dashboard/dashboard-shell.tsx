@@ -19,6 +19,7 @@ import {
   PencilLine,
   Plus,
   Search,
+  Settings2,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
@@ -26,9 +27,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SitePage } from "@/lib/site-template";
 import { CmsEditor } from "@/components/dashboard/cms-editor";
+import { ProjectSettings } from "@/components/dashboard/project-settings";
+
+export type DashboardTab = "overview" | "traffic" | "pages" | "cms" | "settings";
 
 export type DashboardProject = {
   key: string;
+  ownerId: string;
+  role: "admin" | "collaborator";
   name: string;
   pages: SitePage[];
   publishedSlug: string | null;
@@ -36,6 +42,16 @@ export type DashboardProject = {
   createdAt: string;
   updatedAt: string;
   isDemo?: boolean;
+};
+
+export type DashboardInvitation = {
+  id: string;
+  email: string;
+  token: string;
+  status: "pending" | "accepted";
+  accepted_user_id: string | null;
+  created_at: string;
+  accepted_at: string | null;
 };
 
 type CheckItem = { label: string; detail: string; valid: boolean };
@@ -185,7 +201,7 @@ function ProjectTopbar({
 }: {
   projects: DashboardProject[];
   project: DashboardProject;
-  activeTab: "overview" | "traffic" | "pages" | "cms";
+  activeTab: DashboardTab;
 }) {
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -245,13 +261,13 @@ function ProjectTopbar({
           <div className="max-h-60 overflow-y-auto">
             {projects.map((item) => <Link key={item.key} href={`/dashboard?project=${encodeURIComponent(item.key)}&tab=${activeTab}`} onClick={() => setOpen(false)} className={`${item.key === project.key ? "bg-black/[0.055]" : "hover:bg-black/[0.035]"} flex h-10 items-center justify-between gap-3 rounded-[8px] px-3 text-[13px]`}><span className="truncate">{item.name}</span>{item.key === project.key ? <Check size={14} /> : null}</Link>)}
           </div>
-          <div className="my-1.5 border-t border-black/[0.08]" />
+          {project.role === "admin" ? <><div className="my-1.5 border-t border-black/[0.08]" />
           {creating ? <form onSubmit={createProject} className="p-1.5">
             <label htmlFor="new-project-name" className="text-[11px] font-medium text-black/55">Nom du nouveau projet</label>
             <input id="new-project-name" autoFocus value={projectName} onChange={(event) => setProjectName(event.target.value)} maxLength={80} placeholder="Ex. Jardin Dupont" className="mt-2 h-9 w-full rounded-[8px] border border-black/10 px-3 text-[13px] outline-none focus:border-black/30" />
             {createError ? <p className="mt-1.5 text-[11px] text-red-600">{createError}</p> : null}
             <div className="mt-2 flex justify-end gap-2"><button type="button" onClick={() => setCreating(false)} className="h-8 px-2 text-[12px] text-black/50">Annuler</button><button type="submit" disabled={!projectName.trim() || submitting} className="h-8 rounded-[8px] bg-black px-3 text-[12px] font-semibold text-white disabled:opacity-40">{submitting ? "Création…" : "Créer"}</button></div>
-          </form> : <button type="button" onClick={() => { setCreating(true); setProjectName(""); setCreateError(""); }} className="flex h-10 w-full items-center gap-2 rounded-[8px] px-3 text-left text-[13px] font-medium hover:bg-black/[0.035]"><Plus size={15} />Créer un projet</button>}
+          </form> : <button type="button" onClick={() => { setCreating(true); setProjectName(""); setCreateError(""); }} className="flex h-10 w-full items-center gap-2 rounded-[8px] px-3 text-left text-[13px] font-medium hover:bg-black/[0.035]"><Plus size={15} />Créer un projet</button>}</> : null}
         </div> : null}
       </div>
     </header>
@@ -262,10 +278,12 @@ export function DashboardShell({
   projects,
   selectedKey,
   activeTab,
+  invitations,
 }: {
   projects: DashboardProject[];
   selectedKey: string;
-  activeTab: "overview" | "traffic" | "pages" | "cms";
+  activeTab: DashboardTab;
+  invitations: DashboardInvitation[];
 }) {
   const project = projects.find((item) => item.key === selectedKey) ?? projects[0];
   const [query, setQuery] = useState("");
@@ -279,7 +297,7 @@ export function DashboardShell({
   );
   const activeMonth = new Date(project.updatedAt).getMonth();
   const projectQuery = `project=${encodeURIComponent(project.key)}`;
-  const tabHref = (tab: "overview" | "traffic" | "pages" | "cms") =>
+  const tabHref = (tab: DashboardTab) =>
     `/dashboard?${projectQuery}&tab=${tab}`;
 
   async function publish() {
@@ -289,7 +307,7 @@ export function DashboardShell({
       const response = await fetch("/api/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectKey: project.key, projectName: project.name, pages: project.pages }),
+        body: JSON.stringify({ projectKey: project.key, projectOwnerId: project.ownerId, projectName: project.name, pages: project.pages }),
       });
       const result = (await response.json()) as { url?: string; error?: string };
       if (!response.ok) throw new Error(result.error ?? "Publication impossible.");
@@ -314,11 +332,11 @@ export function DashboardShell({
           <PanelLeftClose size={17} className="text-black/35 lg:hidden" />
         </div>
 
-        <div className="mt-8 px-3">
+        {project.role === "admin" ? <div className="mt-8 px-3">
           <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="flex h-8 items-center justify-center rounded-md border border-[#d9d9d9] bg-white text-[12px] font-medium shadow-sm hover:bg-black/[0.03]">
             Ouvrir le projet
           </Link>
-        </div>
+        </div> : null}
 
         <nav className="mt-10">
           <p className="px-3 text-[13px] text-black/40">Dashboard</p>
@@ -327,23 +345,24 @@ export function DashboardShell({
             <Link href={tabHref("traffic")} className={`${activeTab === "traffic" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><BarChart3 size={18} />Statistiques</Link>
             <Link href={tabHref("pages")} className={`${activeTab === "pages" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><FolderKanban size={18} />Pages du site</Link>
             <Link href={tabHref("cms")} className={`${activeTab === "cms" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Database size={18} />CMS</Link>
+            {project.role === "admin" ? <Link href={tabHref("settings")} className={`${activeTab === "settings" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Settings2 size={18} />Paramètres</Link> : null}
           </div>
         </nav>
       </aside>
 
       <section className={activeTab === "cms" ? "col-start-2 row-start-2 h-full min-h-0 min-w-0 overflow-hidden" : "min-w-0 px-5 py-8 sm:px-8 lg:col-start-2 lg:row-start-2 lg:px-10 lg:py-11 xl:px-12"}>
-        {activeTab === "cms" ? <CmsEditor project={project} /> : <>
+        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} /> : <>
         <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-serif text-[30px] tracking-[-0.05em]">{activeTab === "pages" ? "Pages du site" : activeTab === "traffic" ? "Statistiques et trafic" : "Bonjour, voici votre site"}</h1>
             <p className="mt-2 text-[14px] font-medium text-black/60">{activeTab === "pages" ? `Gérez toutes les pages de ${project.name}.` : activeTab === "traffic" ? `Suivez les indicateurs disponibles pour ${project.name}.` : `Suivez le contenu, le trafic et la publication de ${project.name}.`}</p>
           </div>
-          <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="flex h-9 items-center justify-center gap-2 rounded-[10px] bg-gradient-to-b from-[#323232] to-[#222] px-5 text-[14px] font-semibold text-white shadow-md">
+          {project.role === "admin" ? <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="flex h-9 items-center justify-center gap-2 rounded-[10px] bg-gradient-to-b from-[#323232] to-[#222] px-5 text-[14px] font-semibold text-white shadow-md">
             <PencilLine size={15} />Nouvelle modification
-          </Link>
+          </Link> : null}
         </header>
 
-        {activeTab === "overview" ? <ProjectPreviewCard project={project} /> : null}
+        {activeTab === "overview" && project.role === "admin" ? <ProjectPreviewCard project={project} /> : null}
 
         {activeTab === "pages" ? <div className="mt-8 flex max-w-[633px] items-center gap-2 rounded-[10px] border border-[#d7dce4] px-3 py-2.5 focus-within:border-black/40">
           <Search size={16} />
@@ -420,4 +439,3 @@ export function DashboardShell({
     </main>
   );
 }
-

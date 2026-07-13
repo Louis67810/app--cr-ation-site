@@ -14,7 +14,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { SitePage } from "@/lib/site-template";
 
-type CmsProject = { key: string; name: string; pages: SitePage[]; publishedAt: string | null };
+type CmsProject = { key: string; ownerId: string; name: string; pages: SitePage[]; publishedAt: string | null };
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 type Path = Array<string | number>;
 type ContentColumn = { key: string; label: string; path: Path; image: boolean };
@@ -81,7 +81,7 @@ function isEditableSection(section: SitePage["sections"][number], collectionId: 
   return collectionId === "all" || !owner || owner === collectionId;
 }
 
-export function CmsEditor({ project }: { project: CmsProject }) {
+export function CmsEditor({ project, canOpenBuilder }: { project: CmsProject; canOpenBuilder: boolean }) {
   const [pages, setPages] = useState(project.pages);
   const [collectionId, setCollectionId] = useState("all");
   const [collectionOpen, setCollectionOpen] = useState(false);
@@ -109,7 +109,7 @@ export function CmsEditor({ project }: { project: CmsProject }) {
   async function save(nextStatus: "saving" | "publishing" = "saving") {
     setStatus(nextStatus);
     setMessage("");
-    const response = await fetch("/api/projects/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectKey: project.key, projectName: project.name, pages }) });
+    const response = await fetch("/api/projects/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectKey: project.key, projectOwnerId: project.ownerId, projectName: project.name, pages }) });
     if (!response.ok) { const result = await response.json() as { error?: string }; setStatus("idle"); setMessage(result.error ?? "Enregistrement impossible"); return false; }
     if (nextStatus === "saving") { setStatus("idle"); setMessage("Contenu synchronisé"); }
     return true;
@@ -121,7 +121,7 @@ export function CmsEditor({ project }: { project: CmsProject }) {
 
   async function publish() {
     if (!(await save("publishing"))) return;
-    const response = await fetch("/api/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectKey: project.key, projectName: project.name, pages }) });
+    const response = await fetch("/api/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectKey: project.key, projectOwnerId: project.ownerId, projectName: project.name, pages }) });
     const result = await response.json() as { url?: string; error?: string };
     setStatus("idle");
     setMessage(response.ok ? "Publié" : result.error ?? "Publication impossible");
@@ -138,7 +138,7 @@ export function CmsEditor({ project }: { project: CmsProject }) {
             </button>
             {collectionOpen ? <div className="absolute left-1/2 top-full z-40 w-48 -translate-x-1/2 rounded-[8px] border border-black/10 bg-white p-1 shadow-xl">{collections.map((item) => <button key={item.id} type="button" onClick={() => { setCollectionId(item.id); setCollectionOpen(false); }} className={`${item.id === collectionId ? "bg-black/[0.05]" : "hover:bg-black/[0.03]"} flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-[11px]`}><span>{item.label}</span>{item.id === collectionId ? <Check size={12} /> : null}</button>)}</div> : null}
           </div>
-          <div className="flex items-center justify-end gap-2"><span className="mr-2 hidden text-[10px] text-black/40 xl:block">{message}</span><button type="button" onClick={play} disabled={status !== "idle"} aria-label="Prévisualiser le CMS" className="flex size-8 items-center justify-center rounded-[9px] bg-[#f3f3f3] text-[#222] hover:bg-[#eee] disabled:opacity-50"><Play size={15} fill="currentColor" /></button><button type="button" onClick={publish} disabled={status !== "idle"} className="flex h-9 w-[141px] items-center justify-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232_0%,#222222_100%)] px-5 py-2 text-[14px] font-semibold leading-5 tracking-[-0.02em] text-[#fcfcfc] shadow-[0_2px_4px_-1px_rgba(13,13,13,0.5),0_0_0_1px_#333333,inset_0_0.5px_1px_rgba(255,255,255,0.15),inset_0_-1px_1.2px_0.35px_#121212] hover:brightness-110 disabled:opacity-50">{status === "publishing" ? <LoaderCircle size={14} className="animate-spin" /> : null}Publier</button></div>
+          <div className="flex items-center justify-end gap-2"><span className="mr-2 hidden text-[10px] text-black/40 xl:block">{message}</span>{canOpenBuilder ? <button type="button" onClick={play} disabled={status !== "idle"} aria-label="Prévisualiser le CMS" className="flex size-8 items-center justify-center rounded-[9px] bg-[#f3f3f3] text-[#222] hover:bg-[#eee] disabled:opacity-50"><Play size={15} fill="currentColor" /></button> : null}<button type="button" onClick={publish} disabled={status !== "idle"} className="flex h-9 w-[141px] items-center justify-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232_0%,#222222_100%)] px-5 py-2 text-[14px] font-semibold leading-5 tracking-[-0.02em] text-[#fcfcfc] shadow-[0_2px_4px_-1px_rgba(13,13,13,0.5),0_0_0_1px_#333333,inset_0_0.5px_1px_rgba(255,255,255,0.15),inset_0_-1px_1.2px_0.35px_#121212] hover:brightness-110 disabled:opacity-50">{status === "publishing" ? <LoaderCircle size={14} className="animate-spin" /> : null}Publier</button></div>
         </header>
         <div className="flex h-10 items-center border-b border-black/[0.07] px-4"><label className="flex items-center gap-2 text-black/35"><Search size={13} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher dans la collection" className="w-48 bg-transparent text-[10px] outline-none" /></label><button type="button" onClick={() => save()} disabled={status !== "idle"} className="ml-auto text-[9px] font-medium text-black/50 hover:text-black">{status === "saving" ? "Enregistrement…" : "Enregistrer"}</button></div>
         <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
@@ -152,4 +152,3 @@ export function CmsEditor({ project }: { project: CmsProject }) {
     </section>
   );
 }
-

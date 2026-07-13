@@ -15,6 +15,7 @@ export async function POST(request: Request) {
   const payload = (await request.json()) as {
     projectName?: string;
     projectKey?: string;
+    projectOwnerId?: string;
     pages?: SitePage[];
   };
 
@@ -22,16 +23,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Brouillon invalide." }, { status: 400 });
   }
 
-  const { error } = await supabase.from("site_projects").upsert(
-    {
-      owner_id: ownerId,
-      project_key: normalizeProjectKey(payload.projectKey),
-      project_name: payload.projectName,
-      pages: payload.pages,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "owner_id,project_key" },
-  );
+  const projectKey = normalizeProjectKey(payload.projectKey);
+  const projectOwnerId = payload.projectOwnerId ?? ownerId;
+  if (projectOwnerId !== ownerId) {
+    const { data: membership } = await supabase.from("project_members").select("user_id").eq("owner_id", projectOwnerId).eq("project_key", projectKey).eq("user_id", ownerId).maybeSingle();
+    if (!membership) return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
+  }
+
+  const values = { project_name: payload.projectName, pages: payload.pages, updated_at: new Date().toISOString() };
+  const { error } = projectOwnerId === ownerId
+    ? await supabase.from("site_projects").upsert({ owner_id: ownerId, project_key: projectKey, ...values }, { onConflict: "owner_id,project_key" })
+    : await supabase.from("site_projects").update(values).eq("owner_id", projectOwnerId).eq("project_key", projectKey);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

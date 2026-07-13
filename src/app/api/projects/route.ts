@@ -23,6 +23,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
   }
 
+  const [{ data: ownedProject }, { data: membership }] = await Promise.all([
+    supabase.from("site_projects").select("project_key").eq("owner_id", ownerId).limit(1).maybeSingle(),
+    supabase.from("project_members").select("user_id").eq("user_id", ownerId).limit(1).maybeSingle(),
+  ]);
+  if (membership && !ownedProject) {
+    return NextResponse.json({ error: "Les collaborateurs ne peuvent pas créer de projet." }, { status: 403 });
+  }
+
   const payload = (await request.json()) as { name?: string };
   const name = payload.name?.trim();
 
@@ -47,4 +55,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ projectKey, name }, { status: 201 });
 }
-
