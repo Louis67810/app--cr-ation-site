@@ -129,8 +129,8 @@ export function CmsEditor({ project }: { project: CmsProject }) {
   }
 
   return (
-    <section className="h-full min-w-0 overflow-hidden bg-white font-[var(--font-inter)] text-[#1c1c1c]">
-        <header className="grid h-12 grid-cols-[1fr_auto_1fr] items-center border-b border-[#e8e8e8] px-3">
+    <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-white font-[var(--font-inter)] text-[#1c1c1c]">
+        <header className="grid h-12 shrink-0 grid-cols-[1fr_auto_1fr] items-center border-b border-[#e8e8e8] px-3">
           <Link href={`/dashboard?project=${encodeURIComponent(project.key)}`} className="flex h-8 w-fit items-center gap-2 rounded-[8px] bg-white px-2 text-[12px] font-semibold text-[#222] shadow-[0_1px_2px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.08)]"><span className="flex size-5 items-center justify-center rounded-[5px] bg-[#f6f6f6] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)]"><ArrowLeft size={13} /></span>Retour</Link>
           <div className="relative">
             <button type="button" onClick={() => setCollectionOpen((current) => !current)} className="flex items-center gap-2 px-3 py-2 font-serif text-[12px]">
@@ -141,7 +141,7 @@ export function CmsEditor({ project }: { project: CmsProject }) {
           <div className="flex items-center justify-end gap-2"><span className="mr-2 hidden text-[10px] text-black/40 xl:block">{message}</span><button type="button" onClick={play} disabled={status !== "idle"} aria-label="Prévisualiser le CMS" className="flex size-8 items-center justify-center rounded-[9px] bg-[#f3f3f3] text-[#222] hover:bg-[#eee] disabled:opacity-50"><Play size={15} fill="currentColor" /></button><button type="button" onClick={publish} disabled={status !== "idle"} className="flex h-9 w-[141px] items-center justify-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232_0%,#222222_100%)] px-5 py-2 text-[14px] font-semibold leading-5 tracking-[-0.02em] text-[#fcfcfc] shadow-[0_2px_4px_-1px_rgba(13,13,13,0.5),0_0_0_1px_#333333,inset_0_0.5px_1px_rgba(255,255,255,0.15),inset_0_-1px_1.2px_0.35px_#121212] hover:brightness-110 disabled:opacity-50">{status === "publishing" ? <LoaderCircle size={14} className="animate-spin" /> : null}Publier</button></div>
         </header>
         <div className="flex h-10 items-center border-b border-black/[0.07] px-4"><label className="flex items-center gap-2 text-black/35"><Search size={13} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher dans la collection" className="w-48 bg-transparent text-[10px] outline-none" /></label><button type="button" onClick={() => save()} disabled={status !== "idle"} className="ml-auto text-[9px] font-medium text-black/50 hover:text-black">{status === "saving" ? "Enregistrement…" : "Enregistrer"}</button></div>
-        <div className="h-[calc(100vh-88px)] overflow-auto">
+        <div className="min-h-0 flex-1 overflow-auto overscroll-contain">
           <table className="w-max min-w-full table-fixed border-collapse text-[10px]">
             <colgroup><col className="w-[34px]" /><col className="w-[155px]" /><col className="w-[110px]" />{columns.map((column) => <col key={column.key} style={{ width: cellWidth(column) }} />)}</colgroup>
             <thead className="sticky top-0 z-20 bg-white text-left text-black/45"><tr className="h-10 border-b border-black/[0.07]"><th /><th className="border-r border-black/[0.07] px-3 font-medium">Entrée</th><th className="border-r border-black/[0.07] px-3 font-medium">Aperçu</th>{columns.map((column) => <th key={column.key} className="border-r border-black/[0.07] px-3 font-medium"><span className="block max-w-[250px] truncate" title={column.label}>{column.label}</span></th>)}</tr></thead>
@@ -152,3 +152,4 @@ export function CmsEditor({ project }: { project: CmsProject }) {
     </section>
   );
 }
+
