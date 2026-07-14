@@ -140,10 +140,10 @@ export function GlobalSectionsEditor({ project, initialAssets }: { project: Sect
   const [selectedKey, setSelectedKey] = useState<SectionInstance["type"] | null>(null);
   const [query, setQuery] = useState("");
   const [fieldQuery, setFieldQuery] = useState("");
-  const [status, setStatus] = useState<"idle" | "saving">("idle");
+  const [status, setStatus] = useState<"idle" | "saving">(() => initialDistribution.changed > 0 ? "saving" : "idle");
   const [pickerKey, setPickerKey] = useState<string | null>(null);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(() => initialDistribution.changed > 0 ? "Répartition automatique des images Assets…" : "");
   const selectedGroup = groups.find((group) => group.key === selectedKey) ?? null;
   const filteredGroups = groups.filter((group) => `${group.label} ${group.key}`.toLocaleLowerCase("fr").includes(query.toLocaleLowerCase("fr")));
   const visibleFields = selectedGroup?.fields.filter((field) => field.label.toLocaleLowerCase("fr").includes(fieldQuery.toLocaleLowerCase("fr"))) ?? [];
@@ -151,8 +151,6 @@ export function GlobalSectionsEditor({ project, initialAssets }: { project: Sect
   useEffect(() => {
     if (initialDistribution.changed === 0) return;
     const controller = new AbortController();
-    setStatus("saving");
-    setMessage("Répartition automatique des images Assets…");
     void fetch("/api/projects/draft", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -240,7 +238,7 @@ export function GlobalSectionsEditor({ project, initialAssets }: { project: Sect
     <section className="mt-14 border-t border-black/[0.08] pt-10">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="flex items-center gap-2"><Layers3 size={19} className="text-black/35" /><h2 className="font-serif text-[25px]">Sections du site</h2></div>
+          <div className="flex items-center gap-2"><Layers3 size={19} className="text-black/35" /><h2 className="font-serif text-[23px] sm:text-[25px]">Sections du site</h2></div>
           <p className="mt-1 max-w-2xl text-[13px] leading-5 text-black/45">Chaque composant est regroupé ici. Une variable modifiée est synchronisée sur toutes les pages qui utilisent ce composant.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -270,12 +268,12 @@ export function GlobalSectionsEditor({ project, initialAssets }: { project: Sect
       {filteredGroups.length === 0 ? <div className="mt-4 rounded-[13px] border border-dashed border-black/15 p-8 text-center text-[13px] text-black/45">Aucune section ne correspond à « {query} ».</div> : null}
 
       {selectedGroup ? <div className="mt-5 overflow-hidden rounded-[14px] border border-[#e3e6e8] bg-white shadow-[0_12px_35px_rgba(0,0,0,0.05)]">
-        <div className="flex flex-col gap-4 border-b border-black/[0.07] p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 border-b border-black/[0.07] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div><p className="font-serif text-[21px]">{selectedGroup.label}</p><p className="mt-1 text-[11px] text-black/40">Les champs compatibles sont appliqués aux {selectedGroup.occurrences.length} occurrences de ce composant.</p></div>
-          <div className="flex items-center gap-3"><span className="max-w-[240px] truncate text-[10px] text-black/40">{message}</span><button type="button" onClick={save} disabled={status !== "idle"} className="flex h-9 min-w-[124px] items-center justify-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232_0%,#222_100%)] px-4 text-[13px] font-semibold text-white shadow-md disabled:opacity-50">{status === "saving" ? <LoaderCircle size={14} className="animate-spin" /> : <Check size={14} />}{status === "saving" ? "Enregistrement…" : "Enregistrer"}</button></div>
+          <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-center min-[420px]:gap-3"><span className="min-w-0 text-[10px] text-black/40 min-[420px]:max-w-[240px] min-[420px]:truncate">{message}</span><button type="button" onClick={save} disabled={status !== "idle"} className="flex h-10 w-full items-center justify-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232_0%,#222_100%)] px-4 text-[13px] font-semibold text-white shadow-md disabled:opacity-50 min-[420px]:h-9 min-[420px]:w-auto min-[420px]:min-w-[124px]">{status === "saving" ? <LoaderCircle size={14} className="animate-spin" /> : <Check size={14} />}{status === "saving" ? "Enregistrement…" : "Enregistrer"}</button></div>
         </div>
         <div className="border-b border-black/[0.07] p-4"><label className="flex max-w-sm items-center gap-2 rounded-[8px] bg-[#f6f6f6] px-3 py-2"><Search size={13} className="text-black/35" /><input value={fieldQuery} onChange={(event) => setFieldQuery(event.target.value)} placeholder="Rechercher une variable" className="min-w-0 flex-1 bg-transparent text-[11px] outline-none" /></label></div>
-        <div className="grid gap-x-5 gap-y-4 p-5 lg:grid-cols-2">
+        <div className="grid gap-x-5 gap-y-4 p-4 sm:p-5 lg:grid-cols-2">
           {visibleFields.map((field) => {
             const value = selectedGroup.occurrences
               .map((occurrence) => getAtPath(occurrence.section.fields, field.path))
@@ -286,13 +284,13 @@ export function GlobalSectionsEditor({ project, initialAssets }: { project: Sect
             return <div key={field.key} className="min-w-0">
               {field.background ? <span className="flex items-center justify-between gap-3 text-[11px] font-medium text-black/60"><span className="truncate" title={field.label}>{field.label}</span><span className="shrink-0 text-[9px] font-normal text-black/30">{field.occurrences} emplacement(s)</span></span> : <label htmlFor={inputId} className="flex items-center justify-between gap-3 text-[11px] font-medium text-black/60"><span className="truncate" title={field.label}>{field.label}</span><span className="shrink-0 text-[9px] font-normal text-black/30">{field.occurrences} emplacement(s)</span></label>}
               {field.background ? <div className="mt-2 rounded-[10px] border border-black/10 bg-[#fbfbfb] p-2.5">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-[7px] bg-[#e8e8e8]">{value ? <img src={String(value)} alt={currentAsset?.alt_text ?? ""} className="size-full object-cover" /> : <ImageIcon size={15} className="text-black/25" />}</span>
-                  <span className="min-w-0 flex-1"><strong className="block truncate text-[11px] font-medium">{currentAsset?.title ?? (assets.length ? "Image extérieure à Assets" : "Image actuelle")}</strong><span className="mt-1 block truncate text-[9px] text-black/35">{currentAsset ? "Bibliothèque Assets" : assets.length ? "Sera remplacée par un asset" : "Conservée faute d’asset"}</span></span>
+                  <span className="min-w-[120px] flex-1"><strong className="block truncate text-[11px] font-medium">{currentAsset?.title ?? (assets.length ? "Image extérieure à Assets" : "Image actuelle")}</strong><span className="mt-1 block truncate text-[9px] text-black/35">{currentAsset ? "Bibliothèque Assets" : assets.length ? "Sera remplacée par un asset" : "Conservée faute d’asset"}</span></span>
                   {assets.length ? <button type="button" onClick={() => setPickerKey(pickerKey === editorKey ? null : editorKey)} className="h-8 rounded-[8px] border border-black/10 bg-white px-2.5 text-[10px] font-medium shadow-sm hover:bg-black/[0.02]">Choisir</button> : null}
                   <label className={`${uploadingKey === editorKey ? "pointer-events-none opacity-50" : "cursor-pointer"} flex h-8 items-center gap-1.5 rounded-[8px] bg-[#222] px-2.5 text-[10px] font-medium text-white`}><UploadCloud size={12} />{uploadingKey === editorKey ? "Import…" : "Importer"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploadingKey === editorKey} className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadForField(file, selectedGroup, field); event.currentTarget.value = ""; }} /></label>
                 </div>
-                {pickerKey === editorKey && assets.length ? <div className="mt-3 grid max-h-56 grid-cols-3 gap-2 overflow-y-auto border-t border-black/[0.07] pt-3 sm:grid-cols-4">
+                {pickerKey === editorKey && assets.length ? <div className="mt-3 grid max-h-56 grid-cols-2 gap-2 overflow-y-auto border-t border-black/[0.07] pt-3 min-[420px]:grid-cols-3 sm:grid-cols-4">
                   {assets.map((asset) => <button key={asset.id} type="button" onClick={() => { updateGlobalField(selectedGroup, field, asset.public_url); setPickerKey(null); }} className={`${asset.public_url === value ? "ring-2 ring-[#00bbfe] ring-offset-2" : "hover:ring-1 hover:ring-black/20"} group overflow-hidden rounded-[8px] bg-white text-left`} title={asset.alt_text}><img src={asset.public_url} alt={asset.alt_text} className="aspect-[4/3] w-full object-cover" /><span className="block truncate px-2 py-1.5 text-[9px]">{asset.title}</span></button>)}
                 </div> : null}
                 {assets.length === 0 ? <input id={inputId} value={value == null ? "" : String(value)} onChange={(event) => updateGlobalField(selectedGroup, field, event.target.value)} placeholder="URL de l’image" className="mt-2 h-8 w-full border-t border-black/[0.06] bg-transparent px-1 pt-2 text-[10px] outline-none" /> : null}

@@ -16,7 +16,6 @@ import {
   Images,
   Layers3,
   LoaderCircle,
-  PanelLeftClose,
   PencilLine,
   Plus,
   Search,
@@ -160,7 +159,7 @@ function TrafficChart() {
   const periodLabel = period === "week" ? "Cette semaine" : period === "month" ? "Ce mois-ci" : `Année ${today.getFullYear()}`;
 
   return (
-    <div className="mt-4 rounded-[13px] border border-[#e8ecee] bg-[#f9f9f9] p-6 shadow-[inset_0_0_0_2px_rgba(255,255,255,.35)]">
+    <div className="mt-4 rounded-[13px] border border-[#e8ecee] bg-[#f9f9f9] p-4 shadow-[inset_0_0_0_2px_rgba(255,255,255,.35)] sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div><p className="text-[12px] text-black/45">Visiteurs du site</p><p className="mt-1 font-serif text-[28px]">0 visiteur</p><p className="mt-1 text-[10px] text-black/35">Analytics non connecté · {periodLabel}</p></div>
         <label className="relative">
@@ -172,7 +171,7 @@ function TrafficChart() {
           <ChevronDown size={13} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-60" />
         </label>
       </div>
-      <div className="mt-9 grid h-[270px] grid-cols-[28px_minmax(0,1fr)] gap-4">
+      <div className="mt-7 grid h-[230px] grid-cols-[24px_minmax(0,1fr)] gap-2 sm:mt-9 sm:h-[270px] sm:grid-cols-[28px_minmax(0,1fr)] sm:gap-4">
         <div className="flex flex-col justify-between pb-8 text-[10px] text-[#525866]"><span>100</span><span>75</span><span>50</span><span>0</span></div>
         <div ref={scrollRef} className="overflow-x-auto overflow-y-hidden scroll-smooth">
           <div className="relative flex h-full min-w-full items-end gap-2 border-b border-black/10 pb-8 before:absolute before:inset-x-0 before:top-1/4 before:border-t before:border-dashed before:border-black/10 after:absolute after:inset-x-0 after:top-1/2 after:border-t after:border-dashed after:border-black/10">
@@ -195,14 +194,14 @@ function ProjectPreviewCard({ project }: { project: DashboardProject }) {
   };
 
   return (
-    <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="group relative mt-8 block h-[428px] w-full max-w-[564px] overflow-hidden rounded-[13px] border border-[#e8ecee] bg-[#f9f9f9] shadow-[inset_0_0_0_2px_rgba(255,255,255,.29)]" aria-label={`Ouvrir le builder de ${project.name}`}>
+    <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="group relative mt-8 block h-[320px] w-full max-w-[564px] overflow-hidden rounded-[13px] border border-[#e8ecee] bg-[#f9f9f9] shadow-[inset_0_0_0_2px_rgba(255,255,255,.29)] sm:h-[428px]" aria-label={`Ouvrir le builder de ${project.name}`}>
       {previews.map((page, index) => {
         const url = previewUrl(page);
-        const placement = index === 0 ? "-left-[210px] top-[172px] z-[1]" : index === 1 ? "left-[82px] top-[48px] z-10 shadow-[-54px_218px_90px_rgba(0,0,0,.01),-30px_122px_76px_rgba(0,0,0,.05),-13px_54px_56px_rgba(0,0,0,.09),-3px_14px_31px_rgba(0,0,0,.10)]" : "left-[420px] top-[112px] z-[2]";
+        const placement = index === 0 ? "hidden sm:block sm:-left-[210px] sm:top-[172px] sm:z-[1]" : index === 1 ? "left-[calc(50%_-_198px)] top-[30px] z-10 shadow-[-54px_218px_90px_rgba(0,0,0,.01),-30px_122px_76px_rgba(0,0,0,.05),-13px_54px_56px_rgba(0,0,0,.09),-3px_14px_31px_rgba(0,0,0,.10)] sm:left-[82px] sm:top-[48px]" : "hidden sm:block sm:left-[420px] sm:top-[112px] sm:z-[2]";
         return <div key={`${page?.id ?? "fallback"}-${index}`} className={`pointer-events-none absolute h-[365px] w-[396px] origin-top-left overflow-hidden rounded-[7px] bg-white [transform:skewX(14deg)] transition-transform duration-500 group-hover:[transform:skewX(14deg)_translateY(-4px)] ${placement}`}><div className="h-[3466px] w-[1800px] origin-top-left [transform:scale(.22)]">{url ? <iframe src={url} title={`Aperçu ${page?.title ?? project.name}`} tabIndex={-1} className="h-[3466px] w-[1800px] border-0 bg-white" /> : <div className="h-[3466px] w-[1800px] bg-[url('/dashboard-site-preview.png')] bg-[length:1800px_auto] bg-top bg-no-repeat" />}</div></div>;
       })}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] h-[138px] bg-gradient-to-b from-[rgba(250,250,250,.09)] to-[#fafafa]" />
-      <span className="absolute bottom-[19px] left-[23px] z-20 flex h-[45px] items-center gap-3 rounded-[11px] border border-black/[0.06] bg-white px-4 text-[16px] tracking-[.01em] text-black/70 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md">Ouvrir le projet<ArrowUpRight size={22} /></span>
+      <span className="absolute bottom-4 left-4 z-20 flex h-11 items-center gap-2 rounded-[11px] border border-black/[0.06] bg-white px-3.5 text-[14px] tracking-[.01em] text-black/70 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md sm:bottom-[19px] sm:left-[23px] sm:h-[45px] sm:gap-3 sm:px-4 sm:text-[16px]">Ouvrir le projet<ArrowUpRight size={20} /></span>
     </Link>
   );
 }
@@ -262,15 +261,15 @@ function ProjectTopbar({
   }
 
   return (
-    <header className="sticky top-0 z-[70] col-start-2 row-start-1 flex h-14 shrink-0 items-center border-b border-black/10 bg-white/95 px-5 font-[var(--font-inter)] backdrop-blur-xl">
-      <div ref={menuRef} className="relative">
-        <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} className="flex h-10 max-w-[320px] items-center gap-3 rounded-[9px] px-1.5 text-[14px] font-semibold text-[#191919] hover:bg-black/[0.035]">
+    <header className="sticky top-0 z-[70] flex h-14 w-full shrink-0 items-center border-b border-black/10 bg-white/95 px-3 font-[var(--font-inter)] backdrop-blur-xl sm:px-5 lg:col-start-2 lg:row-start-1">
+      <div ref={menuRef} className="relative min-w-0">
+        <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} className="flex h-10 max-w-[calc(100vw-118px)] items-center gap-2 rounded-[9px] px-1.5 text-[13px] font-semibold text-[#191919] hover:bg-black/[0.035] sm:max-w-[320px] sm:gap-3 sm:text-[14px]">
           <span className="grid size-5 shrink-0 place-items-center rounded-full bg-black text-white"><Sparkles size={10} /></span>
           <span className="truncate">{project.name}</span>
           <ChevronsUpDown size={15} className="shrink-0 text-black/55" />
         </button>
 
-        {open ? <div className="absolute left-0 top-[calc(100%+7px)] z-[80] w-[280px] overflow-hidden rounded-[12px] border border-black/10 bg-white p-1.5 shadow-[0_18px_50px_rgba(0,0,0,.14)]">
+        {open ? <div className="absolute left-0 top-[calc(100%+7px)] z-[80] w-[min(280px,calc(100vw-24px))] overflow-hidden rounded-[12px] border border-black/10 bg-white p-1.5 shadow-[0_18px_50px_rgba(0,0,0,.14)]">
           <div className="max-h-60 overflow-y-auto">
             {projects.map((item) => <Link key={item.key} href={`/dashboard?project=${encodeURIComponent(item.key)}&tab=${activeTab}`} onClick={() => setOpen(false)} className={`${item.key === project.key ? "bg-black/[0.055]" : "hover:bg-black/[0.035]"} flex h-10 items-center justify-between gap-3 rounded-[8px] px-3 text-[13px]`}><span className="truncate">{item.name}</span>{item.key === project.key ? <Check size={14} /> : null}</Link>)}
           </div>
@@ -283,8 +282,21 @@ function ProjectTopbar({
           </form> : <button type="button" onClick={() => { setCreating(true); setProjectName(""); setCreateError(""); }} className="flex h-10 w-full items-center gap-2 rounded-[8px] px-3 text-left text-[13px] font-medium hover:bg-black/[0.035]"><Plus size={15} />Créer un projet</button>}</> : null}
         </div> : null}
       </div>
+      {project.role === "admin" ? <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="ml-auto flex h-9 shrink-0 items-center gap-1.5 rounded-[9px] bg-[#222] px-3 text-[11px] font-semibold text-white shadow-sm lg:hidden"><PencilLine size={13} /><span className="hidden min-[360px]:inline">Builder</span></Link> : null}
     </header>
   );
+}
+
+function MobileDashboardNav({ project, activeTab }: { project: DashboardProject; activeTab: DashboardTab }) {
+  const items: Array<[DashboardTab, string, typeof Home]> = [
+    ["overview", "Vue", Home],
+    ["traffic", "Stats", BarChart3],
+    ["pages", "Pages", FolderKanban],
+    ["cms", "CMS", Database],
+    ["assets", "Assets", Images],
+    ...(project.role === "admin" ? [["settings", "Réglages", Settings2] as [DashboardTab, string, typeof Home]] : []),
+  ];
+  return <nav aria-label="Navigation du dashboard" className="fixed inset-x-0 bottom-0 z-[110] border-t border-black/10 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"><div className="grid h-16" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>{items.map(([tab, label, Icon]) => <Link key={tab} href={`/dashboard?project=${encodeURIComponent(project.key)}&tab=${tab}`} aria-current={activeTab === tab ? "page" : undefined} className={`${activeTab === tab ? "text-black" : "text-black/40"} relative flex min-w-0 flex-col items-center justify-center gap-1 text-[9px] font-medium`}>{activeTab === tab ? <span className="absolute top-0 h-0.5 w-7 rounded-full bg-black" /> : null}<Icon size={18} strokeWidth={activeTab === tab ? 2.2 : 1.8} /><span className="max-w-full truncate px-0.5">{label}</span></Link>)}</div></nav>;
 }
 
 export function DashboardShell({
@@ -336,15 +348,14 @@ export function DashboardShell({
   }
 
   return (
-    <main className={`${activeTab === "cms" ? "fixed inset-0 grid h-dvh grid-cols-[212px_minmax(0,1fr)] grid-rows-[56px_minmax(0,1fr)] overflow-hidden" : "min-h-screen lg:grid lg:grid-cols-[212px_1fr]"} bg-white text-[#1c1c1c]`}>
+    <main className={`${activeTab === "cms" ? "fixed inset-0 flex h-dvh flex-col overflow-hidden pb-[calc(64px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_minmax(0,1fr)] lg:grid-rows-[56px_minmax(0,1fr)] lg:pb-0" : "min-h-screen pb-[calc(64px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_1fr] lg:pb-0"} bg-white text-[#1c1c1c]`}>
       <ProjectTopbar projects={projects} project={project} activeTab={activeTab} />
-      <aside className={`${activeTab === "cms" ? "col-start-1 row-span-2 row-start-1 h-dvh overflow-hidden border-r" : "border-b lg:sticky lg:top-0 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-screen lg:border-b-0 lg:border-r"} border-black/10 bg-[#fcf9f4] px-4 py-4`}>
+      <aside className={`${activeTab === "cms" ? "lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden lg:border-r" : "lg:sticky lg:top-0 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-screen lg:border-r"} hidden border-black/10 bg-[#fcf9f4] px-4 py-4 lg:block`}>
         <div className="flex h-12 items-center justify-between px-3">
           <Link href="/dashboard" className="flex items-center gap-2 font-serif text-[23px] tracking-[-0.05em]">
             <span className="grid size-7 place-items-center rounded-full bg-[#1c1c1c] text-white"><Sparkles size={14} /></span>
             Atelier
           </Link>
-          <PanelLeftClose size={17} className="text-black/35 lg:hidden" />
         </div>
 
         {project.role === "admin" ? <div className="mt-8 px-3">
@@ -366,14 +377,14 @@ export function DashboardShell({
         </nav>
       </aside>
 
-      <section className={activeTab === "cms" ? "col-start-2 row-start-2 h-full min-h-0 min-w-0 overflow-hidden" : "min-w-0 px-5 py-8 sm:px-8 lg:col-start-2 lg:row-start-2 lg:px-10 lg:py-11 xl:px-12"}>
+      <section className={activeTab === "cms" ? "min-h-0 min-w-0 flex-1 overflow-hidden lg:col-start-2 lg:row-start-2 lg:h-full" : "min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:row-start-2 lg:px-10 lg:py-11 xl:px-12"}>
         {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} /> : <>
         <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="font-serif text-[30px] tracking-[-0.05em]">{activeTab === "pages" ? "Pages du site" : activeTab === "traffic" ? "Statistiques et trafic" : "Bonjour, voici votre site"}</h1>
-            <p className="mt-2 text-[14px] font-medium text-black/60">{activeTab === "pages" ? `Gérez toutes les pages de ${project.name}.` : activeTab === "traffic" ? `Suivez les indicateurs disponibles pour ${project.name}.` : `Suivez le contenu, le trafic et la publication de ${project.name}.`}</p>
+            <h1 className="font-serif text-[27px] leading-tight tracking-[-0.05em] sm:text-[30px]">{activeTab === "pages" ? "Pages du site" : activeTab === "traffic" ? "Statistiques et trafic" : "Bonjour, voici votre site"}</h1>
+            <p className="mt-2 text-[13px] font-medium leading-5 text-black/60 sm:text-[14px]">{activeTab === "pages" ? `Gérez toutes les pages de ${project.name}.` : activeTab === "traffic" ? `Suivez les indicateurs disponibles pour ${project.name}.` : `Suivez le contenu, le trafic et la publication de ${project.name}.`}</p>
           </div>
-          {project.role === "admin" ? <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="flex h-9 items-center justify-center gap-2 rounded-[10px] bg-gradient-to-b from-[#323232] to-[#222] px-5 text-[14px] font-semibold text-white shadow-md">
+          {project.role === "admin" ? <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="flex h-10 w-full items-center justify-center gap-2 rounded-[10px] bg-gradient-to-b from-[#323232] to-[#222] px-5 text-[13px] font-semibold text-white shadow-md sm:h-9 sm:w-auto sm:text-[14px]">
             <PencilLine size={15} />Nouvelle modification
           </Link> : null}
         </header>
@@ -399,13 +410,13 @@ export function DashboardShell({
         {activeTab === "overview" ? <div className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,.95fr)]">
           <section id="activite">
             <h2 className="font-serif text-[25px]">Activité du projet</h2>
-            <div className="mt-4 rounded-[13px] border border-[#e8ecee] bg-[#f9f9f9] p-6">
+            <div className="mt-4 rounded-[13px] border border-[#e8ecee] bg-[#f9f9f9] p-4 sm:p-6">
               <div className="flex items-start justify-between"><div><p className="text-[13px] text-black/45">Dernière mise à jour</p><p className="mt-1 text-[15px] font-medium">{formatDate(project.updatedAt)}</p></div><span className="rounded-full bg-[#e8f5ec] px-3 py-1 text-[11px] font-semibold text-[#24743a]">{project.publishedAt ? "Publié" : "Brouillon"}</span></div>
               <div className="mt-8 flex h-48 items-end gap-2 border-b border-black/10 pb-2">
                 {monthLabels.map((month, index) => {
                   const isActive = index === activeMonth;
                   const height = isActive ? Math.max(38, Math.min(100, 30 + sectionCount * 2)) : 12;
-                  return <div key={month} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2"><div title={isActive ? `${sectionCount} sections dans l’état actuel` : "Aucun historique enregistré"} className={`w-full rounded-lg ${isActive ? "bg-[#474749]" : "bg-[#eceeef]"}`} style={{ height: `${height}%` }} /><span className="hidden text-[10px] text-[#525866] sm:block">{month}</span></div>;
+                  return <div key={month} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2"><div title={isActive ? `${sectionCount} sections dans l’état actuel` : "Aucun historique enregistré"} className={`w-full rounded-md sm:rounded-lg ${isActive ? "bg-[#474749]" : "bg-[#eceeef]"}`} style={{ height: `${height}%` }} /><span className="text-[8px] text-[#525866] sm:text-[10px]">{month}</span></div>;
                 })}
               </div>
               <p className="mt-4 text-[12px] leading-5 text-black/45">Le mois actif reflète l’état actuel. Un historique détaillé nécessitera une table de versions lors de la prochaine phase.</p>
@@ -433,7 +444,7 @@ export function DashboardShell({
               </div>
               <div>
                 <h2 className="font-serif text-[25px]">Répartition</h2>
-                <div className="mt-4 rounded-[13px] border border-[#e8ecee] bg-[#f9f9f9] p-6">
+                <div className="mt-4 rounded-[13px] border border-[#e8ecee] bg-[#f9f9f9] p-4 sm:p-6">
                   <div className="mx-auto grid size-44 place-items-center rounded-full" style={{ background: `conic-gradient(#474749 0 ${validCount * 25}%, #d7dadd ${validCount * 25}% 78%, #f0f1f2 78% 100%)` }}><div className="grid size-28 place-items-center rounded-full bg-[#f9f9f9] text-center"><div><p className="font-serif text-[28px]">{validCount}/{checks.length}</p><p className="text-[10px] text-black/45">contrôles validés</p></div></div></div>
                   <div className="mt-7 grid gap-3 text-[12px]"><div className="flex items-center justify-between"><span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#474749]" />Pages structurées</span><b>{project.pages.length}</b></div><div className="flex items-center justify-between"><span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#aeb3b8]" />Sections</span><b>{sectionCount}</b></div><div className="flex items-center justify-between"><span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#e2e4e6]" />État</span><b>{project.publishedAt ? "Publié" : "Brouillon"}</b></div></div>
                 </div>
@@ -453,6 +464,7 @@ export function DashboardShell({
         </section> : null}
         </>}
       </section>
+      <MobileDashboardNav project={project} activeTab={activeTab} />
     </main>
   );
 }
