@@ -206,14 +206,16 @@ function ProjectPreviewCard({ project }: { project: DashboardProject }) {
   );
 }
 
-function ProjectTopbar({
+function ProjectSelector({
   projects,
   project,
   activeTab,
+  placement = "sidebar",
 }: {
   projects: DashboardProject[];
   project: DashboardProject;
   activeTab: DashboardTab;
+  placement?: "sidebar" | "mobile";
 }) {
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
@@ -261,17 +263,16 @@ function ProjectTopbar({
   }
 
   return (
-    <header className="sticky top-0 z-[70] flex h-14 w-full shrink-0 items-center border-b border-black/10 bg-white/95 px-3 font-[var(--font-inter)] backdrop-blur-xl sm:px-5 lg:col-start-2 lg:row-start-1">
-      <div ref={menuRef} className="relative min-w-0">
-        <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} className="flex h-10 max-w-[calc(100vw-118px)] items-center gap-2 rounded-[9px] px-1.5 text-[13px] font-semibold text-[#191919] hover:bg-black/[0.035] sm:max-w-[320px] sm:gap-3 sm:text-[14px]">
+      <div ref={menuRef} className="relative min-w-0 flex-1 font-[var(--font-inter)]">
+        <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-haspopup="menu" className={`${placement === "mobile" ? "h-11 w-full px-3" : "h-12 w-full px-2"} flex min-w-0 items-center gap-2 rounded-[9px] text-[13px] font-semibold text-[#191919] hover:bg-black/[0.04]`}>
           <span className="grid size-5 shrink-0 place-items-center rounded-full bg-black text-white"><Sparkles size={10} /></span>
           <span className="truncate">{project.name}</span>
-          <ChevronsUpDown size={15} className="shrink-0 text-black/55" />
+          <ChevronsUpDown size={15} className="ml-auto shrink-0 text-black/55" />
         </button>
 
-        {open ? <div className="absolute left-0 top-[calc(100%+7px)] z-[80] w-[min(280px,calc(100vw-24px))] overflow-hidden rounded-[12px] border border-black/10 bg-white p-1.5 shadow-[0_18px_50px_rgba(0,0,0,.14)]">
+        {open ? <div role="menu" className={`${placement === "mobile" ? "fixed inset-x-3 bottom-[calc(112px+env(safe-area-inset-bottom))]" : "absolute left-0 top-[calc(100%+7px)] w-[260px]"} z-[120] overflow-hidden rounded-[12px] border border-black/10 bg-white p-1.5 shadow-[0_18px_50px_rgba(0,0,0,.14)]`}>
           <div className="max-h-60 overflow-y-auto">
-            {projects.map((item) => <Link key={item.key} href={`/dashboard?project=${encodeURIComponent(item.key)}&tab=${activeTab}`} onClick={() => setOpen(false)} className={`${item.key === project.key ? "bg-black/[0.055]" : "hover:bg-black/[0.035]"} flex h-10 items-center justify-between gap-3 rounded-[8px] px-3 text-[13px]`}><span className="truncate">{item.name}</span>{item.key === project.key ? <Check size={14} /> : null}</Link>)}
+            {projects.map((item) => <Link role="menuitem" key={item.key} href={`/dashboard?project=${encodeURIComponent(item.key)}&tab=${activeTab}`} onClick={() => setOpen(false)} className={`${item.key === project.key ? "bg-black/[0.055]" : "hover:bg-black/[0.035]"} flex h-10 items-center justify-between gap-3 rounded-[8px] px-3 text-[13px]`}><span className="truncate">{item.name}</span>{item.key === project.key ? <Check size={14} /> : null}</Link>)}
           </div>
           {project.role === "admin" ? <><div className="my-1.5 border-t border-black/[0.08]" />
           {creating ? <form onSubmit={createProject} className="p-1.5">
@@ -282,12 +283,10 @@ function ProjectTopbar({
           </form> : <button type="button" onClick={() => { setCreating(true); setProjectName(""); setCreateError(""); }} className="flex h-10 w-full items-center gap-2 rounded-[8px] px-3 text-left text-[13px] font-medium hover:bg-black/[0.035]"><Plus size={15} />Créer un projet</button>}</> : null}
         </div> : null}
       </div>
-      {project.role === "admin" ? <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="ml-auto flex h-9 shrink-0 items-center gap-1.5 rounded-[9px] bg-[#222] px-3 text-[11px] font-semibold text-white shadow-sm lg:hidden"><PencilLine size={13} /><span className="hidden min-[360px]:inline">Builder</span></Link> : null}
-    </header>
   );
 }
 
-function MobileDashboardNav({ project, activeTab }: { project: DashboardProject; activeTab: DashboardTab }) {
+function MobileDashboardNav({ projects, project, activeTab }: { projects: DashboardProject[]; project: DashboardProject; activeTab: DashboardTab }) {
   const items: Array<[DashboardTab, string, typeof Home]> = [
     ["overview", "Vue", Home],
     ["traffic", "Stats", BarChart3],
@@ -296,7 +295,7 @@ function MobileDashboardNav({ project, activeTab }: { project: DashboardProject;
     ["assets", "Assets", Images],
     ...(project.role === "admin" ? [["settings", "Réglages", Settings2] as [DashboardTab, string, typeof Home]] : []),
   ];
-  return <nav aria-label="Navigation du dashboard" className="fixed inset-x-0 bottom-0 z-[110] border-t border-black/10 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"><div className="grid h-16" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>{items.map(([tab, label, Icon]) => <Link key={tab} href={`/dashboard?project=${encodeURIComponent(project.key)}&tab=${tab}`} aria-current={activeTab === tab ? "page" : undefined} className={`${activeTab === tab ? "text-black" : "text-black/40"} relative flex min-w-0 flex-col items-center justify-center gap-1 text-[9px] font-medium`}>{activeTab === tab ? <span className="absolute top-0 h-0.5 w-7 rounded-full bg-black" /> : null}<Icon size={18} strokeWidth={activeTab === tab ? 2.2 : 1.8} /><span className="max-w-full truncate px-0.5">{label}</span></Link>)}</div></nav>;
+  return <nav aria-label="Navigation du dashboard" className="fixed inset-x-0 bottom-0 z-[110] border-t border-black/10 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"><div className="border-b border-black/[0.07] px-2"><ProjectSelector projects={projects} project={project} activeTab={activeTab} placement="mobile" /></div><div className="grid h-16" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>{items.map(([tab, label, Icon]) => <Link key={tab} href={`/dashboard?project=${encodeURIComponent(project.key)}&tab=${tab}`} aria-current={activeTab === tab ? "page" : undefined} className={`${activeTab === tab ? "text-black" : "text-black/40"} relative flex min-w-0 flex-col items-center justify-center gap-1 text-[9px] font-medium`}>{activeTab === tab ? <span className="absolute top-0 h-0.5 w-7 rounded-full bg-black" /> : null}<Icon size={18} strokeWidth={activeTab === tab ? 2.2 : 1.8} /><span className="max-w-full truncate px-0.5">{label}</span></Link>)}</div></nav>;
 }
 
 export function DashboardShell({
@@ -348,15 +347,9 @@ export function DashboardShell({
   }
 
   return (
-    <main className={`${activeTab === "cms" ? "fixed inset-0 flex h-dvh flex-col overflow-hidden pb-[calc(64px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_minmax(0,1fr)] lg:grid-rows-[56px_minmax(0,1fr)] lg:pb-0" : "min-h-screen pb-[calc(64px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_1fr] lg:pb-0"} bg-white text-[#1c1c1c]`}>
-      <ProjectTopbar projects={projects} project={project} activeTab={activeTab} />
-      <aside className={`${activeTab === "cms" ? "lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-dvh lg:overflow-hidden lg:border-r" : "lg:sticky lg:top-0 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-screen lg:border-r"} hidden border-black/10 bg-[#fcf9f4] px-4 py-4 lg:block`}>
-        <div className="flex h-12 items-center justify-between px-3">
-          <Link href="/dashboard" className="flex items-center gap-2 font-serif text-[23px] tracking-[-0.05em]">
-            <span className="grid size-7 place-items-center rounded-full bg-[#1c1c1c] text-white"><Sparkles size={14} /></span>
-            Atelier
-          </Link>
-        </div>
+    <main className={`${activeTab === "cms" ? "fixed inset-0 flex h-dvh flex-col overflow-hidden pb-[calc(108px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_minmax(0,1fr)] lg:pb-0" : "min-h-screen pb-[calc(108px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_1fr] lg:pb-0"} bg-white text-[#1c1c1c]`}>
+      <aside className={`${activeTab === "cms" ? "lg:col-start-1 lg:row-start-1 lg:h-dvh lg:overflow-hidden lg:border-r" : "lg:sticky lg:top-0 lg:col-start-1 lg:row-start-1 lg:h-screen lg:border-r"} hidden border-black/10 bg-[#fcf9f4] px-4 py-4 lg:block`}>
+        <ProjectSelector projects={projects} project={project} activeTab={activeTab} />
 
         {project.role === "admin" ? <div className="mt-8 px-3">
           <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="flex h-8 items-center justify-center rounded-md border border-[#d9d9d9] bg-white text-[12px] font-medium shadow-sm hover:bg-black/[0.03]">
@@ -377,7 +370,7 @@ export function DashboardShell({
         </nav>
       </aside>
 
-      <section className={activeTab === "cms" ? "min-h-0 min-w-0 flex-1 overflow-hidden lg:col-start-2 lg:row-start-2 lg:h-full" : "min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:row-start-2 lg:px-10 lg:py-11 xl:px-12"}>
+      <section className={activeTab === "cms" ? "min-h-0 min-w-0 flex-1 overflow-hidden lg:col-start-2 lg:row-start-1 lg:h-full" : "min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:row-start-1 lg:px-10 lg:py-11 xl:px-12"}>
         {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} /> : <>
         <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -464,7 +457,7 @@ export function DashboardShell({
         </section> : null}
         </>}
       </section>
-      <MobileDashboardNav project={project} activeTab={activeTab} />
+      <MobileDashboardNav projects={projects} project={project} activeTab={activeTab} />
     </main>
   );
 }
