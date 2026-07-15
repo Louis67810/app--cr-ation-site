@@ -4,6 +4,7 @@ import {
   ArrowUpRight,
   BarChart3,
   Bot,
+  CalendarDays,
   Check,
   ChevronDown,
   ChevronsUpDown,
@@ -32,8 +33,14 @@ import { ProjectSettings } from "@/components/dashboard/project-settings";
 import { AssetLibrary } from "@/components/dashboard/asset-library";
 import { GlobalSectionsEditor } from "@/components/dashboard/global-sections-editor";
 import { AiAgents } from "@/components/dashboard/ai-agents";
+import { MonthlyRecap } from "@/components/dashboard/monthly-recap";
 
-export type DashboardTab = "overview" | "traffic" | "pages" | "cms" | "assets" | "ai" | "settings";
+export type DashboardTab = "overview" | "traffic" | "pages" | "cms" | "assets" | "ai" | "recap" | "settings";
+
+export type MonthlyRecapEvent = { id: string; event_type: "page_created" | "article_created" | "realisation_created" | "project_published"; entity_title: string; created_at: string };
+export type MonthlyRecapSettings = { recipient_email: string; enabled: boolean; send_day: number };
+export type MonthlyRecapDelivery = { id: string; period_start: string; status: "processing" | "sent" | "failed"; created_at: string };
+export type MonthlyRecapData = { settings: MonthlyRecapSettings | null; events: MonthlyRecapEvent[]; deliveries: MonthlyRecapDelivery[]; visitors: number; pageViews: number; ready: boolean; defaultEmail: string };
 
 export type DashboardProject = {
   key: string;
@@ -296,6 +303,7 @@ function MobileDashboardNav({ projects, project, activeTab }: { projects: Dashbo
     ["cms", "CMS", Database],
     ["assets", "Assets", Images],
     ["ai", "IA", Bot],
+    ...(project.role === "admin" ? [["recap", "Récap", CalendarDays] as [DashboardTab, string, typeof Home]] : []),
     ...(project.role === "admin" ? [["settings", "Réglages", Settings2] as [DashboardTab, string, typeof Home]] : []),
   ];
   return <nav aria-label="Navigation du dashboard" className="fixed inset-x-0 bottom-0 z-[110] border-t border-black/10 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"><div className="border-b border-black/[0.07] px-2"><ProjectSelector projects={projects} project={project} activeTab={activeTab} placement="mobile" /></div><div className="grid h-16" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>{items.map(([tab, label, Icon]) => <Link key={tab} href={`/dashboard?project=${encodeURIComponent(project.key)}&tab=${tab}`} aria-current={activeTab === tab ? "page" : undefined} className={`${activeTab === tab ? "text-black" : "text-black/40"} relative flex min-w-0 flex-col items-center justify-center gap-1 text-[9px] font-medium`}>{activeTab === tab ? <span className="absolute top-0 h-0.5 w-7 rounded-full bg-black" /> : null}<Icon size={18} strokeWidth={activeTab === tab ? 2.2 : 1.8} /><span className="max-w-full truncate px-0.5">{label}</span></Link>)}</div></nav>;
@@ -307,12 +315,14 @@ export function DashboardShell({
   activeTab,
   invitations,
   assets,
+  recap,
 }: {
   projects: DashboardProject[];
   selectedKey: string;
   activeTab: DashboardTab;
   invitations: DashboardInvitation[];
   assets: DashboardAsset[];
+  recap: MonthlyRecapData;
 }) {
   const project = projects.find((item) => item.key === selectedKey) ?? projects[0];
   const [query, setQuery] = useState("");
@@ -369,13 +379,14 @@ export function DashboardShell({
             <Link href={tabHref("cms")} className={`${activeTab === "cms" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Database size={18} />CMS</Link>
             <Link href={tabHref("assets")} className={`${activeTab === "assets" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Images size={18} />Assets</Link>
             <Link href={tabHref("ai")} className={`${activeTab === "ai" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Bot size={18} />Agents IA</Link>
+            {project.role === "admin" ? <Link href={tabHref("recap")} className={`${activeTab === "recap" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><CalendarDays size={18} />Récap mensuel</Link> : null}
             {project.role === "admin" ? <Link href={tabHref("settings")} className={`${activeTab === "settings" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Settings2 size={18} />Paramètres</Link> : null}
           </div>
         </nav>
       </aside>
 
       <section className={activeTab === "cms" ? "min-h-0 min-w-0 flex-1 overflow-hidden lg:col-start-2 lg:row-start-1 lg:h-full" : "min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:row-start-1 lg:px-10 lg:py-11 xl:px-12"}>
-        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents project={project} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} /> : <>
+        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents project={project} /> : activeTab === "recap" ? <MonthlyRecap project={project} initialSettings={recap.settings} initialEvents={recap.events} initialDeliveries={recap.deliveries} visitors={recap.visitors} pageViews={recap.pageViews} ready={recap.ready} defaultEmail={recap.defaultEmail} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} /> : <>
         <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-serif text-[27px] leading-tight tracking-[-0.05em] sm:text-[30px]">{activeTab === "pages" ? "Pages du site" : activeTab === "traffic" ? "Statistiques et trafic" : "Bonjour, voici votre site"}</h1>

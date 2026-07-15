@@ -210,6 +210,7 @@ export async function POST(request: Request) {
       ? await supabase.from("site_projects").upsert({ owner_id: userId, project_key: projectKey, ...values }, { onConflict: "owner_id,project_key" })
       : await supabase.from("site_projects").update(values).eq("owner_id", projectOwnerId).eq("project_key", projectKey);
     if (error) throw new Error(error.message);
+    await supabase.from("project_activity_events").insert({ owner_id: projectOwnerId, project_key: projectKey, actor_user_id: userId, event_type: "article_created", entity_id: `article-${updated.slug}`, entity_title: article.title, metadata: { slug: updated.href, agent: payload.agentId } });
     const sourceUrl = source?.startsWith("http") ? source.split(/\s/)[0] : youtubeSource?.url ?? null;
     const warning = (payload.agentId === "youtube" && !source && !youtubeSource
       ? "Brouillon créé grâce à la recherche web. Ajoutez YOUTUBE_API_KEY pour sélectionner automatiquement les tutoriels selon leur popularité, ou collez une transcription pour une adaptation précise."

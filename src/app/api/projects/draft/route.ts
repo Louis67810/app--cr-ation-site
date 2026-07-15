@@ -30,6 +30,11 @@ export async function POST(request: Request) {
     if (!membership) return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
 
+  const { data: previousProject } = await supabase.from("site_projects").select("pages").eq("owner_id", projectOwnerId).eq("project_key", projectKey).maybeSingle();
+  const previousPages = Array.isArray(previousProject?.pages) ? previousProject.pages as SitePage[] : null;
+  const previousSlugs = new Set(previousPages?.map((page) => page.slug) ?? []);
+  const createdPages = previousPages ? payload.pages.filter((page) => !previousSlugs.has(page.slug)) : [];
+
   const values = { project_name: payload.projectName, pages: payload.pages, updated_at: new Date().toISOString() };
   const { error } = projectOwnerId === ownerId
     ? await supabase.from("site_projects").upsert({ owner_id: ownerId, project_key: projectKey, ...values }, { onConflict: "owner_id,project_key" })
@@ -37,6 +42,10 @@ export async function POST(request: Request) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (createdPages.length) {
+    await supabase.from("project_activity_events").insert(createdPages.map((page) => ({ owner_id: projectOwnerId, project_key: projectKey, actor_user_id: ownerId, event_type: page.slug.startsWith("/blog/") ? "article_created" : page.slug.startsWith("/realisations/") ? "realisation_created" : "page_created", entity_id: page.id, entity_title: page.title, metadata: { slug: page.slug } })));
   }
 
   return NextResponse.json({ saved: true });

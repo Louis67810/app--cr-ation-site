@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { DashboardShell, type DashboardAsset, type DashboardInvitation, type DashboardProject, type DashboardTab } from "@/components/dashboard/dashboard-shell";
+import { DashboardShell, type DashboardAsset, type DashboardInvitation, type DashboardProject, type DashboardTab, type MonthlyRecapData } from "@/components/dashboard/dashboard-shell";
 import { demoSitePages } from "@/lib/demo-site";
 import { normalizeProjectKey } from "@/lib/project-key";
 import type { SitePage } from "@/lib/site-template";
@@ -64,9 +64,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const resolvedSearchParams = await searchParams;
   const requestedKey = normalizeProjectKey(resolvedSearchParams.project);
   const selected = projects.find((project) => project.key === requestedKey) ?? projects[0];
-  const allowedTabs: DashboardTab[] = ["overview", "traffic", "pages", "cms", "assets", "ai", "settings"];
+  const allowedTabs: DashboardTab[] = ["overview", "traffic", "pages", "cms", "assets", "ai", "recap", "settings"];
   const requestedTab = allowedTabs.includes(resolvedSearchParams.tab as DashboardTab) ? resolvedSearchParams.tab as DashboardTab : "overview";
-  const activeTab = requestedTab === "settings" && selected.role !== "admin" ? "overview" : requestedTab;
+  const activeTab = (requestedTab === "settings" || requestedTab === "recap") && selected.role !== "admin" ? "overview" : requestedTab;
 
   let invitations: DashboardInvitation[] = [];
   if (selected.role === "admin") {
@@ -77,5 +77,24 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const { data: assetRows } = await supabase.from("project_assets").select("id, public_url, original_name, title, alt_text, ai_generated, created_at").eq("owner_id", selected.ownerId).eq("project_key", selected.key).order("created_at", { ascending: false });
   const assets = (assetRows ?? []) as DashboardAsset[];
 
-  return <DashboardShell projects={projects} selectedKey={selected.key} activeTab={activeTab} invitations={invitations} assets={assets} />;
+  const recap: MonthlyRecapData = { settings: null, events: [], deliveries: [], visitors: 0, pageViews: 0, ready: false, defaultEmail: typeof authData?.claims?.email === "string" ? authData.claims.email : "" };
+  if (selected.role === "admin") {
+    const now = new Date();
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+    const dayStart = monthStart.slice(0, 10);
+    const [settingsResult, eventsResult, deliveriesResult, trafficResult] = await Promise.all([
+      supabase.from("monthly_recap_settings").select("recipient_email, enabled, send_day").eq("owner_id", selected.ownerId).eq("project_key", selected.key).maybeSingle(),
+      supabase.from("project_activity_events").select("id, event_type, entity_title, created_at").eq("owner_id", selected.ownerId).eq("project_key", selected.key).gte("created_at", monthStart).order("created_at", { ascending: false }).limit(100),
+      supabase.from("monthly_recap_deliveries").select("id, period_start, status, created_at").eq("owner_id", selected.ownerId).eq("project_key", selected.key).order("period_start", { ascending: false }).limit(6),
+      supabase.from("project_traffic_daily").select("visitors, page_views").eq("owner_id", selected.ownerId).eq("project_key", selected.key).gte("day", dayStart),
+    ]);
+    recap.settings = settingsResult.data as MonthlyRecapData["settings"];
+    recap.events = (eventsResult.data ?? []) as MonthlyRecapData["events"];
+    recap.deliveries = (deliveriesResult.data ?? []) as MonthlyRecapData["deliveries"];
+    recap.visitors = (trafficResult.data ?? []).reduce((total, row) => total + Number(row.visitors ?? 0), 0);
+    recap.pageViews = (trafficResult.data ?? []).reduce((total, row) => total + Number(row.page_views ?? 0), 0);
+    recap.ready = !settingsResult.error && !eventsResult.error && !deliveriesResult.error && !trafficResult.error;
+  }
+
+  return <DashboardShell projects={projects} selectedKey={selected.key} activeTab={activeTab} invitations={invitations} assets={assets} recap={recap} />;
 }

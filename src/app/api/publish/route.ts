@@ -48,6 +48,8 @@ export async function POST(request: Request) {
 
     if (error) throw error;
 
+    await supabase.from("project_activity_events").insert({ owner_id: projectOwnerId, project_key: projectKey, actor_user_id: ownerId, event_type: "project_published", entity_id: publishedSlug, entity_title: payload.projectName.trim(), metadata: { published_slug: publishedSlug } });
+
     return NextResponse.json({
       url: `/published/${publishedSlug}`,
       publishedAt,
