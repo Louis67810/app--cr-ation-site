@@ -64,7 +64,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const resolvedSearchParams = await searchParams;
   const requestedKey = normalizeProjectKey(resolvedSearchParams.project);
   const selected = projects.find((project) => project.key === requestedKey) ?? projects[0];
-  const allowedTabs: DashboardTab[] = ["overview", "traffic", "pages", "cms", "assets", "settings"];
+  const allowedTabs: DashboardTab[] = ["overview", "traffic", "pages", "cms", "assets", "ai", "settings"];
   const requestedTab = allowedTabs.includes(resolvedSearchParams.tab as DashboardTab) ? resolvedSearchParams.tab as DashboardTab : "overview";
   const activeTab = requestedTab === "settings" && selected.role !== "admin" ? "overview" : requestedTab;
 
