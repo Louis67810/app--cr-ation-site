@@ -2,9 +2,9 @@
 
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { Bot, Check, CheckCircle2, Circle, ExternalLink, FilePenLine, Laptop, LoaderCircle, Search, ShieldCheck, Sparkles, TrendingUp, Video } from "lucide-react";
+import { Bot, Check, CheckCircle2, Circle, ExternalLink, FilePenLine, Laptop, Link2, LoaderCircle, Search, ShieldCheck, Sparkles, TrendingUp, Video } from "lucide-react";
 import type { DashboardProject } from "@/components/dashboard/dashboard-shell";
-import type { ArticleOutline, EditorialMode, ResearchBrief } from "@/lib/editorial-pipeline";
+import type { ArticleOutline, EditorialMode, GeneratedArticle, ResearchBrief } from "@/lib/editorial-pipeline";
 
 type ModeDefinition = {
   id: EditorialMode;
@@ -48,6 +48,11 @@ export function AiAgents({ project }: { project: DashboardProject }) {
   const [phase, setPhase] = useState<PipelinePhase>("idle");
   const [message, setMessage] = useState("");
   const [drafts, setDrafts] = useState<GeneratedDraft[]>([]);
+  const [researchResult, setResearchResult] = useState<ResearchBrief | null>(null);
+  const [outlineResult, setOutlineResult] = useState<ArticleOutline | null>(null);
+  const [articleResult, setArticleResult] = useState<GeneratedArticle | null>(null);
+  const [draftResult, setDraftResult] = useState<GeneratedDraft | null>(null);
+  const [failedPhase, setFailedPhase] = useState<Exclude<PipelinePhase, "idle" | "done"> | null>(null);
   const isLocal = useSyncExternalStore(subscribeToLocation, getLocalSnapshot, () => null);
   const selected = modes.find((mode) => mode.id === selectedId) ?? modes[0];
   const running = phase !== "idle" && phase !== "done";
@@ -74,17 +79,29 @@ export function AiAgents({ project }: { project: DashboardProject }) {
     event.preventDefault();
     if (!topic.trim() || running) return;
     setMessage("");
+    setResearchResult(null);
+    setOutlineResult(null);
+    setArticleResult(null);
+    setDraftResult(null);
+    setFailedPhase(null);
+    let activePhase: Exclude<PipelinePhase, "idle" | "done"> = "research";
     try {
       setPhase("research");
       const researchResult = await callPhase<{ research: ResearchBrief }>({ phase: "research" });
+      setResearchResult(researchResult.research);
 
+      activePhase = "outline";
       setPhase("outline");
       const outlineResult = await callPhase<{ outline: ArticleOutline }>({ phase: "outline", research: researchResult.research });
+      setOutlineResult(outlineResult.outline);
 
+      activePhase = "write";
       setPhase("write");
-      const writeResult = await callPhase<{ draft: GeneratedDraft; warning?: string }>({ phase: "write", research: researchResult.research, outline: outlineResult.outline });
+      const writeResult = await callPhase<{ article: GeneratedArticle; draft: GeneratedDraft; warning?: string }>({ phase: "write", research: researchResult.research, outline: outlineResult.outline });
       if (!writeResult.draft) throw new Error("Le brouillon final n’a pas été retourné.");
 
+      setArticleResult(writeResult.article);
+      setDraftResult(writeResult.draft);
       setDrafts((current) => [writeResult.draft, ...current]);
       setMessage(writeResult.warning ?? "Le brouillon a été ajouté au CMS Articles.");
       setTopic("");
@@ -92,6 +109,7 @@ export function AiAgents({ project }: { project: DashboardProject }) {
       setPhase("done");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Le pipeline éditorial a échoué.");
+      setFailedPhase(activePhase);
       setPhase("idle");
     }
   }
@@ -152,6 +170,46 @@ export function AiAgents({ project }: { project: DashboardProject }) {
           </div>
         </form>
         {message ? <div aria-live="polite" className="border-t border-black/[0.07] px-4 py-3 text-[11px] leading-5 text-black/55 sm:px-5">{message}</div> : null}
+      </section>
+
+      <section className="mt-5">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+          <div><h2 className="font-serif text-[23px]">Détail de toutes les étapes</h2><p className="mt-1 text-[11px] text-black/40">Les résultats restent visibles au fur et à mesure de l’avancement.</p></div>
+          <span className="text-[10px] font-medium text-black/35">Recherche → Structure → Rédaction</span>
+        </div>
+
+        <div className="mt-4 grid gap-4">
+          <article className={`overflow-hidden rounded-[14px] border bg-white ${phase === "research" ? "border-[#7bcbea] shadow-[0_10px_30px_rgba(0,143,197,.09)]" : failedPhase === "research" ? "border-red-200" : "border-[#e3e6e8]"}`}>
+            <div className="flex items-center gap-3 border-b border-black/[0.06] px-4 py-3.5 sm:px-5">
+              <span className={`grid size-9 place-items-center rounded-full ${researchResult ? "bg-[#2b8a57] text-white" : phase === "research" ? "bg-[#008fc5] text-white" : failedPhase === "research" ? "bg-red-50 text-red-500" : "bg-[#f4f4f3] text-black/35"}`}>{researchResult ? <Check size={15} /> : phase === "research" ? <LoaderCircle size={15} className="animate-spin" /> : <Search size={15} />}</span>
+              <div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-[.12em] text-black/35">Étape 1</p><h3 className="font-serif text-[19px]">Dossier de recherche</h3></div>
+              <span className="rounded-full bg-[#f5f5f4] px-2.5 py-1 text-[9px] font-semibold text-black/45">{researchResult ? "Terminée" : phase === "research" ? "En cours" : failedPhase === "research" ? "Erreur" : "En attente"}</span>
+            </div>
+            {researchResult ? <div className="grid gap-5 p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_.8fr]">
+              <div>
+                <p className="text-[13px] leading-6 text-black/65">{researchResult.summary}</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="rounded-[10px] bg-[#f7f7f6] p-3"><span className="text-[9px] font-semibold uppercase tracking-[.1em] text-black/35">Intention</span><p className="mt-1 text-[11px] leading-5 text-black/60">{researchResult.searchIntent}</p></div><div className="rounded-[10px] bg-[#f7f7f6] p-3"><span className="text-[9px] font-semibold uppercase tracking-[.1em] text-black/35">Angle retenu</span><p className="mt-1 text-[11px] leading-5 text-black/60">{researchResult.angle}</p></div></div>
+                <h4 className="mt-5 text-[11px] font-semibold">Faits à intégrer</h4>
+                <ul className="mt-2 grid gap-2">{researchResult.facts.map((fact, index) => <li key={`${fact.sourceUrl}-${index}`} className="rounded-[9px] border border-black/[0.06] p-3"><p className="text-[11px] leading-5 text-black/60">{fact.claim}</p><a href={fact.sourceUrl} target="_blank" rel="noreferrer" className="mt-1.5 flex items-center gap-1 text-[9px] font-medium text-[#087da7] hover:underline"><Link2 size={10} />{fact.sourceTitle || fact.sourceUrl}<ExternalLink size={9} /></a></li>)}</ul>
+              </div>
+              <div>
+                <div className="rounded-[10px] bg-[#f7f7f6] p-4"><h4 className="text-[11px] font-semibold">Questions auxquelles répondre</h4><ol className="mt-2 grid gap-1.5">{researchResult.questions.map((question, index) => <li key={question} className="flex gap-2 text-[10px] leading-4 text-black/55"><span className="font-semibold text-black/30">{index + 1}.</span>{question}</li>)}</ol></div>
+                <div className="mt-3 rounded-[10px] bg-[#f7f7f6] p-4"><h4 className="text-[11px] font-semibold">Mots-clés naturels</h4><div className="mt-2 flex flex-wrap gap-1.5">{researchResult.keywords.map((keyword) => <span key={keyword} className="rounded-full bg-white px-2 py-1 text-[9px] text-black/50">{keyword}</span>)}</div></div>
+                {researchResult.safetyNotes.length ? <div className="mt-3 rounded-[10px] border border-[#eadfbf] bg-[#fffaf0] p-4"><h4 className="text-[11px] font-semibold text-[#795b1f]">Points de vigilance</h4><ul className="mt-2 grid gap-1.5">{researchResult.safetyNotes.map((note) => <li key={note} className="text-[10px] leading-4 text-black/55">• {note}</li>)}</ul></div> : null}
+              </div>
+            </div> : <div className="px-4 py-7 text-center text-[11px] text-black/35 sm:px-5">Le dossier sourcé apparaîtra ici dès que le premier agent aura terminé.</div>}
+          </article>
+
+          <article className={`overflow-hidden rounded-[14px] border bg-white ${phase === "outline" ? "border-[#7bcbea] shadow-[0_10px_30px_rgba(0,143,197,.09)]" : failedPhase === "outline" ? "border-red-200" : "border-[#e3e6e8]"}`}>
+            <div className="flex items-center gap-3 border-b border-black/[0.06] px-4 py-3.5 sm:px-5"><span className={`grid size-9 place-items-center rounded-full ${outlineResult ? "bg-[#2b8a57] text-white" : phase === "outline" ? "bg-[#008fc5] text-white" : failedPhase === "outline" ? "bg-red-50 text-red-500" : "bg-[#f4f4f3] text-black/35"}`}>{outlineResult ? <Check size={15} /> : phase === "outline" ? <LoaderCircle size={15} className="animate-spin" /> : <Bot size={15} />}</span><div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-[.12em] text-black/35">Étape 2</p><h3 className="font-serif text-[19px]">Structure de l’article</h3></div><span className="rounded-full bg-[#f5f5f4] px-2.5 py-1 text-[9px] font-semibold text-black/45">{outlineResult ? "Terminée" : phase === "outline" ? "En cours" : failedPhase === "outline" ? "Erreur" : "En attente"}</span></div>
+            {outlineResult ? <div className="p-4 sm:p-5"><div className="max-w-3xl"><span className="text-[9px] font-semibold uppercase tracking-[.1em] text-black/35">Titre proposé</span><h4 className="mt-1 font-serif text-[22px] leading-tight">{outlineResult.title}</h4><p className="mt-2 text-[11px] leading-5 text-black/50">{outlineResult.excerpt}</p><div className="mt-3 flex flex-wrap gap-2 text-[9px] text-black/45"><span className="rounded-full bg-[#f5f5f4] px-2.5 py-1">{outlineResult.category}</span><span className="rounded-full bg-[#f5f5f4] px-2.5 py-1">{outlineResult.readingTime}</span><span className="rounded-full bg-[#f5f5f4] px-2.5 py-1">/{outlineResult.slug}</span></div></div><ol className="mt-5 grid gap-2">{outlineResult.sections.map((section, index) => <li key={`${section.title}-${index}`} className="grid gap-2 rounded-[10px] border border-black/[0.06] p-3 sm:grid-cols-[70px_minmax(0,1fr)]"><span className="text-[9px] font-semibold uppercase tracking-[.1em] text-[#008fc5]">{section.level} · {index + 1}</span><div><p className="text-[12px] font-semibold">{section.title}</p><p className="mt-1 text-[10px] leading-4 text-black/45">{section.purpose}</p><div className="mt-2 flex flex-wrap gap-1.5">{section.points.map((point) => <span key={point} className="rounded-full bg-[#f6f6f5] px-2 py-1 text-[9px] text-black/45">{point}</span>)}</div></div></li>)}</ol></div> : <div className="px-4 py-7 text-center text-[11px] text-black/35 sm:px-5">Le titre et le plan H2/H3 apparaîtront ici après la recherche.</div>}
+          </article>
+
+          <article className={`overflow-hidden rounded-[14px] border bg-white ${phase === "write" ? "border-[#7bcbea] shadow-[0_10px_30px_rgba(0,143,197,.09)]" : failedPhase === "write" ? "border-red-200" : "border-[#e3e6e8]"}`}>
+            <div className="flex items-center gap-3 border-b border-black/[0.06] px-4 py-3.5 sm:px-5"><span className={`grid size-9 place-items-center rounded-full ${articleResult ? "bg-[#2b8a57] text-white" : phase === "write" ? "bg-[#008fc5] text-white" : failedPhase === "write" ? "bg-red-50 text-red-500" : "bg-[#f4f4f3] text-black/35"}`}>{articleResult ? <Check size={15} /> : phase === "write" ? <LoaderCircle size={15} className="animate-spin" /> : <FilePenLine size={15} />}</span><div className="min-w-0 flex-1"><p className="text-[10px] font-semibold uppercase tracking-[.12em] text-black/35">Étape 3</p><h3 className="font-serif text-[19px]">Rédaction finale</h3></div><span className="rounded-full bg-[#f5f5f4] px-2.5 py-1 text-[9px] font-semibold text-black/45">{articleResult ? "Terminée" : phase === "write" ? "En cours" : failedPhase === "write" ? "Erreur" : "En attente"}</span></div>
+            {articleResult ? <div className="p-4 sm:p-5"><div className="flex flex-col gap-3 border-b border-black/[0.06] pb-5 sm:flex-row sm:items-end sm:justify-between"><div className="max-w-3xl"><h4 className="font-serif text-[24px] leading-tight">{articleResult.title}</h4><p className="mt-2 text-[11px] leading-5 text-black/50">{articleResult.excerpt}</p></div>{draftResult ? <Link href={`/dashboard?project=${encodeURIComponent(project.key)}&tab=cms`} className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-[8px] bg-black px-3 text-[10px] font-semibold text-white">Ouvrir dans le CMS<ExternalLink size={11} /></Link> : null}</div><div className="mx-auto mt-5 max-w-3xl">{articleResult.blocks.map((block, index) => block.kind === "heading" ? block.level === "h3" ? <h6 key={index} className="mb-2 mt-5 text-[14px] font-semibold">{block.text}</h6> : <h5 key={index} className="mb-2 mt-7 font-serif text-[20px]">{block.text}</h5> : <p key={index} className="mb-3 text-[12px] leading-6 text-black/65">{block.text}</p>)}</div></div> : <div className="px-4 py-7 text-center text-[11px] text-black/35 sm:px-5">Le texte complet et son accès au CMS apparaîtront ici après validation du plan.</div>}
+          </article>
+        </div>
       </section>
 
       {drafts.length ? <section className="mt-8"><div className="flex items-end justify-between gap-3"><div><h2 className="font-serif text-[23px]">Brouillons créés</h2><p className="mt-1 text-[11px] text-black/40">Disponibles immédiatement dans la collection Articles.</p></div><Link href={`/dashboard?project=${encodeURIComponent(project.key)}&tab=cms`} className="flex items-center gap-1.5 text-[11px] font-semibold text-black/55 hover:text-black">Ouvrir le CMS<ExternalLink size={13} /></Link></div><div className="mt-4 overflow-hidden rounded-[13px] border border-[#e8ecee] bg-white">{drafts.map((draft) => <div key={draft.slug} className="flex flex-col gap-2 border-b border-black/[0.06] px-4 py-3 last:border-0 min-[460px]:flex-row min-[460px]:items-center"><span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#eef9ff] text-[#008fc5]"><Sparkles size={14} /></span><div className="min-w-0 flex-1"><p className="truncate text-[13px] font-medium">{draft.title}</p><p className="mt-0.5 text-[10px] text-black/40">{draft.agentName} · 3 phases terminées</p></div>{draft.sourceUrl ? <a href={draft.sourceUrl} target="_blank" rel="noreferrer" className="ml-10 flex items-center gap-1 text-[10px] text-black/45 hover:text-black min-[460px]:ml-0">Source<ExternalLink size={11} /></a> : null}</div>)}</div></section> : null}

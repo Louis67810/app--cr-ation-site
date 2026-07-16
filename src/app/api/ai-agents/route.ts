@@ -177,6 +177,7 @@ export async function POST(request: Request) {
     const sourceUrl = source?.startsWith("http") ? source.split(/\s/)[0] : research.facts.find((fact) => fact.sourceUrl.startsWith("http"))?.sourceUrl ?? null;
     return NextResponse.json({
       phase: "write",
+      article,
       draft: { title: article.title, slug: updated.slug, sourceUrl, agentName: modeNames[payload.mode] },
       warning: `Les trois phases sont terminées. Le brouillon a été ajouté au CMS Articles et reste non publié.${visualWarning}`,
     }, { status: 201 });
