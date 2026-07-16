@@ -1,5 +1,24 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Atelier editorial local
+
+Le tableau de bord contient un pipeline automatique en trois phases :
+
+1. recherche web et constitution d'un dossier source ;
+2. structuration du titre, de l'angle et du plan H2/H3 ;
+3. redaction de l'article et ajout du brouillon au CMS.
+
+Pour faire tourner les agents sur le PC plutot que dans une fonction Vercel :
+
+1. ajoutez `OPENROUTER_API_KEY` dans `.env.local` (voir `.env.example`) ;
+2. double-cliquez sur `Lancer-Atelier-Local.cmd`, ou lancez `npm run local` ;
+3. gardez la fenetre ouverte pendant la journee ;
+4. utilisez l'onglet **Agents IA** ouvert automatiquement sur `localhost:3000`.
+
+Dans ce mode, les appels longs sont executes par Node.js sur le PC. Supabase ne sert qu'a authentifier l'utilisateur, charger le projet et sauvegarder le brouillon final. Fermer la fenetre arrete le serveur local.
+
+Une page ouverte sur le domaine Vercel execute necessairement ses routes sur Vercel. Pour qu'un clic sur la page hebergee declenche un PC eteint ou situe derriere une box, il faudrait ajouter un worker local et une petite file de travaux distante. Le mode local evite cette infrastructure et reste le plus simple pour une utilisation a la journee.
+
 ## Getting Started
 
 First, run the development server:
