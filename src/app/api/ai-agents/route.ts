@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { demoArticlePage, demoSitePages } from "@/lib/demo-site";
 import {
   researchTopic,
+  generateArticleQuiz,
   structureArticle,
   writeArticle,
   type ArticleOutline,
   type EditorialMode,
   type GeneratedArticle,
+  type GeneratedQuizPlan,
   type ResearchBrief,
 } from "@/lib/editorial-pipeline";
 import { normalizeProjectKey } from "@/lib/project-key";
@@ -57,7 +59,7 @@ async function generateArticleVisual(article: GeneratedArticle, sourceLabel: str
   return { bytes: Buffer.from(image.b64_json, "base64"), mediaType: image.media_type ?? "image/webp" };
 }
 
-function addArticleToPages(pages: SitePage[], article: GeneratedArticle, heroImageUrl: string, workflow: { mode: EditorialMode; research: ResearchBrief; outline: ArticleOutline }) {
+function addArticleToPages(pages: SitePage[], article: GeneratedArticle, heroImageUrl: string, workflow: { mode: EditorialMode; research: ResearchBrief; outline: ArticleOutline; quizPlan?: GeneratedQuizPlan }) {
   const nextPages = structuredClone(pages);
   const baseSlug = slugify(article.slug || article.title);
   const existingSlugs = new Set(nextPages.map((page) => page.slug));
@@ -71,7 +73,7 @@ function addArticleToPages(pages: SitePage[], article: GeneratedArticle, heroIma
   page.slug = href;
   page.title = `Article - ${article.title.trim()}`;
   const now = new Date().toISOString();
-  page.editorial = { status: "pending", mode: workflow.mode, category: article.category?.trim() || "Conseils", createdAt: now, updatedAt: now, research: workflow.research, outline: workflow.outline, article };
+  page.editorial = { status: "pending", mode: workflow.mode, category: article.category?.trim() || "Conseils", createdAt: now, updatedAt: now, research: workflow.research, outline: workflow.outline, article, quiz: workflow.quizPlan?.quiz, quizPlacementAfterHeading: workflow.quizPlan?.placementAfterHeading };
   const date = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(new Date());
   const detail = page.sections.find((section) => section.type === "article-detail");
   if (!detail || detail.type !== "article-detail") throw new Error("Le modèle d’article est introuvable dans ce projet.");
@@ -79,7 +81,15 @@ function addArticleToPages(pages: SitePage[], article: GeneratedArticle, heroIma
   const blocks: ArticleBlock[] = article.blocks.map((block) => block.kind === "heading"
     ? { kind: "heading", level: block.level === "h3" ? "h3" : "h2", text: block.text.trim() }
     : { kind: "paragraph", text: block.text.trim() });
-  detail.fields = { ...previous, title: article.title.trim(), subtitle: article.excerpt.trim(), heroImageUrl: heroImageUrl || previous.heroImageUrl, heroImageAlt: article.heroImageAlt?.trim() || article.title.trim(), readingTime: article.readingTime?.trim() || "6 minutes", updatedAt: date, blocks };
+  if (workflow.quizPlan) {
+    const headingIndex = blocks.findIndex((block) => block.kind === "heading" && block.text.trim().toLocaleLowerCase("fr") === workflow.quizPlan?.placementAfterHeading.trim().toLocaleLowerCase("fr"));
+    const insertionIndex = headingIndex >= 0 ? Math.min(headingIndex + 2, blocks.length) : Math.max(1, Math.floor(blocks.length / 2));
+    blocks.splice(insertionIndex, 0, { kind: "quiz", quizId: workflow.quizPlan.quiz.id });
+  }
+  const quizzes = workflow.quizPlan
+    ? [workflow.quizPlan.quiz, ...previous.quizzes.filter((quiz) => quiz.id !== workflow.quizPlan?.quiz.id)]
+    : previous.quizzes;
+  detail.fields = { ...previous, title: article.title.trim(), subtitle: article.excerpt.trim(), heroImageUrl: heroImageUrl || previous.heroImageUrl, heroImageAlt: article.heroImageAlt?.trim() || article.title.trim(), readingTime: article.readingTime?.trim() || "6 minutes", updatedAt: date, blocks, quizzes };
   nextPages.push(page);
   const post: BlogPost = { title: article.title.trim(), excerpt: article.excerpt.trim(), category: article.category?.trim() || "Conseils", imageUrl: heroImageUrl || previous.heroImageUrl, href, date };
   for (const currentPage of nextPages) {
@@ -146,6 +156,15 @@ export async function POST(request: Request) {
     }
 
     const article = await writeArticle({ topic, research, outline });
+    let quizPlan: GeneratedQuizPlan | undefined;
+    let quizWarning = "";
+    if (payload.mode === "seo" || payload.mode === "editorial") {
+      try {
+        quizPlan = await generateArticleQuiz({ topic, projectName, outline, article });
+      } catch {
+        quizWarning = " Le quiz interactif n’a pas pu être généré et devra être relancé avant validation.";
+      }
+    }
     const pages = Array.isArray(projectRow?.pages) ? projectRow.pages as SitePage[] : structuredClone(demoSitePages);
     const { data: assetRows } = await supabase.from("project_assets").select("public_url").eq("owner_id", projectOwnerId).eq("project_key", projectKey).order("created_at", { ascending: false }).limit(12);
     const assets = (assetRows ?? []) as Array<{ public_url: string }>;
@@ -168,21 +187,21 @@ export async function POST(request: Request) {
       if (!heroImageUrl) visualWarning = " Le visuel IA n’a pas pu être généré.";
     }
 
-    const updated = addArticleToPages(pages, article, heroImageUrl, { mode: payload.mode, research, outline });
+    const updated = addArticleToPages(pages, article, heroImageUrl, { mode: payload.mode, research, outline, quizPlan });
     const values = { project_name: projectName, pages: updated.pages, updated_at: new Date().toISOString() };
     const { error } = projectOwnerId === userId
       ? await supabase.from("site_projects").upsert({ owner_id: userId, project_key: projectKey, ...values }, { onConflict: "owner_id,project_key" })
       : await supabase.from("site_projects").update(values).eq("owner_id", projectOwnerId).eq("project_key", projectKey);
     if (error) throw new Error(error.message);
 
-    await supabase.from("project_activity_events").insert({ owner_id: projectOwnerId, project_key: projectKey, actor_user_id: userId, event_type: "article_created", entity_id: `article-${updated.slug}`, entity_title: article.title, metadata: { slug: updated.href, mode: payload.mode, pipeline: ["research", "outline", "write"] } });
+    await supabase.from("project_activity_events").insert({ owner_id: projectOwnerId, project_key: projectKey, actor_user_id: userId, event_type: "article_created", entity_id: `article-${updated.slug}`, entity_title: article.title, metadata: { slug: updated.href, mode: payload.mode, pipeline: ["research", "outline", "write", ...(quizPlan ? ["quiz"] : [])] } });
     const sourceUrl = source?.startsWith("http") ? source.split(/\s/)[0] : research.facts.find((fact) => fact.sourceUrl.startsWith("http"))?.sourceUrl ?? null;
     return NextResponse.json({
       phase: "write",
       article,
       page: updated.pages.find((page) => page.slug === updated.href),
       draft: { title: article.title, slug: updated.slug, sourceUrl, agentName: modeNames[payload.mode] },
-      warning: `Les trois phases sont terminées. Le brouillon a été ajouté au CMS Articles et reste non publié.${visualWarning}`,
+      warning: `Les phases de production sont terminées. Le brouillon a été ajouté au CMS Articles et reste non publié.${visualWarning}${quizWarning}`,
     }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Pipeline éditorial interrompu." }, { status: 500 });

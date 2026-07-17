@@ -1,4 +1,5 @@
 import "server-only";
+import type { ReusableQuiz } from "@/lib/site-template";
 
 export type EditorialMode = "seo" | "youtube" | "trends" | "editorial";
 
@@ -56,6 +57,7 @@ async function askOpenRouter(input: {
   prompt: string;
   research?: boolean;
   maxTokens?: number;
+  model?: string;
 }) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("La clé OPENROUTER_API_KEY n’est pas configurée sur cette machine.");
@@ -69,7 +71,7 @@ async function askOpenRouter(input: {
       "X-OpenRouter-Title": "Atelier Site Builder — Pipeline éditorial",
     },
     body: JSON.stringify({
-      model: process.env.OPENROUTER_CONTENT_MODEL ?? "openai/gpt-4.1-mini",
+      model: input.model ?? process.env.OPENROUTER_CONTENT_MODEL ?? "openai/gpt-4.1-mini",
       temperature: input.research ? 0.25 : 0.4,
       max_tokens: input.maxTokens ?? 3600,
       ...(input.research
@@ -95,6 +97,159 @@ async function askOpenRouter(input: {
   const content = result.choices?.[0]?.message?.content;
   if (!content) throw new Error("OpenRouter n’a retourné aucun résultat pour cette phase.");
   return JSON.parse(cleanJson(content)) as unknown;
+}
+
+type RawGeneratedQuiz = Omit<ReusableQuiz, "questions"> & {
+  placementAfterHeading: string;
+  questions: Array<{
+    id: string;
+    question: string;
+    subtitle: string;
+    options: Array<{
+      id: string;
+      label: string;
+      description: string;
+      imageAlt: string;
+      imagePrompt: string;
+      category: string;
+      weights: Array<{ resultId: string; value: number }>;
+      nextQuestionId: string;
+      resultId: string;
+    }>;
+  }>;
+};
+
+export type GeneratedQuizPlan = {
+  quiz: ReusableQuiz;
+  placementAfterHeading: string;
+};
+
+export async function generateArticleQuiz(input: {
+  topic: string;
+  projectName: string;
+  outline: ArticleOutline;
+  article: GeneratedArticle;
+}) {
+  const raw = await askOpenRouter({
+    schemaName: "interactive_article_quiz",
+    model: process.env.OPENROUTER_QUIZ_MODEL ?? process.env.OPENROUTER_CONTENT_MODEL,
+    maxTokens: 4200,
+    system: "Tu es un concepteur senior d'expériences interactives et de quiz de recommandation pour des articles web. Tu transformes le contenu d'un article en outil réellement utile à la décision. Tu ne rédiges pas de code React : tu produis une configuration JSON exacte pour le moteur de quiz existant.",
+    prompt: `Projet : ${input.projectName}\nSujet : ${input.topic}\n\nStructure :\n${JSON.stringify(input.outline)}\n\nArticle final :\n${JSON.stringify(input.article)}\n\nCrée un quiz interactif directement lié au problème du lecteur. Choisis le mécanisme le plus pertinent : visual-preference pour comparer des styles en images, diagnostic pour qualifier une situation, recommendation pour proposer une solution, ou branching pour un parcours conditionnel. Le quiz doit aider à décider et conduire naturellement vers un CTA. Prévois 3 à 6 questions et 2 à 5 résultats distincts. Pour visual-preference, crée exactement deux options illustrées par question. Pour les autres mécanismes, utilise 2 à 4 options. Chaque option peut pondérer plusieurs résultats, diriger vers une autre question ou déclencher un résultat direct. Fournis pour chaque choix visuel un alt précis et un prompt d'image réaliste sans texte ni logo. Les identifiants sont courts, uniques et en kebab-case. nextQuestionId et resultId sont des chaînes vides quand ils ne sont pas utilisés. Le placement doit correspondre exactement au titre d'un H2 de l'article. N'invente aucun chiffre ni promesse commerciale.`,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["id", "name", "title", "subtitle", "mode", "nextLabel", "resultTitle", "resultText", "cta", "placementAfterHeading", "questions", "results"],
+      properties: {
+        id: { type: "string" },
+        name: { type: "string" },
+        title: { type: "string" },
+        subtitle: { type: "string" },
+        mode: { type: "string", enum: ["visual-preference", "diagnostic", "recommendation", "branching"] },
+        nextLabel: { type: "string" },
+        resultTitle: { type: "string" },
+        resultText: { type: "string" },
+        cta: {
+          type: "object",
+          additionalProperties: false,
+          required: ["label", "href"],
+          properties: { label: { type: "string" }, href: { type: "string" } },
+        },
+        placementAfterHeading: { type: "string" },
+        questions: {
+          type: "array",
+          minItems: 3,
+          maxItems: 6,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["id", "question", "subtitle", "options"],
+            properties: {
+              id: { type: "string" },
+              question: { type: "string" },
+              subtitle: { type: "string" },
+              options: {
+                type: "array",
+                minItems: 2,
+                maxItems: 4,
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["id", "label", "description", "imageAlt", "imagePrompt", "category", "weights", "nextQuestionId", "resultId"],
+                  properties: {
+                    id: { type: "string" },
+                    label: { type: "string" },
+                    description: { type: "string" },
+                    imageAlt: { type: "string" },
+                    imagePrompt: { type: "string" },
+                    category: { type: "string" },
+                    weights: {
+                      type: "array",
+                      maxItems: 5,
+                      items: {
+                        type: "object",
+                        additionalProperties: false,
+                        required: ["resultId", "value"],
+                        properties: { resultId: { type: "string" }, value: { type: "number" } },
+                      },
+                    },
+                    nextQuestionId: { type: "string" },
+                    resultId: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+        },
+        results: {
+          type: "array",
+          minItems: 2,
+          maxItems: 5,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["id", "category", "title", "text", "description", "imageAlt", "imagePrompt", "recommendations", "cta"],
+            properties: {
+              id: { type: "string" },
+              category: { type: "string" },
+              title: { type: "string" },
+              text: { type: "string" },
+              description: { type: "string" },
+              imageAlt: { type: "string" },
+              imagePrompt: { type: "string" },
+              recommendations: { type: "array", minItems: 2, maxItems: 5, items: { type: "string" } },
+              cta: {
+                type: "object",
+                additionalProperties: false,
+                required: ["label", "href"],
+                properties: { label: { type: "string" }, href: { type: "string" } },
+              },
+            },
+          },
+        },
+      },
+    },
+  }) as RawGeneratedQuiz;
+
+  const quiz: ReusableQuiz = {
+    ...raw,
+    questions: raw.questions.map((question) => ({
+      ...question,
+      options: question.options.map((option) => ({
+        id: option.id,
+        label: option.label,
+        description: option.description,
+        imageAlt: option.imageAlt,
+        imagePrompt: option.imagePrompt,
+        category: option.category,
+        scores: Object.fromEntries(option.weights.map((weight) => [weight.resultId, weight.value])),
+        nextQuestionId: option.nextQuestionId || undefined,
+        resultId: option.resultId || undefined,
+      })),
+    })),
+  };
+  delete (quiz as ReusableQuiz & { placementAfterHeading?: string }).placementAfterHeading;
+  return { quiz, placementAfterHeading: raw.placementAfterHeading } satisfies GeneratedQuizPlan;
 }
 
 export async function researchTopic(input: {

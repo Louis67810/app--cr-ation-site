@@ -856,7 +856,8 @@ export const demoArticlePage: SitePage = {
           name: "Quiz style jardin",
           title: "Quel amenagement vous correspond ?",
           subtitle:
-            "Repondez a quelques questions pour identifier une piste adaptee a votre jardin.",
+            "Choisissez les ambiances qui vous attirent pour découvrir un style adapté à votre jardin.",
+          mode: "visual-preference",
           nextLabel: "Suivant",
           resultTitle: "Votre premiere piste est prete",
           resultText:
@@ -864,32 +865,34 @@ export const demoArticlePage: SitePage = {
           cta: { label: "Recevoir une proposition", href: "/contact" },
           questions: [
             {
-              question: "De quoi avez-vous besoin en priorite ?",
+              id: "ambiance",
+              question: "Quelle ambiance vous attire le plus ?",
+              subtitle: "Fiez-vous à votre première impression.",
               options: [
-                "Me proteger rapidement du regard des voisins",
-                "Creer une separation vegetale durable",
-                "Garder un jardin lumineux et ouvert",
-                "Trouver une solution facile a entretenir",
+                { id: "ambiance-naturelle", label: "Un jardin libre et végétal", description: "Des volumes souples, des floraisons et une sensation de nature.", imageUrl: gardenImageA, imageAlt: "Jardin naturel dense et fleuri", category: "naturel", scores: { naturel: 3, contemporain: 0 } },
+                { id: "ambiance-structuree", label: "Un jardin net et architectural", description: "Des lignes lisibles, des matières minérales et des végétaux maîtrisés.", imageUrl: gardenImageG, imageAlt: "Jardin contemporain structuré", category: "contemporain", scores: { contemporain: 3, naturel: 0 } },
               ],
             },
             {
-              question: "Quel style preferez-vous ?",
+              id: "usage",
+              question: "Comment imaginez-vous vos moments dehors ?",
               options: [
-                "Naturel et tres plante",
-                "Contemporain et structure",
-                "Discret, simple et efficace",
-                "Mixte avec bois et vegetaux",
+                { id: "usage-convivial", label: "Une terrasse chaleureuse entourée de plantes", description: "Un espace vivant pour recevoir et profiter longtemps du jardin.", imageUrl: gardenImageE, imageAlt: "Terrasse chaleureuse entourée de végétation", category: "naturel", scores: { naturel: 2, contemporain: 1 } },
+                { id: "usage-calme", label: "Un espace épuré pour se détendre", description: "Peu d’éléments, mais des choix forts et une circulation fluide.", imageUrl: gardenImageC, imageAlt: "Espace extérieur épuré et calme", category: "contemporain", scores: { contemporain: 2, naturel: 1 } },
               ],
             },
             {
-              question: "Quel niveau d'entretien acceptez-vous ?",
+              id: "matiere",
+              question: "Quelle association de matières préférez-vous ?",
               options: [
-                "Tres faible",
-                "Un passage saisonnier",
-                "Un entretien regulier",
-                "Je veux etre accompagne",
+                { id: "matiere-bois", label: "Bois, pierre naturelle et feuillages", description: "Une palette organique qui se patine avec le temps.", imageUrl: gardenImageD, imageAlt: "Bois et pierre naturelle dans un jardin", category: "naturel", scores: { naturel: 3 } },
+                { id: "matiere-minerale", label: "Dalles claires, métal et formes graphiques", description: "Une composition contemporaine aux contrastes maîtrisés.", imageUrl: gardenImageB, imageAlt: "Dalles et formes graphiques dans un jardin", category: "contemporain", scores: { contemporain: 3 } },
               ],
             },
+          ],
+          results: [
+            { id: "naturel", category: "Jardin naturel", title: "Un jardin vivant et généreux", text: "Vos choix indiquent une préférence pour les matières authentiques, les plantations souples et une ambiance qui évolue avec les saisons.", description: "Une structure simple peut accueillir des massifs généreux, du bois et des circulations en pierre naturelle.", imageUrl: gardenImageA, imageAlt: "Jardin naturel avec plantations généreuses", recommendations: ["Privilégier des essences locales et complémentaires", "Créer plusieurs strates de végétation", "Employer des matériaux qui se patinent naturellement"], cta: { label: "Imaginer mon jardin naturel", href: "/contact" } },
+            { id: "contemporain", category: "Jardin contemporain", title: "Un jardin structuré et apaisant", text: "Vos réponses montrent une attirance pour les lignes claires, les contrastes sobres et des espaces faciles à lire.", description: "Le projet peut associer une trame minérale précise à une sélection végétale graphique et durable.", imageUrl: gardenImageG, imageAlt: "Jardin contemporain aux lignes structurées", recommendations: ["Dessiner des circulations nettes", "Limiter la palette de matériaux", "Répéter quelques végétaux graphiques"], cta: { label: "Concevoir mon jardin contemporain", href: "/contact" } },
           ],
           },
         ],

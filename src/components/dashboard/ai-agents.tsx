@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArticleQuiz } from "@/components/article-quiz";
 import {
   ArrowLeft,
   Bot,
@@ -32,7 +33,7 @@ type EditorialIdea = {
   createdAt: string;
   approved: boolean;
 };
-type OverlayView = "ideas" | "idea-form" | "idea-detail" | "article" | "images" | "research" | "outline" | "writing" | null;
+type OverlayView = "ideas" | "idea-form" | "idea-detail" | "article" | "images" | "research" | "outline" | "writing" | "quiz" | null;
 
 const ideaModes: Array<{ id: IdeaMode; label: string }> = [
   { id: "seo", label: "Classique" },
@@ -218,6 +219,8 @@ export function AiAgents({ project }: { project: DashboardProject }) {
           research: candidate.editorial?.research,
           outline: candidate.editorial?.outline,
           article: candidate.editorial?.article,
+          quiz: candidate.editorial?.quiz,
+          quizPlacementAfterHeading: candidate.editorial?.quizPlacementAfterHeading,
         },
       } : candidate));
     } catch {
@@ -250,6 +253,7 @@ export function AiAgents({ project }: { project: DashboardProject }) {
       {view === "research" && activeArticle ? <PhaseOverlay kind="research" page={activeArticle} onBack={() => setView("article")} onClose={closeOverlay} /> : null}
       {view === "outline" && activeArticle ? <PhaseOverlay kind="outline" page={activeArticle} onBack={() => setView("article")} onClose={closeOverlay} /> : null}
       {view === "writing" && activeArticle ? <PhaseOverlay kind="writing" page={activeArticle} onBack={() => setView("article")} onClose={closeOverlay} /> : null}
+      {view === "quiz" && activeArticle ? <QuizOverlay page={activeArticle} onBack={() => setView("article")} onClose={closeOverlay} /> : null}
     </Overlay> : null}
   </div>;
 }
@@ -310,7 +314,12 @@ function IdeaDetail({ idea, onSave, onBack, onClose }: { idea: EditorialIdea; on
 
 function ArticleOverlay({ page, onOpen, onClose }: { page: SitePage; onOpen: (view: OverlayView) => void; onClose: () => void }) {
   const fields = getArticleFields(page);
-  return <><OverlayTop title={getTitle(page)} onClose={onClose}><span className="hidden text-[13px] font-medium text-black/45 md:block">{fields?.readingTime || "Production terminée"}</span></OverlayTop><div className="min-h-0 flex-1 overflow-y-auto p-5 sm:px-9 sm:py-12"><div className="grid gap-4"><ArticleFolder icon={<Images size={22} />} title="Images" onClick={() => onOpen("images")} preview={getHero(page)} /><ArticleFolder icon={<FolderSearch2 size={22} />} title="Dossier de recherche" onClick={() => onOpen("research")} /><ArticleFolder icon={<Bot size={22} />} title="Structure de l’article" onClick={() => onOpen("outline")} /><ArticleFolder icon={<FilePenLine size={22} />} title="Rédaction finale" onClick={() => onOpen("writing")} /></div></div></>;
+  return <><OverlayTop title={getTitle(page)} onClose={onClose}><span className="hidden text-[13px] font-medium text-black/45 md:block">{fields?.readingTime || "Production terminée"}</span></OverlayTop><div className="min-h-0 flex-1 overflow-y-auto p-5 sm:px-9 sm:py-12"><div className="grid gap-4"><ArticleFolder icon={<Images size={22} />} title="Images" onClick={() => onOpen("images")} preview={getHero(page)} /><ArticleFolder icon={<FolderSearch2 size={22} />} title="Dossier de recherche" onClick={() => onOpen("research")} /><ArticleFolder icon={<Bot size={22} />} title="Structure de l’article" onClick={() => onOpen("outline")} /><ArticleFolder icon={<FilePenLine size={22} />} title="Rédaction finale" onClick={() => onOpen("writing")} />{page.editorial?.quiz || fields?.quizzes[0] ? <ArticleFolder icon={<Sparkles size={22} />} title="Quiz interactif" onClick={() => onOpen("quiz")} /> : null}</div></div></>;
+}
+
+function QuizOverlay({ page, onBack, onClose }: { page: SitePage; onBack: () => void; onClose: () => void }) {
+  const quiz = page.editorial?.quiz ?? getArticleFields(page)?.quizzes[0];
+  return <><OverlayTop title={`Quiz · ${getTitle(page)}`} onClose={onClose} /><div className="min-h-0 flex-1 overflow-y-auto bg-[#f7f7f5] p-4 sm:p-8">{quiz ? <ArticleQuiz quiz={quiz} /> : <EmptyPhase text="Aucun quiz n’a été généré pour cet article." />}</div><footer className="shrink-0 border-t border-black/[0.07] bg-white p-5 sm:px-9"><button type="button" onClick={onBack} className="flex h-12 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold"><ArrowLeft size={18} />Retour à l’article</button></footer></>;
 }
 
 function ArticleFolder({ icon, title, onClick, preview }: { icon: ReactNode; title: string; onClick: () => void; preview?: string }) {

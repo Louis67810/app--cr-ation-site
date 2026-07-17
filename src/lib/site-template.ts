@@ -164,14 +164,40 @@ export type ReusableQuiz = {
   name: string;
   title: string;
   subtitle: string;
+  mode?: "simple" | "visual-preference" | "diagnostic" | "recommendation" | "branching";
   questions: Array<{
+    id?: string;
     question: string;
-    options: string[];
+    subtitle?: string;
+    options: Array<string | {
+      id: string;
+      label: string;
+      description?: string;
+      imageUrl?: string;
+      imageAlt?: string;
+      imagePrompt?: string;
+      category?: string;
+      scores?: Record<string, number>;
+      nextQuestionId?: string;
+      resultId?: string;
+    }>;
   }>;
   nextLabel: string;
   resultTitle: string;
   resultText: string;
   cta: Cta;
+  results?: Array<{
+    id: string;
+    category: string;
+    title: string;
+    text: string;
+    description?: string;
+    imageUrl?: string;
+    imageAlt?: string;
+    imagePrompt?: string;
+    recommendations?: string[];
+    cta?: Cta;
+  }>;
 };
 
 export type LeadQualifier = {
@@ -640,6 +666,8 @@ export type EditorialPageWorkflow = {
   research?: import("@/lib/editorial-pipeline").ResearchBrief;
   outline?: import("@/lib/editorial-pipeline").ArticleOutline;
   article?: import("@/lib/editorial-pipeline").GeneratedArticle;
+  quiz?: ReusableQuiz;
+  quizPlacementAfterHeading?: string;
 };
 
 export type SitePage = {

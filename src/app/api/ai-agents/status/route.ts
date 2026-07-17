@@ -43,6 +43,8 @@ export async function PATCH(request: Request) {
     research: page.editorial?.research,
     outline: page.editorial?.outline,
     article: page.editorial?.article,
+    quiz: page.editorial?.quiz,
+    quizPlacementAfterHeading: page.editorial?.quizPlacementAfterHeading,
   };
 
   const values = {
