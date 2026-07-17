@@ -57,7 +57,7 @@ async function generateArticleVisual(article: GeneratedArticle, sourceLabel: str
   return { bytes: Buffer.from(image.b64_json, "base64"), mediaType: image.media_type ?? "image/webp" };
 }
 
-function addArticleToPages(pages: SitePage[], article: GeneratedArticle, heroImageUrl: string) {
+function addArticleToPages(pages: SitePage[], article: GeneratedArticle, heroImageUrl: string, workflow: { mode: EditorialMode; research: ResearchBrief; outline: ArticleOutline }) {
   const nextPages = structuredClone(pages);
   const baseSlug = slugify(article.slug || article.title);
   const existingSlugs = new Set(nextPages.map((page) => page.slug));
@@ -70,6 +70,8 @@ function addArticleToPages(pages: SitePage[], article: GeneratedArticle, heroIma
   page.id = `article-${slug}`;
   page.slug = href;
   page.title = `Article - ${article.title.trim()}`;
+  const now = new Date().toISOString();
+  page.editorial = { status: "pending", mode: workflow.mode, category: article.category?.trim() || "Conseils", createdAt: now, updatedAt: now, research: workflow.research, outline: workflow.outline, article };
   const date = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(new Date());
   const detail = page.sections.find((section) => section.type === "article-detail");
   if (!detail || detail.type !== "article-detail") throw new Error("Le modèle d’article est introuvable dans ce projet.");
@@ -166,7 +168,7 @@ export async function POST(request: Request) {
       if (!heroImageUrl) visualWarning = " Le visuel IA n’a pas pu être généré.";
     }
 
-    const updated = addArticleToPages(pages, article, heroImageUrl);
+    const updated = addArticleToPages(pages, article, heroImageUrl, { mode: payload.mode, research, outline });
     const values = { project_name: projectName, pages: updated.pages, updated_at: new Date().toISOString() };
     const { error } = projectOwnerId === userId
       ? await supabase.from("site_projects").upsert({ owner_id: userId, project_key: projectKey, ...values }, { onConflict: "owner_id,project_key" })
@@ -178,6 +180,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       phase: "write",
       article,
+      page: updated.pages.find((page) => page.slug === updated.href),
       draft: { title: article.title, slug: updated.slug, sourceUrl, agentName: modeNames[payload.mode] },
       warning: `Les trois phases sont terminées. Le brouillon a été ajouté au CMS Articles et reste non publié.${visualWarning}`,
     }, { status: 201 });

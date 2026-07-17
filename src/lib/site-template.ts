@@ -629,9 +629,23 @@ export type SectionInstance =
       fields: FooterFields;
     };
 
+export type EditorialPageStatus = "pending" | "approved" | "rejected";
+
+export type EditorialPageWorkflow = {
+  status: EditorialPageStatus;
+  mode: "seo" | "youtube" | "trends" | "editorial";
+  category: string;
+  createdAt: string;
+  updatedAt: string;
+  research?: import("@/lib/editorial-pipeline").ResearchBrief;
+  outline?: import("@/lib/editorial-pipeline").ArticleOutline;
+  article?: import("@/lib/editorial-pipeline").GeneratedArticle;
+};
+
 export type SitePage = {
   id: string;
   slug: string;
   title: string;
   sections: SectionInstance[];
+  editorial?: EditorialPageWorkflow;
 };
