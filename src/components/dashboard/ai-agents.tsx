@@ -26,6 +26,7 @@ import type { ArticleDetailFields, EditorialPageStatus, SitePage } from "@/lib/s
 type IdeaMode = "seo" | "youtube" | "trends";
 type EditorialIdea = {
   id: string;
+  title: string;
   content: string;
   mode: IdeaMode;
   createdAt: string;
@@ -80,6 +81,7 @@ function getHero(page: SitePage) {
 function defaultIdeas(pages: SitePage[]): EditorialIdea[] {
   return getArticlePages(pages).slice(0, 6).map((page, index) => ({
     id: `existing-${page.id}`,
+    title: getTitle(page),
     content: `Approfondir le sujet « ${getTitle(page)} » avec un nouvel angle pratique et des informations actualisées.`,
     mode: getMode(page),
     createdAt: page.editorial?.createdAt ?? new Date(Date.now() - index * 86_400_000).toISOString(),
@@ -93,10 +95,10 @@ export function AiAgents({ project }: { project: DashboardProject }) {
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
   const [activeIdeaId, setActiveIdeaId] = useState<string | null>(null);
   const [ideaMode, setIdeaMode] = useState<IdeaMode>("seo");
+  const [ideaTitle, setIdeaTitle] = useState("");
   const [ideaText, setIdeaText] = useState("");
   const [ideaFilter, setIdeaFilter] = useState<IdeaMode>("seo");
   const [ideas, setIdeas] = useState<EditorialIdea[]>([]);
-  const [message, setMessage] = useState("");
   const [savingPageId, setSavingPageId] = useState<string | null>(null);
   const articles = useMemo(() => getArticlePages(pages), [pages]);
   const activeArticle = articles.find((page) => page.id === activeArticleId) ?? null;
@@ -109,7 +111,12 @@ export function AiAgents({ project }: { project: DashboardProject }) {
     let nextIdeas: EditorialIdea[];
     try {
       const stored = window.localStorage.getItem(storageKey);
-      nextIdeas = stored ? JSON.parse(stored) as EditorialIdea[] : defaultIdeas(project.pages);
+      nextIdeas = stored
+        ? (JSON.parse(stored) as Array<EditorialIdea & { title?: string }>).map((idea) => ({
+            ...idea,
+            title: idea.title?.trim() || idea.content.slice(0, 72),
+          }))
+        : defaultIdeas(project.pages);
     } catch {
       nextIdeas = defaultIdeas(project.pages);
     }
@@ -146,6 +153,7 @@ export function AiAgents({ project }: { project: DashboardProject }) {
   }
 
   function openIdeaForm() {
+    setIdeaTitle("");
     setIdeaText("");
     setIdeaMode(ideaFilter);
     setView("idea-form");
@@ -153,9 +161,10 @@ export function AiAgents({ project }: { project: DashboardProject }) {
 
   function addIdea(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!ideaText.trim()) return;
+    if (!ideaTitle.trim() || !ideaText.trim()) return;
     const idea: EditorialIdea = {
       id: crypto.randomUUID(),
+      title: ideaTitle.trim(),
       content: ideaText.trim(),
       mode: ideaMode,
       createdAt: new Date().toISOString(),
@@ -168,18 +177,18 @@ export function AiAgents({ project }: { project: DashboardProject }) {
     });
     setIdeaFilter(ideaMode);
     setActiveIdeaId(idea.id);
+    setIdeaTitle("");
     setIdeaText("");
     setView("idea-detail");
-    setMessage("L’idée est validée et placée dans la file de production.");
   }
 
-  function approveIdea(id: string) {
+  function saveIdea(updated: EditorialIdea) {
     setIdeas((current) => {
-      const next = current.map((idea) => idea.id === id ? { ...idea, approved: true } : idea);
+      const next = current.map((idea) => idea.id === updated.id ? updated : idea);
       window.localStorage.setItem(storageKey, JSON.stringify(next));
       return next;
     });
-    setMessage("L’idée est validée et placée dans la file de production.");
+    setIdeaFilter(updated.mode);
   }
 
   function openArticle(page: SitePage) {
@@ -190,7 +199,6 @@ export function AiAgents({ project }: { project: DashboardProject }) {
   async function setEditorialStatus(page: SitePage, status: EditorialPageStatus) {
     if (savingPageId) return;
     setSavingPageId(page.id);
-    setMessage("");
     try {
       const response = await fetch("/api/ai-agents/status", {
         method: "PATCH",
@@ -212,9 +220,8 @@ export function AiAgents({ project }: { project: DashboardProject }) {
           article: candidate.editorial?.article,
         },
       } : candidate));
-      setMessage(status === "pending" ? `Le choix pour « ${getTitle(page)} » a été réinitialisé.` : status === "approved" ? `« ${getTitle(page)} » a été validé.` : `« ${getTitle(page)} » a été refusé.`);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Le statut n’a pas pu être enregistré.");
+    } catch {
+      // La ligne reste dans son état précédent si l’enregistrement échoue.
     } finally {
       setSavingPageId(null);
     }
@@ -222,14 +229,12 @@ export function AiAgents({ project }: { project: DashboardProject }) {
 
   return <div className="-mx-3 -mt-3 min-h-[1004px] bg-white font-[var(--font-inter)] text-[#1c1c1c] sm:-mx-6 sm:-mt-6">
     <header className="flex min-h-[148px] flex-col justify-center gap-5 px-6 py-8 sm:px-[clamp(32px,5.75vw,71px)] lg:flex-row lg:items-center lg:justify-between">
-      <div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-black/30">Agents IA · SEO</p><h1 className="mt-2 font-serif text-[32px] leading-none">Pages générées</h1></div>
+      <h1 className="font-serif text-[32px] leading-none">Pages générées</h1>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={openIdeas} className="flex h-12 min-w-[127px] items-center justify-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold tracking-[-.02em] text-[#222]"><Lightbulb size={16} />Voir les idées</button>
         <button type="button" onClick={openIdeaForm} className="flex h-12 min-w-[154px] items-center justify-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232_0%,#222_100%)] px-5 text-[14px] font-semibold tracking-[-.02em] text-[#fcfcfc] shadow-[0_2px_4px_-1px_rgba(13,13,13,.5),0_0_0_1px_#333,inset_0_.5px_1px_rgba(255,255,255,.15),inset_0_-1px_1.2px_.35px_#121212]"><Plus size={16} />Ajouter une idée</button>
       </div>
     </header>
-
-    {message ? <p aria-live="polite" className="mx-6 mb-4 rounded-[8px] bg-[#f6f6f4] px-4 py-2 text-[10px] text-black/55 sm:mx-[clamp(32px,5.75vw,71px)]">{message}</p> : null}
 
     <section className="border-t border-black/[0.07]">
       {articles.map((page) => <GeneratedRow key={page.id} title={getTitle(page)} mode={getMode(page)} status={getStatus(page)} date={getRelativeDate(page.editorial?.updatedAt ?? page.editorial?.createdAt)} hero={getHero(page)} loading={savingPageId === page.id} onApprove={() => setEditorialStatus(page, "approved")} onReject={() => setEditorialStatus(page, "rejected")} onReset={() => setEditorialStatus(page, "pending")} onOpen={() => openArticle(page)} />)}
@@ -238,8 +243,8 @@ export function AiAgents({ project }: { project: DashboardProject }) {
 
     {view ? <Overlay onClose={closeOverlay} size={view === "images" ? "tall" : view === "ideas" || view === "idea-form" || view === "idea-detail" ? "large" : "medium"}>
       {view === "ideas" ? <IdeasOverlay ideas={visibleIdeas} filter={ideaFilter} onFilter={setIdeaFilter} onAdd={openIdeaForm} onOpen={(idea) => { setActiveIdeaId(idea.id); setView("idea-detail"); }} onClose={closeOverlay} /> : null}
-      {view === "idea-form" ? <IdeaForm mode={ideaMode} text={ideaText} onMode={setIdeaMode} onText={setIdeaText} onSubmit={addIdea} onBack={openIdeas} onClose={closeOverlay} /> : null}
-      {view === "idea-detail" && activeIdea ? <IdeaDetail idea={activeIdea} onApprove={() => approveIdea(activeIdea.id)} onBack={openIdeas} onClose={closeOverlay} /> : null}
+      {view === "idea-form" ? <IdeaForm mode={ideaMode} title={ideaTitle} text={ideaText} onMode={setIdeaMode} onTitle={setIdeaTitle} onText={setIdeaText} onSubmit={addIdea} onBack={openIdeas} onClose={closeOverlay} /> : null}
+      {view === "idea-detail" && activeIdea ? <IdeaDetail idea={activeIdea} onSave={saveIdea} onBack={openIdeas} onClose={closeOverlay} /> : null}
       {view === "article" && activeArticle ? <ArticleOverlay page={activeArticle} onOpen={setView} onClose={closeOverlay} /> : null}
       {view === "images" && activeArticle ? <ImagesOverlay page={activeArticle} onBack={() => setView("article")} onClose={closeOverlay} /> : null}
       {view === "research" && activeArticle ? <PhaseOverlay kind="research" page={activeArticle} onBack={() => setView("article")} onClose={closeOverlay} /> : null}
@@ -272,7 +277,7 @@ function ModePill({ mode }: { mode: IdeaMode }) {
 }
 
 function Overlay({ children, onClose, size }: { children: ReactNode; onClose: () => void; size: "medium" | "large" | "tall" }) {
-  const height = size === "large" ? "max-h-[min(726px,calc(100dvh-48px))]" : size === "tall" ? "max-h-[min(720px,calc(100dvh-48px))]" : "max-h-[min(620px,calc(100dvh-48px))]";
+  const height = size === "large" ? "h-[min(726px,calc(100dvh-48px))]" : size === "tall" ? "h-[min(588px,calc(100dvh-48px))]" : "h-[min(574px,calc(100dvh-48px))]";
   return <div className="fixed inset-0 z-[200] grid place-items-center bg-[#e8e5e0]/75 p-3 backdrop-blur-[2px] sm:p-6" onMouseDown={onClose} role="presentation"><section role="dialog" aria-modal="true" className={`relative flex w-full max-w-[1019px] flex-col overflow-hidden rounded-[24px] border border-black/10 bg-white shadow-[0_38px_23px_rgba(0,0,0,.02),0_17px_17px_rgba(0,0,0,.03),0_4px_9px_rgba(0,0,0,.03)] sm:rounded-[32px] ${height}`} onMouseDown={(event) => event.stopPropagation()}>{children}</section></div>;
 }
 
@@ -283,16 +288,24 @@ function OverlayTop({ title, children, onClose }: { title: string; children?: Re
 function IdeasOverlay({ ideas, filter, onFilter, onAdd, onOpen, onClose }: { ideas: EditorialIdea[]; filter: IdeaMode; onFilter: (mode: IdeaMode) => void; onAdd: () => void; onOpen: (idea: EditorialIdea) => void; onClose: () => void }) {
   return <><OverlayTop title="Toutes les idées" onClose={onClose}><div className="hidden items-center gap-1 md:flex">{ideaModes.map((item) => <button key={item.id} type="button" onClick={() => onFilter(item.id)} className={`h-10 rounded-[9px] px-3 text-[12px] font-semibold ${filter === item.id ? "bg-[#fafafa]" : "text-black/45"}`}>{item.label}</button>)}</div><button type="button" onClick={onAdd} className="hidden h-12 rounded-[10px] bg-[#222] px-5 text-[14px] font-semibold text-white sm:block">Ajouter une idée</button></OverlayTop>
     <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-black/[0.07] px-4 py-3 md:hidden">{ideaModes.map((item) => <button key={item.id} type="button" onClick={() => onFilter(item.id)} className={`h-9 rounded-[9px] px-3 text-[12px] font-semibold ${filter === item.id ? "bg-[#f3f3f3]" : "text-black/45"}`}>{item.label}</button>)}</div>
-    <div className="min-h-0 flex-1 overflow-y-auto">{ideas.map((idea) => <button key={idea.id} type="button" onClick={() => onOpen(idea)} className="grid min-h-[74px] w-full border-b border-black/[0.07] text-left md:grid-cols-[199px_minmax(0,1fr)]"><span className="flex items-center justify-center gap-3 px-5"><Grip size={15} className="text-[#d9d9d9]" /><span className="font-serif text-[16px]">{modeLabel(idea.mode)}</span></span><span className="flex min-w-0 items-center gap-4 px-5 py-3 md:border-l md:border-black/[0.07]"><span className="min-w-0 flex-1"><span className="block truncate text-[12px] leading-5 text-black/55">{idea.content}</span><span className="mt-1 block text-[11px] text-black/35">{getRelativeDate(idea.createdAt)}</span></span>{idea.approved ? <span title="Idée validée" className="grid size-8 shrink-0 place-items-center rounded-full bg-[#ebffe8] text-[#37982a]"><Check size={17} /></span> : null}<span className="grid size-9 shrink-0 place-items-center rounded-[6px] border border-black/10 text-[#525866]"><ExternalLink size={17} /></span></span></button>)}{!ideas.length ? <div className="grid min-h-[300px] place-items-center text-center text-[12px] text-black/40">Aucune idée dans cette catégorie.</div> : null}</div>
-    <div className="shrink-0 bg-gradient-to-t from-white via-white to-white/20 p-5 sm:hidden"><button type="button" onClick={onAdd} className="h-12 w-full rounded-[10px] bg-[#222] text-[14px] font-semibold text-white">Ajouter une idée</button></div></>;
+    <div className="min-h-0 flex-1 overflow-y-auto">{ideas.map((idea) => <button key={idea.id} type="button" onClick={() => onOpen(idea)} className="grid min-h-[74px] w-full border-b border-black/[0.07] text-left md:grid-cols-[199px_minmax(0,1fr)]"><span className="flex items-center justify-center gap-3 px-5"><Grip size={15} className="text-[#d9d9d9]" /><span className="font-serif text-[16px]">{modeLabel(idea.mode)}</span></span><span className="flex min-w-0 items-center gap-4 px-5 py-3 md:border-l md:border-black/[0.07]"><span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-semibold leading-5 text-black/65">{idea.title}</span><span className="mt-0.5 block truncate text-[11px] leading-5 text-black/40">{idea.content}</span><span className="mt-0.5 block text-[10px] text-black/30">{getRelativeDate(idea.createdAt)}</span></span>{idea.approved ? <span title="Idée validée" className="grid size-8 shrink-0 place-items-center rounded-full bg-[#ebffe8] text-[#37982a]"><Check size={17} /></span> : null}<span className="grid size-9 shrink-0 place-items-center rounded-[6px] border border-black/10 text-[#525866]"><ExternalLink size={17} /></span></span></button>)}{!ideas.length ? <div className="grid min-h-[300px] place-items-center text-center text-[12px] text-black/40">Aucune idée dans cette catégorie.</div> : null}</div>
+    <footer className="flex shrink-0 items-center justify-between border-t border-black/[0.07] bg-white p-5 sm:px-9"><button type="button" onClick={onClose} className="flex h-12 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold"><ArrowLeft size={17} />Retour</button><button type="button" onClick={onAdd} className="h-12 rounded-[10px] bg-[#222] px-5 text-[14px] font-semibold text-white sm:hidden">Ajouter une idée</button></footer></>;
 }
 
-function IdeaForm({ mode, text, onMode, onText, onSubmit, onBack, onClose }: { mode: IdeaMode; text: string; onMode: (mode: IdeaMode) => void; onText: (text: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onBack: () => void; onClose: () => void }) {
-  return <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col"><OverlayTop title="Ajouter une idée" onClose={onClose}><button type="button" onClick={onBack} className="hidden h-10 rounded-[9px] bg-[#f3f3f3] px-4 text-[13px] font-semibold sm:block">Voir les idées</button></OverlayTop><div className="min-h-0 flex-1 overflow-y-auto px-5 py-8 sm:px-12"><label className="block text-[12px] font-semibold text-black/45">Catégorie<select value={mode} onChange={(event) => onMode(event.target.value as IdeaMode)} className="mt-2 h-12 w-full rounded-[10px] border border-black/10 bg-white px-4 text-[14px] outline-none">{ideaModes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label><label className="mt-7 block text-[12px] font-semibold text-black/45">Idée d’article<textarea autoFocus value={text} onChange={(event) => onText(event.target.value)} placeholder="Décris précisément l’idée, l’angle, les questions à traiter et les informations utiles pour les agents IA…" className="mt-2 min-h-[270px] w-full resize-none rounded-[14px] border border-black/10 p-5 text-[16px] leading-8 text-black/70 outline-none focus:border-black/25" /></label></div><footer className="flex shrink-0 justify-between border-t border-black/[0.07] p-5 sm:px-12"><button type="button" onClick={onBack} className="flex h-12 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold"><ArrowLeft size={17} />Retour</button><button type="submit" disabled={!text.trim()} className="h-12 rounded-[10px] bg-[#222] px-7 text-[14px] font-semibold text-white disabled:opacity-35">Valider l’idée</button></footer></form>;
+function IdeaForm({ mode, title, text, onMode, onTitle, onText, onSubmit, onBack, onClose }: { mode: IdeaMode; title: string; text: string; onMode: (mode: IdeaMode) => void; onTitle: (title: string) => void; onText: (text: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onBack: () => void; onClose: () => void }) {
+  return <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col"><OverlayTop title="Ajouter une idée" onClose={onClose} /><div className="min-h-0 flex-1 overflow-y-auto px-5 py-7 sm:px-12"><div className="grid gap-5 sm:grid-cols-[1fr_240px]"><label className="block text-[12px] font-semibold text-black/45">Titre<input autoFocus value={title} onChange={(event) => onTitle(event.target.value)} placeholder="Titre de l’idée" className="mt-2 h-12 w-full rounded-[10px] border border-black/10 px-4 text-[14px] outline-none focus:border-black/25" /></label><label className="block text-[12px] font-semibold text-black/45">Catégorie<select value={mode} onChange={(event) => onMode(event.target.value as IdeaMode)} className="mt-2 h-12 w-full rounded-[10px] border border-black/10 bg-white px-4 text-[14px] outline-none">{ideaModes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label></div><label className="mt-6 block text-[12px] font-semibold text-black/45">Informations sur l’idée<textarea value={text} onChange={(event) => onText(event.target.value)} placeholder="Décris précisément l’idée, l’angle, les questions à traiter et les informations utiles pour les agents IA…" className="mt-2 min-h-[220px] w-full resize-none rounded-[14px] border border-black/10 p-5 text-[15px] leading-7 text-black/70 outline-none focus:border-black/25" /></label></div><footer className="flex shrink-0 justify-between border-t border-black/[0.07] p-5 sm:px-12"><button type="button" onClick={onBack} className="flex h-12 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold"><ArrowLeft size={17} />Retour aux idées</button><button type="submit" disabled={!title.trim() || !text.trim()} className="h-12 rounded-[10px] bg-[#222] px-7 text-[14px] font-semibold text-white disabled:opacity-35">Valider l’idée</button></footer></form>;
 }
 
-function IdeaDetail({ idea, onApprove, onBack, onClose }: { idea: EditorialIdea; onApprove: () => void; onBack: () => void; onClose: () => void }) {
-  return <><OverlayTop title="Idée d’article" onClose={onClose}><ModePill mode={idea.mode} />{idea.approved ? <span className="hidden items-center gap-2 text-[12px] font-semibold text-[#37982a] sm:flex"><CheckCircle2 size={16} />Validée</span> : null}</OverlayTop><div className="min-h-0 flex-1 overflow-y-auto px-5 py-8 sm:px-12"><p className="whitespace-pre-wrap text-[16px] leading-[2.6] text-black/65">{idea.content}</p></div><footer className="flex shrink-0 justify-between border-t border-black/[0.07] p-5 sm:px-12"><button type="button" onClick={onBack} className="flex h-12 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold"><ArrowLeft size={17} />Toutes les idées</button>{!idea.approved ? <button type="button" onClick={onApprove} className="h-12 rounded-[10px] bg-[#222] px-7 text-[14px] font-semibold text-white">Valider</button> : <span className="flex h-12 items-center gap-2 rounded-[10px] bg-[#ebffe8] px-5 text-[13px] font-semibold text-[#37982a]"><Check size={17} />En file de production</span>}</footer></>;
+function IdeaDetail({ idea, onSave, onBack, onClose }: { idea: EditorialIdea; onSave: (idea: EditorialIdea) => void; onBack: () => void; onClose: () => void }) {
+  const [title, setTitle] = useState(idea.title);
+  const [content, setContent] = useState(idea.content);
+  const [mode, setMode] = useState<IdeaMode>(idea.mode);
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!title.trim() || !content.trim()) return;
+    onSave({ ...idea, title: title.trim(), content: content.trim(), mode, approved: true });
+  }
+  return <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col"><OverlayTop title="Modifier l’idée" onClose={onClose}>{idea.approved ? <span className="hidden items-center gap-2 text-[12px] font-semibold text-[#37982a] sm:flex"><CheckCircle2 size={16} />Validée</span> : null}</OverlayTop><div className="min-h-0 flex-1 overflow-y-auto px-5 py-7 sm:px-12"><div className="grid gap-5 sm:grid-cols-[1fr_240px]"><label className="block text-[12px] font-semibold text-black/45">Titre<input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} className="mt-2 h-12 w-full rounded-[10px] border border-black/10 px-4 text-[14px] outline-none focus:border-black/25" /></label><label className="block text-[12px] font-semibold text-black/45">Catégorie<select value={mode} onChange={(event) => setMode(event.target.value as IdeaMode)} className="mt-2 h-12 w-full rounded-[10px] border border-black/10 bg-white px-4 text-[14px] outline-none">{ideaModes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label></div><label className="mt-6 block text-[12px] font-semibold text-black/45">Informations sur l’idée<textarea value={content} onChange={(event) => setContent(event.target.value)} className="mt-2 min-h-[220px] w-full resize-none rounded-[14px] border border-black/10 p-5 text-[15px] leading-7 text-black/70 outline-none focus:border-black/25" /></label></div><footer className="flex shrink-0 justify-between border-t border-black/[0.07] p-5 sm:px-12"><button type="button" onClick={onBack} className="flex h-12 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold"><ArrowLeft size={17} />Retour aux idées</button><button type="submit" disabled={!title.trim() || !content.trim()} className="h-12 rounded-[10px] bg-[#222] px-7 text-[14px] font-semibold text-white disabled:opacity-35">{idea.approved ? "Enregistrer les modifications" : "Enregistrer et valider"}</button></footer></form>;
 }
 
 function ArticleOverlay({ page, onOpen, onClose }: { page: SitePage; onOpen: (view: OverlayView) => void; onClose: () => void }) {
