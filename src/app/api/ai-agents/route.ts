@@ -12,6 +12,7 @@ import {
   type ResearchBrief,
 } from "@/lib/editorial-pipeline";
 import { normalizeProjectKey } from "@/lib/project-key";
+import { buildEditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 import { createClient } from "@/lib/supabase/server";
 import type { ArticleBlock, ArticleDetailFields, BlogPost, SitePage } from "@/lib/site-template";
 
@@ -131,13 +132,25 @@ export async function POST(request: Request) {
 
   const { data: projectRow } = await supabase.from("site_projects").select("project_name, pages").eq("owner_id", projectOwnerId).eq("project_key", projectKey).maybeSingle();
   const projectName = projectRow?.project_name ?? "Projet paysagiste";
+  const projectPages = Array.isArray(projectRow?.pages) ? projectRow.pages as SitePage[] : structuredClone(demoSitePages);
   const topic = payload.topic.trim();
   const source = typeof payload.source === "string" && payload.source.trim() ? payload.source.trim() : undefined;
 
   try {
     if (payload.phase === "research") {
-      const research = await researchTopic({ mode: payload.mode, topic, projectName, source });
-      return NextResponse.json({ phase: "research", research });
+      const since = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10);
+      const [performanceResult, trafficResult] = await Promise.all([
+        supabase.from("project_page_performance").select("*").eq("owner_id", projectOwnerId).eq("project_key", projectKey).order("updated_at", { ascending: false }),
+        supabase.from("project_traffic_daily").select("visitors, page_views").eq("owner_id", projectOwnerId).eq("project_key", projectKey).gte("day", since),
+      ]);
+      const performance = buildEditorialPerformanceSnapshot({
+        pages: projectPages,
+        performanceRows: performanceResult.data,
+        trafficRows: trafficResult.data,
+        performanceError: performanceResult.error?.message,
+      });
+      const research = await researchTopic({ mode: payload.mode, topic, projectName, source, performance });
+      return NextResponse.json({ phase: "research", research, performance });
     }
 
     const research = payload.research as ResearchBrief | undefined;
@@ -165,7 +178,7 @@ export async function POST(request: Request) {
         quizWarning = " Le quiz interactif n’a pas pu être généré et devra être relancé avant validation.";
       }
     }
-    const pages = Array.isArray(projectRow?.pages) ? projectRow.pages as SitePage[] : structuredClone(demoSitePages);
+    const pages = projectPages;
     const { data: assetRows } = await supabase.from("project_assets").select("public_url").eq("owner_id", projectOwnerId).eq("project_key", projectKey).order("created_at", { ascending: false }).limit(12);
     const assets = (assetRows ?? []) as Array<{ public_url: string }>;
     let heroImageUrl = assets.length ? assets[Math.floor(Math.random() * assets.length)].public_url : "";

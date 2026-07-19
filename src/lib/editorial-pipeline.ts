@@ -1,5 +1,6 @@
 import "server-only";
 import type { ReusableQuiz } from "@/lib/site-template";
+import type { EditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 
 export type EditorialMode = "seo" | "youtube" | "trends" | "editorial";
 
@@ -12,6 +13,15 @@ export type ResearchBrief = {
   questions: string[];
   keywords: string[];
   safetyNotes: string[];
+  performanceAnalysis: {
+    dataStatus: "connected" | "partial" | "missing";
+    summary: string;
+    mainFindings: string[];
+    winningPages: Array<{ path: string; reason: string }>;
+    weakPages: Array<{ path: string; reason: string }>;
+    seoOpportunities: Array<{ path: string; opportunity: string }>;
+    contentPatterns: string[];
+  };
 };
 
 export type ArticleOutline = {
@@ -62,6 +72,11 @@ async function askOpenRouter(input: {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("La clé OPENROUTER_API_KEY n’est pas configurée sur cette machine.");
 
+  const demoMode = process.env.AI_DEMO_MODE === "true";
+  const model = demoMode
+    ? process.env.OPENROUTER_DEMO_MODEL ?? "qwen/qwen3-4b:free"
+    : input.model ?? process.env.OPENROUTER_CONTENT_MODEL ?? "openai/gpt-4.1-mini";
+  const webSearchEnabled = input.research && (!demoMode || process.env.OPENROUTER_DEMO_WEB_SEARCH === "true");
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -71,10 +86,10 @@ async function askOpenRouter(input: {
       "X-OpenRouter-Title": "Atelier Site Builder — Pipeline éditorial",
     },
     body: JSON.stringify({
-      model: input.model ?? process.env.OPENROUTER_CONTENT_MODEL ?? "openai/gpt-4.1-mini",
+      model,
       temperature: input.research ? 0.25 : 0.4,
       max_tokens: input.maxTokens ?? 3600,
-      ...(input.research
+      ...(webSearchEnabled
         ? { tools: [{ type: "openrouter:web_search", engine: "auto", max_total_results: 7, search_context_size: "high" }] }
         : {}),
       response_format: {
@@ -257,21 +272,24 @@ export async function researchTopic(input: {
   topic: string;
   projectName: string;
   source?: string;
+  performance: EditorialPerformanceSnapshot;
 }) {
   const sourceContext = input.source
     ? `Source imposée par l’utilisateur (URL ou transcription) :\n${input.source.slice(0, 12000)}`
-    : "Aucune source imposée : effectue une recherche web indépendante.";
+    : process.env.AI_DEMO_MODE === "true" && process.env.OPENROUTER_DEMO_WEB_SEARCH !== "true"
+      ? "Mode démo sans recherche web : utilise uniquement les données historiques transmises et indique clairement les informations externes manquantes."
+      : "Aucune source imposée : effectue une recherche web indépendante.";
 
   const result = (await askOpenRouter({
     schemaName: "landscaper_research_brief",
     research: true,
     maxTokens: 3000,
     system: "Tu es l’agent de recherche d’une rédaction française spécialisée dans le paysage et le jardin. Tu ne rédiges pas l’article. Tu construis un dossier factuel, sourcé et exploitable. N’invente jamais d’URL, de chiffre, d’étude ou de citation.",
-    prompt: `${modeInstructions[input.mode]}\n\nProjet : ${input.projectName}\nSujet : ${input.topic}\n\n${sourceContext}\n\nTrouve des sources fiables et variées. Chaque fait doit être formulé avec prudence et associé à une URL réellement consultée. Prépare aussi les questions auxquelles l’article doit répondre, les mots-clés naturels et les précautions éventuelles.`,
+    prompt: `${modeInstructions[input.mode]}\n\nProjet : ${input.projectName}\nSujet : ${input.topic}\n\n${sourceContext}\n\nDONNÉES HISTORIQUES RÉELLES DU SITE :\n${JSON.stringify(input.performance)}\n\nCommence par comparer les anciennes pages sans inventer de données. Une page récente ou sans données ne doit jamais être déclarée faible. Croise Analytics, Search Console et AgenceFlow lorsqu'ils sont présents. Utilise les pages gagnantes, faibles et les opportunités SEO pour choisir l'angle du nouveau contenu. Puis complète par des sources web fiables si l'outil de recherche est disponible. Chaque fait externe doit être associé à une URL réellement consultée. Si aucune recherche web n'est disponible, n'invente aucune URL et utilise un tableau facts vide. Prépare aussi les questions auxquelles l’article doit répondre, les mots-clés naturels et les précautions éventuelles.`,
     schema: {
       type: "object",
       additionalProperties: false,
-      required: ["summary", "searchIntent", "audience", "angle", "facts", "questions", "keywords", "safetyNotes"],
+      required: ["summary", "searchIntent", "audience", "angle", "facts", "questions", "keywords", "safetyNotes", "performanceAnalysis"],
       properties: {
         summary: { type: "string" },
         searchIntent: { type: "string" },
@@ -279,7 +297,7 @@ export async function researchTopic(input: {
         angle: { type: "string" },
         facts: {
           type: "array",
-          minItems: 4,
+          minItems: 0,
           maxItems: 10,
           items: {
             type: "object",
@@ -295,11 +313,31 @@ export async function researchTopic(input: {
         questions: { type: "array", minItems: 3, maxItems: 8, items: { type: "string" } },
         keywords: { type: "array", minItems: 4, maxItems: 12, items: { type: "string" } },
         safetyNotes: { type: "array", maxItems: 6, items: { type: "string" } },
+        performanceAnalysis: {
+          type: "object",
+          additionalProperties: false,
+          required: ["dataStatus", "summary", "mainFindings", "winningPages", "weakPages", "seoOpportunities", "contentPatterns"],
+          properties: {
+            dataStatus: { type: "string", enum: ["connected", "partial", "missing"] },
+            summary: { type: "string" },
+            mainFindings: { type: "array", maxItems: 8, items: { type: "string" } },
+            winningPages: {
+              type: "array", maxItems: 8, items: { type: "object", additionalProperties: false, required: ["path", "reason"], properties: { path: { type: "string" }, reason: { type: "string" } } },
+            },
+            weakPages: {
+              type: "array", maxItems: 8, items: { type: "object", additionalProperties: false, required: ["path", "reason"], properties: { path: { type: "string" }, reason: { type: "string" } } },
+            },
+            seoOpportunities: {
+              type: "array", maxItems: 8, items: { type: "object", additionalProperties: false, required: ["path", "opportunity"], properties: { path: { type: "string" }, opportunity: { type: "string" } } },
+            },
+            contentPatterns: { type: "array", maxItems: 8, items: { type: "string" } },
+          },
+        },
       },
     },
   })) as ResearchBrief;
 
-  if (!result.summary?.trim() || !Array.isArray(result.facts) || result.facts.length < 3) {
+  if (!result.summary?.trim() || !Array.isArray(result.facts) || !result.performanceAnalysis) {
     throw new Error("Le dossier de recherche est incomplet.");
   }
   return result;
