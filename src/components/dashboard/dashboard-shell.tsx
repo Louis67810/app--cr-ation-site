@@ -6,7 +6,6 @@ import {
   Bot,
   CalendarDays,
   Check,
-  ChevronDown,
   ChevronsUpDown,
   CircleAlert,
   Clock3,
@@ -34,6 +33,8 @@ import { AssetLibrary } from "@/components/dashboard/asset-library";
 import { GlobalSectionsEditor } from "@/components/dashboard/global-sections-editor";
 import { AiAgents } from "@/components/dashboard/ai-agents";
 import { MonthlyRecap } from "@/components/dashboard/monthly-recap";
+import { AnalyticsDashboard } from "@/components/dashboard/analytics-dashboard";
+import type { EditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 
 export type DashboardTab = "overview" | "traffic" | "pages" | "cms" | "assets" | "ai" | "recap" | "settings";
 
@@ -112,84 +113,6 @@ function projectChecks(project: DashboardProject): CheckItem[] {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(value));
-}
-
-type TrafficPeriod = "week" | "month" | "year";
-
-function buildTrafficBars(period: TrafficPeriod, today: Date) {
-  if (period === "year") {
-    return monthLabels.map((label, index) => ({
-      key: `${today.getFullYear()}-${index}`,
-      label,
-      current: index === today.getMonth(),
-      visitors: 0,
-    }));
-  }
-
-  if (period === "month") {
-    const days = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    return Array.from({ length: days }, (_, index) => {
-      const date = new Date(today.getFullYear(), today.getMonth(), index + 1);
-      return {
-        key: date.toISOString(),
-        label: new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(date),
-        current: date.toDateString() === today.toDateString(),
-        visitors: 0,
-      };
-    });
-  }
-
-  const day = today.getDay() || 7;
-  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day + 1);
-  return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index);
-    return {
-      key: date.toISOString(),
-      label: new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric" }).format(date),
-      current: date.toDateString() === today.toDateString(),
-      visitors: 0,
-    };
-  });
-}
-
-function TrafficChart() {
-  const [period, setPeriod] = useState<TrafficPeriod>("month");
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const today = useMemo(() => new Date(), []);
-  const bars = useMemo(() => buildTrafficBars(period, today), [period, today]);
-
-  useEffect(() => {
-    const container = scrollRef.current;
-    const current = container?.querySelector<HTMLElement>("[data-current='true']");
-    if (!container || !current) return;
-    container.scrollLeft = current.offsetLeft - container.clientWidth / 2 + current.clientWidth / 2;
-  }, [period]);
-
-  const periodLabel = period === "week" ? "Cette semaine" : period === "month" ? "Ce mois-ci" : `Année ${today.getFullYear()}`;
-
-  return (
-    <div className="mt-4 rounded-[13px] border border-[#e8ecee] bg-[#f9f9f9] p-4 shadow-[inset_0_0_0_2px_rgba(255,255,255,.35)] sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><p className="text-[12px] text-black/45">Visiteurs du site</p><p className="mt-1 font-serif text-[28px]">0 visiteur</p><p className="mt-1 text-[10px] text-black/35">Analytics non connecté · {periodLabel}</p></div>
-        <label className="relative">
-          <select value={period} onChange={(event) => setPeriod(event.target.value as TrafficPeriod)} className="h-9 appearance-none rounded-[8px] border border-black/10 bg-white pl-3 pr-9 text-[11px] font-medium outline-none hover:border-black/20">
-            <option value="week">Une semaine</option>
-            <option value="month">Un mois</option>
-            <option value="year">Une année</option>
-          </select>
-          <ChevronDown size={13} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 opacity-60" />
-        </label>
-      </div>
-      <div className="mt-7 grid h-[230px] grid-cols-[24px_minmax(0,1fr)] gap-2 sm:mt-9 sm:h-[270px] sm:grid-cols-[28px_minmax(0,1fr)] sm:gap-4">
-        <div className="flex flex-col justify-between pb-8 text-[10px] text-[#525866]"><span>100</span><span>75</span><span>50</span><span>0</span></div>
-        <div ref={scrollRef} className="overflow-x-auto overflow-y-hidden scroll-smooth">
-          <div className="relative flex h-full min-w-full items-end gap-2 border-b border-black/10 pb-8 before:absolute before:inset-x-0 before:top-1/4 before:border-t before:border-dashed before:border-black/10 after:absolute after:inset-x-0 after:top-1/2 after:border-t after:border-dashed after:border-black/10">
-            {bars.map((bar) => <div key={bar.key} data-current={bar.current} className={`${period === "month" ? "min-w-[44px]" : period === "year" ? "min-w-[62px]" : "min-w-[72px] flex-1"} relative z-10 flex h-full flex-col justify-end`}><div className={`${bar.current ? "bg-[#00BBFE]" : "bg-[#474749]"} relative h-[12%] min-h-5 w-full rounded-[8px] transition-colors`}>{bar.current ? <span className="absolute left-1/2 top-1.5 -translate-x-1/2 text-[9px] font-semibold text-white">{bar.visitors}</span> : null}</div><span className={`${bar.current ? "font-semibold text-[#00a8e4]" : "text-[#525866]"} absolute left-1/2 top-[calc(100%+8px)] -translate-x-1/2 whitespace-nowrap text-[9px]`}>{bar.label}</span></div>)}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function ProjectPreviewCard({ project }: { project: DashboardProject }) {
@@ -316,6 +239,7 @@ export function DashboardShell({
   invitations,
   assets,
   recap,
+  analytics,
 }: {
   projects: DashboardProject[];
   selectedKey: string;
@@ -323,6 +247,7 @@ export function DashboardShell({
   invitations: DashboardInvitation[];
   assets: DashboardAsset[];
   recap: MonthlyRecapData;
+  analytics: EditorialPerformanceSnapshot;
 }) {
   const project = projects.find((item) => item.key === selectedKey) ?? projects[0];
   const [query, setQuery] = useState("");
@@ -404,7 +329,7 @@ export function DashboardShell({
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher une page" className="min-w-0 flex-1 bg-transparent text-[14px] outline-none" />
         </div> : null}
 
-        {activeTab !== "pages" ? <div className="mt-8 grid gap-4 sm:grid-cols-3">
+        {activeTab === "overview" ? <div className="mt-8 grid gap-4 sm:grid-cols-3">
           {[
             ["Pages", project.pages.length, FileText],
             ["Sections", sectionCount, Layers3],
@@ -443,24 +368,7 @@ export function DashboardShell({
           </section>
         </div> : null}
 
-        {activeTab === "traffic" ? (
-          <section className="mt-10 pb-12">
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,.65fr)]">
-              <div>
-                <h2 className="font-serif text-[25px]">Trafic du site</h2>
-                <TrafficChart />
-              </div>
-              <div>
-                <h2 className="font-serif text-[25px]">Répartition</h2>
-                <div className="mt-4 rounded-[13px] border border-[#e8ecee] bg-[#f9f9f9] p-4 sm:p-6">
-                  <div className="mx-auto grid size-44 place-items-center rounded-full" style={{ background: `conic-gradient(#474749 0 ${validCount * 25}%, #d7dadd ${validCount * 25}% 78%, #f0f1f2 78% 100%)` }}><div className="grid size-28 place-items-center rounded-full bg-[#f9f9f9] text-center"><div><p className="font-serif text-[28px]">{validCount}/{checks.length}</p><p className="text-[10px] text-black/45">contrôles validés</p></div></div></div>
-                  <div className="mt-7 grid gap-3 text-[12px]"><div className="flex items-center justify-between"><span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#474749]" />Pages structurées</span><b>{project.pages.length}</b></div><div className="flex items-center justify-between"><span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#aeb3b8]" />Sections</span><b>{sectionCount}</b></div><div className="flex items-center justify-between"><span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#e2e4e6]" />État</span><b>{project.publishedAt ? "Publié" : "Brouillon"}</b></div></div>
-                </div>
-                <p className="mt-3 text-[11px] leading-5 text-black/40">Les visites réelles seront affichées ici dès qu’une source Analytics sera connectée. Aucun trafic fictif n’est inventé.</p>
-              </div>
-            </div>
-          </section>
-        ) : null}
+        {activeTab === "traffic" ? <AnalyticsDashboard projectKey={project.key} projectOwnerId={project.ownerId} initialData={analytics} /> : null}
 
         {activeTab === "pages" ? <section id="pages" className="mt-10 pb-12">
           <div className="flex items-end justify-between"><div><h2 className="font-serif text-[25px]">Pages du site</h2><p className="mt-1 text-[13px] text-black/45">{filteredPages.length} résultat(s) pour ce projet</p></div><Clock3 size={18} className="text-black/30" /></div>

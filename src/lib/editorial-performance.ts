@@ -1,4 +1,3 @@
-import "server-only";
 import type { SitePage } from "@/lib/site-template";
 
 export type PagePerformanceMetrics = {
@@ -11,18 +10,9 @@ export type PagePerformanceMetrics = {
     pageViews: number;
     totalUsers: number;
     sessionsPerUser: number;
-    active28DayUsers: number;
-  };
-  agenceflow: {
-    viewsLastWeek: number;
-    visitorsLastWeek: number;
-    sessionsLastWeek: number;
-    clicksLastWeek: number;
-    formSubmitsLastWeek: number;
-    avgDurationSeconds: number;
-    maxScrollDepth: number;
-    lastSeenAt: string | null;
-    dailyStats: unknown[];
+    averageSessionDuration: number;
+    engagementRate: number;
+    scrolledUsers: number;
   };
   searchConsole: {
     clicks: number;
@@ -30,21 +20,34 @@ export type PagePerformanceMetrics = {
     ctr: number;
     position: number;
   };
-  customSignals: Record<string, unknown>;
+};
+
+export type AnalyticsTotals = {
+  sessions: number;
+  engagementSeconds: number;
+  pageViews: number;
+  totalUsers: number;
+  averageSessionDuration: number;
+  engagementRate: number;
+  scrolledUsers: number;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
 };
 
 export type EditorialPerformanceSnapshot = {
   status: "connected" | "partial" | "missing";
   periodStart: string | null;
   periodEnd: string | null;
-  sources: Array<"googleAnalytics" | "searchConsole" | "agenceflow" | "siteTraffic">;
-  siteTotals: { visitors: number; pageViews: number };
+  updatedAt: string | null;
+  sources: Array<"googleAnalytics" | "searchConsole">;
+  siteTotals: AnalyticsTotals;
   pages: PagePerformanceMetrics[];
   warnings: string[];
 };
 
 type PerformanceRow = Record<string, unknown>;
-type TrafficRow = { visitors?: number | null; page_views?: number | null };
 
 function number(value: unknown) {
   const parsed = Number(value ?? 0);
@@ -63,10 +66,17 @@ function emptyPage(path: string, title: string): PagePerformanceMetrics {
     path,
     title,
     firstSeenAt: null,
-    googleAnalytics: { sessions: 0, engagementSeconds: 0, pageViews: 0, totalUsers: 0, sessionsPerUser: 0, active28DayUsers: 0 },
-    agenceflow: { viewsLastWeek: 0, visitorsLastWeek: 0, sessionsLastWeek: 0, clicksLastWeek: 0, formSubmitsLastWeek: 0, avgDurationSeconds: 0, maxScrollDepth: 0, lastSeenAt: null, dailyStats: [] },
+    googleAnalytics: {
+      sessions: 0,
+      engagementSeconds: 0,
+      pageViews: 0,
+      totalUsers: 0,
+      sessionsPerUser: 0,
+      averageSessionDuration: 0,
+      engagementRate: 0,
+      scrolledUsers: 0,
+    },
     searchConsole: { clicks: 0, impressions: 0, ctr: 0, position: 0 },
-    customSignals: {},
   };
 }
 
@@ -81,18 +91,9 @@ function rowToPage(row: PerformanceRow): PagePerformanceMetrics {
       pageViews: number(row.ga_page_views),
       totalUsers: number(row.ga_total_users),
       sessionsPerUser: number(row.ga_sessions_per_user),
-      active28DayUsers: number(row.ga_active_28_day_users),
-    },
-    agenceflow: {
-      viewsLastWeek: number(row.af_views_last_week),
-      visitorsLastWeek: number(row.af_visitors_last_week),
-      sessionsLastWeek: number(row.af_sessions_last_week),
-      clicksLastWeek: number(row.af_clicks_last_week),
-      formSubmitsLastWeek: number(row.af_form_submits_last_week),
-      avgDurationSeconds: number(row.af_avg_duration_seconds),
-      maxScrollDepth: number(row.af_max_scroll_depth),
-      lastSeenAt: typeof row.af_last_seen_at === "string" ? row.af_last_seen_at : null,
-      dailyStats: Array.isArray(row.af_daily_stats) ? row.af_daily_stats : [],
+      averageSessionDuration: number(row.ga_average_session_duration),
+      engagementRate: number(row.ga_engagement_rate),
+      scrolledUsers: number(row.ga_scrolled_users),
     },
     searchConsole: {
       clicks: number(row.gsc_clicks),
@@ -100,45 +101,53 @@ function rowToPage(row: PerformanceRow): PagePerformanceMetrics {
       ctr: number(row.gsc_ctr),
       position: number(row.gsc_position),
     },
-    customSignals: row.custom_signals && typeof row.custom_signals === "object" && !Array.isArray(row.custom_signals)
-      ? row.custom_signals as Record<string, unknown>
-      : {},
   };
 }
 
 export function buildEditorialPerformanceSnapshot(input: {
   pages: SitePage[];
   performanceRows?: PerformanceRow[] | null;
-  trafficRows?: TrafficRow[] | null;
+  summaryRow?: PerformanceRow | null;
   performanceError?: string | null;
 }) {
   const rows = input.performanceRows ?? [];
   const indexed = new Map(rows.map((row) => [String(row.page_path ?? ""), rowToPage(row)]));
-  const existingArticles = input.pages
-    .filter((page) => page.slug.startsWith("/blog/") && page.slug !== "/blog")
-    .map((page) => indexed.get(page.slug) ?? emptyPage(page.slug, articleTitle(page)));
-  const extraRows = rows.map(rowToPage).filter((page) => !existingArticles.some((existing) => existing.path === page.path));
-  const pages = [...existingArticles, ...extraRows];
+  const projectPages = input.pages.map((page) => indexed.get(page.slug) ?? emptyPage(page.slug, page.slug.startsWith("/blog/") ? articleTitle(page) : page.title));
+  const extraRows = rows.map(rowToPage).filter((page) => !projectPages.some((existing) => existing.path === page.path));
+  const pages = [...projectPages, ...extraRows];
   const sources = new Set<EditorialPerformanceSnapshot["sources"][number]>();
-  if (rows.some((row) => number(row.ga_sessions) || number(row.ga_page_views) || number(row.ga_total_users))) sources.add("googleAnalytics");
-  if (rows.some((row) => number(row.gsc_impressions) || number(row.gsc_clicks))) sources.add("searchConsole");
-  if (rows.some((row) => number(row.af_views_last_week) || number(row.af_sessions_last_week) || number(row.af_clicks_last_week))) sources.add("agenceflow");
-  if ((input.trafficRows ?? []).length) sources.add("siteTraffic");
-  const siteTotals = (input.trafficRows ?? []).reduce<{ visitors: number; pageViews: number }>((total, row) => ({
-    visitors: total.visitors + number(row.visitors),
-    pageViews: total.pageViews + number(row.page_views),
-  }), { visitors: 0, pageViews: 0 });
-  const periodStarts = rows.map((row) => String(row.period_start ?? "")).filter(Boolean).sort();
-  const periodEnds = rows.map((row) => String(row.period_end ?? "")).filter(Boolean).sort();
+  const summary = input.summaryRow;
+  if (summary && (number(summary.ga_sessions) || number(summary.ga_page_views) || number(summary.ga_total_users))) sources.add("googleAnalytics");
+  if (summary && (number(summary.gsc_impressions) || number(summary.gsc_clicks))) sources.add("searchConsole");
+
+  const siteTotals: AnalyticsTotals = {
+    sessions: number(summary?.ga_sessions),
+    engagementSeconds: number(summary?.ga_engagement_seconds),
+    pageViews: number(summary?.ga_page_views),
+    totalUsers: number(summary?.ga_total_users),
+    averageSessionDuration: number(summary?.ga_average_session_duration),
+    engagementRate: number(summary?.ga_engagement_rate),
+    scrolledUsers: number(summary?.ga_scrolled_users),
+    clicks: number(summary?.gsc_clicks),
+    impressions: number(summary?.gsc_impressions),
+    ctr: number(summary?.gsc_ctr),
+    position: number(summary?.gsc_position),
+  };
+  const strings = (values: unknown[]) => values.filter((value): value is string => typeof value === "string" && Boolean(value)).sort();
+  const periodStarts = strings([summary?.period_start, ...rows.map((row) => row.period_start)]);
+  const periodEnds = strings([summary?.period_end, ...rows.map((row) => row.period_end)]);
+  const updatedDates = strings([summary?.updated_at, ...rows.map((row) => row.updated_at)]);
   const warnings: string[] = [];
-  if (input.performanceError) warnings.push("La table de performance par page n'est pas encore disponible : applique la migration Supabase fournie.");
-  if (!rows.length) warnings.push("Aucune métrique par page n'est connectée. Les zéros ne doivent pas être interprétés comme de mauvaises performances.");
-  if (!sources.has("searchConsole")) warnings.push("Search Console n'est pas connecté : impressions, clics, CTR et position sont inconnus.");
+  if (input.performanceError) warnings.push("Les tables de statistiques ne sont pas encore disponibles : applique les migrations Supabase fournies.");
+  if (!summary && !rows.length) warnings.push("Aucune statistique Google n’a encore été synchronisée. Les zéros ne représentent pas de mauvaises performances.");
+  if (!sources.has("googleAnalytics")) warnings.push("Google Analytics 4 n’est pas encore connecté ou ne contient aucune donnée sur la période.");
+  if (!sources.has("searchConsole")) warnings.push("Google Search Console n’est pas encore connecté ou ne contient aucune donnée sur la période.");
 
   return {
-    status: rows.length ? (sources.size >= 2 ? "connected" : "partial") : "missing",
+    status: summary || rows.length ? (sources.size === 2 ? "connected" : "partial") : "missing",
     periodStart: periodStarts[0] ?? null,
     periodEnd: periodEnds.at(-1) ?? null,
+    updatedAt: updatedDates.at(-1) ?? null,
     sources: [...sources],
     siteTotals,
     pages,

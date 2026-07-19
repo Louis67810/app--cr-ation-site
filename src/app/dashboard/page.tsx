@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { DashboardShell, type DashboardAsset, type DashboardInvitation, type DashboardProject, type DashboardTab, type MonthlyRecapData } from "@/components/dashboard/dashboard-shell";
 import { demoSitePages } from "@/lib/demo-site";
+import { buildEditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 import { normalizeProjectKey } from "@/lib/project-key";
 import type { SitePage } from "@/lib/site-template";
 import { createClient } from "@/lib/supabase/server";
@@ -77,6 +78,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const { data: assetRows } = await supabase.from("project_assets").select("id, public_url, original_name, title, alt_text, ai_generated, created_at").eq("owner_id", selected.ownerId).eq("project_key", selected.key).order("created_at", { ascending: false });
   const assets = (assetRows ?? []) as DashboardAsset[];
 
+  const [performanceResult, analyticsSummaryResult] = await Promise.all([
+    supabase.from("project_page_performance").select("*").eq("owner_id", selected.ownerId).eq("project_key", selected.key).order("ga_page_views", { ascending: false }),
+    supabase.from("project_analytics_summary").select("*").eq("owner_id", selected.ownerId).eq("project_key", selected.key).maybeSingle(),
+  ]);
+  const analytics = buildEditorialPerformanceSnapshot({
+    pages: selected.pages,
+    performanceRows: performanceResult.data,
+    summaryRow: analyticsSummaryResult.data,
+    performanceError: performanceResult.error?.message ?? analyticsSummaryResult.error?.message,
+  });
+
   const recap: MonthlyRecapData = { settings: null, events: [], deliveries: [], visitors: 0, pageViews: 0, ready: false, defaultEmail: typeof authData?.claims?.email === "string" ? authData.claims.email : "" };
   if (selected.role === "admin") {
     const now = new Date();
@@ -96,5 +108,5 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     recap.ready = !settingsResult.error && !eventsResult.error && !deliveriesResult.error && !trafficResult.error;
   }
 
-  return <DashboardShell projects={projects} selectedKey={selected.key} activeTab={activeTab} invitations={invitations} assets={assets} recap={recap} />;
+  return <DashboardShell projects={projects} selectedKey={selected.key} activeTab={activeTab} invitations={invitations} assets={assets} recap={recap} analytics={analytics} />;
 }
