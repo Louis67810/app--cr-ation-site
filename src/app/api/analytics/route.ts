@@ -64,7 +64,21 @@ export async function POST(request: Request) {
   }
 
   try {
-    const google = await fetchGoogleSitePerformance(90);
+    const { data: connection, error: connectionError } = await input.supabase
+      .from("project_analytics_connections")
+      .select("ga_property_id, gsc_site_url")
+      .eq("owner_id", input.projectOwnerId)
+      .eq("project_key", input.projectKey)
+      .maybeSingle();
+    if (connectionError) throw connectionError;
+    if (!connection?.ga_property_id) {
+      return NextResponse.json({ error: "Renseigne l’identifiant de propriété GA4 dans les paramètres de ce projet." }, { status: 400 });
+    }
+    const google = await fetchGoogleSitePerformance({
+      propertyId: connection.ga_property_id,
+      siteUrl: connection.gsc_site_url || undefined,
+      days: 90,
+    });
     const admin = createAdminClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
     const projectPages = new Map(input.pages.map((page) => [page.slug, page]));
     const now = new Date().toISOString();
@@ -94,6 +108,8 @@ export async function POST(request: Request) {
         updated_at: now,
       };
     });
+    const { error: cleanupError } = await admin.from("project_page_performance").delete().eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey);
+    if (cleanupError) throw cleanupError;
     if (rows.length) {
       const { error } = await admin.from("project_page_performance").upsert(rows, { onConflict: "owner_id,project_key,page_path" });
       if (error) throw error;

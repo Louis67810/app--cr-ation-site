@@ -1,15 +1,40 @@
 "use client";
 
-import { Check, Copy, Link2, LoaderCircle, Mail, UserRound } from "lucide-react";
+import { BarChart3, Check, Copy, Link2, LoaderCircle, Mail, Save, UserRound } from "lucide-react";
 import { useState } from "react";
-import type { DashboardInvitation, DashboardProject } from "@/components/dashboard/dashboard-shell";
+import type { DashboardInvitation, DashboardProject, ProjectAnalyticsConnection } from "@/components/dashboard/dashboard-shell";
 
-export function ProjectSettings({ project, initialInvitations }: { project: DashboardProject; initialInvitations: DashboardInvitation[] }) {
+export function ProjectSettings({ project, initialInvitations, initialAnalyticsConnection }: { project: DashboardProject; initialInvitations: DashboardInvitation[]; initialAnalyticsConnection: ProjectAnalyticsConnection | null }) {
   const [email, setEmail] = useState("");
   const [invitations, setInvitations] = useState(initialInvitations);
   const [latestLink, setLatestLink] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [gaPropertyId, setGaPropertyId] = useState(initialAnalyticsConnection?.ga_property_id ?? "");
+  const [gaMeasurementId, setGaMeasurementId] = useState(initialAnalyticsConnection?.ga_measurement_id ?? "");
+  const [gscSiteUrl, setGscSiteUrl] = useState(initialAnalyticsConnection?.gsc_site_url ?? "");
+  const [savingAnalytics, setSavingAnalytics] = useState(false);
+  const [analyticsMessage, setAnalyticsMessage] = useState("");
+
+  async function saveAnalytics(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSavingAnalytics(true);
+    setAnalyticsMessage("");
+    try {
+      const response = await fetch("/api/analytics/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectKey: project.key, projectOwnerId: project.ownerId, gaPropertyId, gaMeasurementId, gscSiteUrl }),
+      });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "Enregistrement impossible.");
+      setAnalyticsMessage("Connexion Analytics enregistrée pour ce projet.");
+    } catch (error) {
+      setAnalyticsMessage(error instanceof Error ? error.message : "Enregistrement impossible.");
+    } finally {
+      setSavingAnalytics(false);
+    }
+  }
 
   async function invite(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,7 +66,16 @@ export function ProjectSettings({ project, initialInvitations }: { project: Dash
 
   return (
     <div className="max-w-[920px] pb-8 sm:pb-16">
-      <header><h1 className="font-serif text-[27px] tracking-[-0.05em] sm:text-[30px]">Paramètres</h1><p className="mt-2 text-[13px] font-medium leading-5 text-black/60 sm:text-[14px]">Gérez les accès au projet {project.name}.</p></header>
+      <header><h1 className="font-serif text-[27px] tracking-[-0.05em] sm:text-[30px]">Paramètres</h1><p className="mt-2 text-[13px] font-medium leading-5 text-black/60 sm:text-[14px]">Gérez les connexions et les accès au projet {project.name}.</p></header>
+      <section className="mt-7 rounded-[14px] border border-[#e8ecee] bg-[#f9f9f9] p-4 sm:mt-9 sm:p-6">
+        <div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-[9px] bg-white shadow-sm"><BarChart3 size={17} /></span><div><h2 className="text-[15px] font-semibold">Google Analytics de ce projet</h2><p className="mt-1 text-[12px] leading-5 text-black/45">Ces identifiants s’appliquent uniquement à {project.name}. Les clés du compte de service restent globales et secrètes.</p></div></div>
+        <form onSubmit={saveAnalytics} className="mt-6 grid gap-4">
+          <label className="grid gap-1.5"><span className="text-[11px] font-medium text-black/55">Identifiant de propriété GA4</span><input value={gaPropertyId} onChange={(event) => setGaPropertyId(event.target.value)} inputMode="numeric" placeholder="123456789" className="h-11 rounded-[9px] border border-black/10 bg-white px-3 text-[13px] outline-none focus:border-black/30" /><span className="text-[10px] text-black/35">Le numéro de propriété, pas l’identifiant G-.</span></label>
+          <label className="grid gap-1.5"><span className="text-[11px] font-medium text-black/55">Identifiant de mesure</span><input value={gaMeasurementId} onChange={(event) => setGaMeasurementId(event.target.value)} placeholder="G-XXXXXXXXXX" className="h-11 rounded-[9px] border border-black/10 bg-white px-3 text-[13px] uppercase outline-none focus:border-black/30" /><span className="text-[10px] text-black/35">Il servira au suivi du domaine publié.</span></label>
+          <label className="grid gap-1.5"><span className="text-[11px] font-medium text-black/55">Propriété Search Console, facultative</span><input value={gscSiteUrl} onChange={(event) => setGscSiteUrl(event.target.value)} placeholder="sc-domain:monsite.fr" className="h-11 rounded-[9px] border border-black/10 bg-white px-3 text-[13px] outline-none focus:border-black/30" /></label>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><p className="text-[11px] text-black/45">{analyticsMessage}</p><button type="submit" disabled={savingAnalytics} className="flex h-10 items-center justify-center gap-2 rounded-[9px] bg-black px-4 text-[12px] font-semibold text-white disabled:opacity-50">{savingAnalytics ? <LoaderCircle size={14} className="animate-spin" /> : <Save size={14} />}{savingAnalytics ? "Enregistrement…" : "Enregistrer la connexion"}</button></div>
+        </form>
+      </section>
       <section className="mt-7 rounded-[14px] border border-[#e8ecee] bg-[#f9f9f9] p-4 sm:mt-9 sm:p-6">
         <div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-[9px] bg-white shadow-sm"><Link2 size={17} /></span><div><h2 className="text-[15px] font-semibold">Inviter un collaborateur</h2><p className="mt-1 text-[12px] leading-5 text-black/45">Laissez l’email vide pour créer un lien ouvert, ou renseignez-le pour réserver l’invitation à une personne précise. Le collaborateur n’aura pas accès au builder.</p></div></div>
         <form onSubmit={invite} className="mt-6 flex flex-col gap-2 sm:flex-row"><label className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-[9px] border border-black/10 bg-white px-3"><Mail size={15} className="text-black/35" /><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email facultatif" className="min-w-0 flex-1 bg-transparent text-[13px] outline-none" /></label><button type="submit" disabled={loading} className="flex h-11 items-center justify-center gap-2 rounded-[9px] bg-black px-5 text-[13px] font-semibold text-white disabled:opacity-50">{loading ? <LoaderCircle size={15} className="animate-spin" /> : null}Créer le lien</button></form>

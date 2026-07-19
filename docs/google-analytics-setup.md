@@ -17,19 +17,17 @@ Copier les valeurs suivantes dans `.env.local` pour le local et dans les variabl
 ```env
 GOOGLE_SERVICE_ACCOUNT_EMAIL=analytics-reader@mon-projet.iam.gserviceaccount.com
 GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-GA4_PROPERTY_ID=123456789
-GSC_SITE_URL=https://www.monsite.fr/
 SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
-`GA4_PROPERTY_ID` est l’identifiant numérique de la propriété, sans préfixe `G-`. `GSC_SITE_URL` doit correspondre exactement à la propriété Search Console autorisée. Pour une propriété de domaine, utiliser par exemple `sc-domain:monsite.fr`.
+Les clés Google sont communes à l’application. L’identifiant numérique GA4, l’identifiant de mesure `G-...` et la propriété Search Console sont enregistrés séparément dans **Dashboard → Paramètres** pour chaque projet.
 
 Ces variables sont exclusivement serveur : ne jamais ajouter le préfixe `NEXT_PUBLIC_`.
 
 ## 3. Préparer Supabase
 
-Exécuter les migrations `20260719090000_editorial_page_performance.sql` puis `20260719100000_direct_google_analytics.sql`. La seconde migration nettoie aussi les anciennes colonnes AgenceFlow si la première version avait déjà été appliquée.
+Exécuter les migrations `20260719090000_editorial_page_performance.sql`, `20260719100000_direct_google_analytics.sql` puis `20260719110000_project_analytics_connections.sql`.
 
 ## 4. Synchroniser
 
-Lancer le projet, ouvrir **Dashboard → Statistiques**, puis cliquer sur **Synchroniser les statistiques**. La synchronisation couvre les 90 derniers jours, avec deux jours de décalage pour utiliser les données Search Console finalisées.
+Pour chaque projet, ouvrir **Dashboard → Paramètres**, enregistrer ses identifiants Google, puis ouvrir **Statistiques** et cliquer sur **Synchroniser les statistiques**. La synchronisation couvre les 90 derniers jours, avec deux jours de décalage pour utiliser les données Search Console finalisées.

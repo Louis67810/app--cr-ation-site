@@ -20,7 +20,7 @@ function date(value: string | null) {
   return value ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "Jamais";
 }
 
-export function AnalyticsDashboard({ projectKey, projectOwnerId, initialData }: { projectKey: string; projectOwnerId: string; initialData: EditorialPerformanceSnapshot }) {
+export function AnalyticsDashboard({ projectKey, projectOwnerId, initialData, gaPropertyId }: { projectKey: string; projectOwnerId: string; initialData: EditorialPerformanceSnapshot; gaPropertyId?: string }) {
   const [data, setData] = useState(initialData);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState("");
@@ -59,7 +59,7 @@ export function AnalyticsDashboard({ projectKey, projectOwnerId, initialData }: 
       <div>
         <div className="flex flex-wrap items-center gap-2">
           <span className={`size-2 rounded-full ${data.status === "connected" ? "bg-emerald-500" : data.status === "partial" ? "bg-amber-500" : "bg-black/20"}`} />
-          <p className="text-[13px] font-semibold">Google Analytics 4 + Search Console</p>
+          <p className="text-[13px] font-semibold">{gaPropertyId ? `Google Analytics 4 · propriété ${gaPropertyId}` : "Google Analytics non configuré pour ce projet"}</p>
           <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-medium text-black/45 shadow-sm">90 jours</span>
         </div>
         <p className="mt-2 text-[12px] text-black/45">Dernière synchronisation : {date(data.updatedAt)}{data.periodStart && data.periodEnd ? ` · données du ${data.periodStart} au ${data.periodEnd}` : ""}</p>

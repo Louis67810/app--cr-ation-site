@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { DashboardShell, type DashboardAsset, type DashboardInvitation, type DashboardProject, type DashboardTab, type MonthlyRecapData } from "@/components/dashboard/dashboard-shell";
+import { DashboardShell, type DashboardAsset, type DashboardInvitation, type DashboardProject, type DashboardTab, type MonthlyRecapData, type ProjectAnalyticsConnection } from "@/components/dashboard/dashboard-shell";
 import { demoSitePages } from "@/lib/demo-site";
 import { buildEditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 import { normalizeProjectKey } from "@/lib/project-key";
@@ -78,9 +78,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const { data: assetRows } = await supabase.from("project_assets").select("id, public_url, original_name, title, alt_text, ai_generated, created_at").eq("owner_id", selected.ownerId).eq("project_key", selected.key).order("created_at", { ascending: false });
   const assets = (assetRows ?? []) as DashboardAsset[];
 
-  const [performanceResult, analyticsSummaryResult] = await Promise.all([
+  const [performanceResult, analyticsSummaryResult, analyticsConnectionResult] = await Promise.all([
     supabase.from("project_page_performance").select("*").eq("owner_id", selected.ownerId).eq("project_key", selected.key).order("ga_page_views", { ascending: false }),
     supabase.from("project_analytics_summary").select("*").eq("owner_id", selected.ownerId).eq("project_key", selected.key).maybeSingle(),
+    supabase.from("project_analytics_connections").select("ga_property_id, ga_measurement_id, gsc_site_url, updated_at").eq("owner_id", selected.ownerId).eq("project_key", selected.key).maybeSingle(),
   ]);
   const analytics = buildEditorialPerformanceSnapshot({
     pages: selected.pages,
@@ -108,5 +109,5 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     recap.ready = !settingsResult.error && !eventsResult.error && !deliveriesResult.error && !trafficResult.error;
   }
 
-  return <DashboardShell projects={projects} selectedKey={selected.key} activeTab={activeTab} invitations={invitations} assets={assets} recap={recap} analytics={analytics} />;
+  return <DashboardShell projects={projects} selectedKey={selected.key} activeTab={activeTab} invitations={invitations} assets={assets} recap={recap} analytics={analytics} analyticsConnection={analyticsConnectionResult.data as ProjectAnalyticsConnection | null} />;
 }

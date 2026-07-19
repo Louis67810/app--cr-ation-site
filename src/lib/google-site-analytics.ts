@@ -151,9 +151,11 @@ async function gscReport(token: string, siteUrl: string, startDate: string, endD
   return rows;
 }
 
-export async function fetchGoogleSitePerformance(days = 90): Promise<GooglePerformanceSync> {
-  const propertyId = required("GA4_PROPERTY_ID").replace(/^properties\//, "");
-  const siteUrl = required("GSC_SITE_URL");
+export async function fetchGoogleSitePerformance(input: { propertyId: string; siteUrl?: string; days?: number }): Promise<GooglePerformanceSync> {
+  const propertyId = input.propertyId.trim().replace(/^properties\//, "");
+  if (!propertyId) throw new Error("Ce projet n’a pas encore d’identifiant de propriété GA4.");
+  const siteUrl = input.siteUrl?.trim();
+  const days = input.days ?? 90;
   const end = new Date();
   end.setUTCDate(end.getUTCDate() - 2);
   const start = new Date(end);
@@ -165,8 +167,8 @@ export async function fetchGoogleSitePerformance(days = 90): Promise<GooglePerfo
   const [gaPages, gaTotal, gscPages, gscTotal] = await Promise.all([
     gaReport(token, propertyId, periodStart, periodEnd, true),
     gaReport(token, propertyId, periodStart, periodEnd, false),
-    gscReport(token, siteUrl, periodStart, periodEnd, true),
-    gscReport(token, siteUrl, periodStart, periodEnd, false),
+    siteUrl ? gscReport(token, siteUrl, periodStart, periodEnd, true) : Promise.resolve([]),
+    siteUrl ? gscReport(token, siteUrl, periodStart, periodEnd, false) : Promise.resolve([]),
   ]);
 
   const pages = new Map<string, GooglePagePerformance>();

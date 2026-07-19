@@ -42,6 +42,7 @@ export type MonthlyRecapEvent = { id: string; event_type: "page_created" | "arti
 export type MonthlyRecapSettings = { recipient_email: string; enabled: boolean; send_day: number };
 export type MonthlyRecapDelivery = { id: string; period_start: string; status: "processing" | "sent" | "failed"; created_at: string };
 export type MonthlyRecapData = { settings: MonthlyRecapSettings | null; events: MonthlyRecapEvent[]; deliveries: MonthlyRecapDelivery[]; visitors: number; pageViews: number; ready: boolean; defaultEmail: string };
+export type ProjectAnalyticsConnection = { ga_property_id: string; ga_measurement_id: string; gsc_site_url: string; updated_at: string };
 
 export type DashboardProject = {
   key: string;
@@ -240,6 +241,7 @@ export function DashboardShell({
   assets,
   recap,
   analytics,
+  analyticsConnection,
 }: {
   projects: DashboardProject[];
   selectedKey: string;
@@ -248,6 +250,7 @@ export function DashboardShell({
   assets: DashboardAsset[];
   recap: MonthlyRecapData;
   analytics: EditorialPerformanceSnapshot;
+  analyticsConnection: ProjectAnalyticsConnection | null;
 }) {
   const project = projects.find((item) => item.key === selectedKey) ?? projects[0];
   const [query, setQuery] = useState("");
@@ -311,7 +314,7 @@ export function DashboardShell({
       </aside>
 
       <section className={activeTab === "cms" ? "min-h-0 min-w-0 flex-1 overflow-hidden lg:col-start-2 lg:row-start-1 lg:h-full" : "min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:row-start-1 lg:px-10 lg:py-11 xl:px-12"}>
-        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents project={project} /> : activeTab === "recap" ? <MonthlyRecap project={project} initialSettings={recap.settings} initialEvents={recap.events} initialDeliveries={recap.deliveries} visitors={recap.visitors} pageViews={recap.pageViews} ready={recap.ready} defaultEmail={recap.defaultEmail} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} /> : <>
+        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents project={project} /> : activeTab === "recap" ? <MonthlyRecap project={project} initialSettings={recap.settings} initialEvents={recap.events} initialDeliveries={recap.deliveries} visitors={recap.visitors} pageViews={recap.pageViews} ready={recap.ready} defaultEmail={recap.defaultEmail} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
         <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-serif text-[27px] leading-tight tracking-[-0.05em] sm:text-[30px]">{activeTab === "pages" ? "Pages du site" : activeTab === "traffic" ? "Statistiques et trafic" : "Bonjour, voici votre site"}</h1>
@@ -368,7 +371,7 @@ export function DashboardShell({
           </section>
         </div> : null}
 
-        {activeTab === "traffic" ? <AnalyticsDashboard projectKey={project.key} projectOwnerId={project.ownerId} initialData={analytics} /> : null}
+        {activeTab === "traffic" ? <AnalyticsDashboard projectKey={project.key} projectOwnerId={project.ownerId} initialData={analytics} gaPropertyId={analyticsConnection?.ga_property_id} /> : null}
 
         {activeTab === "pages" ? <section id="pages" className="mt-10 pb-12">
           <div className="flex items-end justify-between"><div><h2 className="font-serif text-[25px]">Pages du site</h2><p className="mt-1 text-[13px] text-black/45">{filteredPages.length} résultat(s) pour ce projet</p></div><Clock3 size={18} className="text-black/30" /></div>
