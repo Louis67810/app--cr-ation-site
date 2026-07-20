@@ -4,6 +4,7 @@ import type { EditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 import { loadRuntimeSkill } from "@/lib/ai-runtime-skills";
 
 export type EditorialMode = "seo" | "youtube" | "trends" | "editorial";
+export type EditorialExecutionMode = "test" | "classic";
 
 export type ResearchBrief = {
   summary: string;
@@ -114,6 +115,7 @@ async function askOpenRouter(input: {
   research?: boolean;
   maxTokens?: number;
   model?: string;
+  executionMode: EditorialExecutionMode;
 }) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey)
@@ -121,17 +123,15 @@ async function askOpenRouter(input: {
       "La clé OPENROUTER_API_KEY n’est pas configurée sur cette machine.",
     );
 
-  // Le mode économique est le défaut. Passe AI_DEMO_MODE à "false" pour
-  // utiliser le modèle de production configuré dans OPENROUTER_CONTENT_MODEL.
-  const demoMode = process.env.AI_DEMO_MODE !== "false";
-  const model = demoMode
+  const testMode = input.executionMode === "test";
+  const model = testMode
     ? (process.env.OPENROUTER_DEMO_MODEL ?? "qwen/qwen3-4b:free")
     : (input.model ??
       process.env.OPENROUTER_CONTENT_MODEL ??
       "openai/gpt-4.1-mini");
   const webSearchEnabled =
     input.research &&
-    (!demoMode || process.env.OPENROUTER_DEMO_WEB_SEARCH === "true");
+    (!testMode || process.env.OPENROUTER_DEMO_WEB_SEARCH === "true");
   let response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -172,7 +172,7 @@ async function askOpenRouter(input: {
     }),
   });
 
-  if (!response.ok && demoMode) {
+  if (!response.ok && testMode) {
     response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -237,6 +237,7 @@ export async function generateArticleQuiz(input: {
   topic: string;
   projectName: string;
   outline: ArticleOutline;
+  executionMode: EditorialExecutionMode;
 }) {
   const skill = await loadRuntimeSkill("quiz-generation");
   const raw = (await askOpenRouter({
@@ -244,6 +245,7 @@ export async function generateArticleQuiz(input: {
     model:
       process.env.OPENROUTER_QUIZ_MODEL ?? process.env.OPENROUTER_CONTENT_MODEL,
     maxTokens: 4200,
+    executionMode: input.executionMode,
     system: `${skill}\n\nTu produis une configuration JSON exacte pour le moteur de quiz existant.`,
     prompt: `Projet : ${input.projectName}\nSujet : ${input.topic}\n\nPlan verrouillé :\n${JSON.stringify(input.outline)}\n\nCrée uniquement le quiz demandé par quizRequest. Respecte exactement son format, son objectif, ses catégories, son CTA et placementAfterSectionId. Les identifiants sont courts, uniques et en kebab-case. nextQuestionId et resultId sont des chaînes vides quand ils ne sont pas utilisés. N'invente aucun chiffre ni promesse commerciale.`,
     schema: {
@@ -422,6 +424,7 @@ export async function generateArticleQuiz(input: {
 
 export async function researchTopic(input: {
   mode: EditorialMode;
+  executionMode: EditorialExecutionMode;
   topic: string;
   projectName: string;
   source?: string;
@@ -438,6 +441,7 @@ export async function researchTopic(input: {
   const result = (await askOpenRouter({
     schemaName: "landscaper_research_brief",
     research: true,
+    executionMode: input.executionMode,
     maxTokens: 3000,
     system: `${skill}\n\nTu es l’agent de recherche d’une rédaction française spécialisée dans le paysage et le jardin.`,
     prompt: `${modeInstructions[input.mode]}\n\nProjet : ${input.projectName}\nSujet : ${input.topic}\n\n${sourceContext}\n\nDONNÉES HISTORIQUES RÉELLES DU SITE :\n${JSON.stringify(input.performance)}\n\nCommence par comparer les anciennes pages sans inventer de données. Une page récente ou sans données ne doit jamais être déclarée faible. Croise Google Analytics 4 et Google Search Console lorsqu'ils sont présents : trafic et engagement d'un côté, impressions, clics, CTR et position de l'autre. Utilise les pages gagnantes, faibles et les opportunités SEO pour choisir l'angle du nouveau contenu. Puis complète par des sources web fiables si l'outil de recherche est disponible. Chaque fait externe doit être associé à une URL réellement consultée. Si aucune recherche web n'est disponible, n'invente aucune URL et utilise un tableau facts vide. Prépare aussi les questions auxquelles l’article doit répondre, les mots-clés naturels et les précautions éventuelles.`,
@@ -574,12 +578,14 @@ export async function researchTopic(input: {
 export async function structureArticle(input: {
   topic: string;
   research: ResearchBrief;
+  executionMode: EditorialExecutionMode;
 }) {
   const skill = await loadRuntimeSkill("article-structure");
   const result = (await askOpenRouter({
     schemaName: "landscaper_article_outline",
+    executionMode: input.executionMode,
     system: `${skill}\n\nTu es l’architecte éditorial d’un blog de paysagiste français.`,
-    prompt: `Sujet : ${input.topic}\n\nDossier de recherche validé :\n${JSON.stringify(input.research)}\n\nConstruis un titre clair, un résumé de 140 à 220 caractères et un plan H2/H3 détaillé pour un article de 900 à 1400 mots. Chaque section reçoit un identifiant kebab-case, un objectif, des points précis, un format et une instruction de composant. Demande exactement une image hero et au maximum trois images inline. Une image inline doit référencer un sectionId existant. Décide si un quiz apporte une vraie aide au lecteur ; sinon retourne enabled=false et des champs vides. Le slug ne contient que des lettres ASCII, chiffres et tirets.`,
+    prompt: `Sujet : ${input.topic}\n\nDossier de recherche validé :\n${JSON.stringify(input.research)}\n\nConstruis un titre clair, un résumé de 140 à 220 caractères et un plan H2/H3 détaillé pour un article de 900 à 1400 mots. Chaque grande partie est un H2 avec le style de section du builder ; les H3 sont réservés aux sous-parties du H2 précédent. Chaque titre est un bloc distinct des paragraphes. Chaque section reçoit un identifiant kebab-case, un objectif, des points précis, un format et une instruction de composant. Demande exactement une image hero et au maximum trois images inline. Une image inline doit référencer un sectionId existant. Décide si un quiz apporte une vraie aide au lecteur ; sinon retourne enabled=false et des champs vides. Le slug ne contient que des lettres ASCII, chiffres et tirets.`,
     schema: {
       type: "object",
       additionalProperties: false,
@@ -731,10 +737,12 @@ export async function writeArticle(input: {
   outline: ArticleOutline;
   images: ResolvedArticleImage[];
   quizPlan?: GeneratedQuizPlan;
+  executionMode: EditorialExecutionMode;
 }) {
   const skill = await loadRuntimeSkill("article-writing");
   const result = (await askOpenRouter({
     schemaName: "landscaper_article",
+    executionMode: input.executionMode,
     maxTokens: 4800,
     system: `${skill}\n\nTu es le rédacteur final d’un blog de paysagiste français. Le texte est concret, original, fluide et compréhensible, sans bourrage de mots-clés.`,
     prompt: `Sujet : ${input.topic}\n\nPlan éditorial verrouillé :\n${JSON.stringify(input.outline)}\n\nImages déjà résolues :\n${JSON.stringify(input.images)}\n\nQuiz déjà résolu :\n${JSON.stringify(input.quizPlan ?? null)}\n\nRédige maintenant l’article complet de 900 à 1400 mots. Retourne exactement une entrée par sectionId, dans le même ordre que le plan. Les titres, images et quiz seront assemblés par le code : ne les répète pas. Pour format=prose, remplis paragraphs et laisse les composants vides. Pour table, cards ou callout, rédige aussi le composant demandé tout en conservant au moins un paragraphe d’introduction.`,

@@ -68,6 +68,7 @@ export async function PATCH(request: Request) {
   page.editorial = {
     status: payload.status,
     mode: page.editorial?.mode ?? "editorial",
+    executionMode: page.editorial?.executionMode,
     category: page.editorial?.category ?? "Conseils",
     createdAt: page.editorial?.createdAt ?? now,
     updatedAt: now,

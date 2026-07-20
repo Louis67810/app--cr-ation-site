@@ -25,6 +25,7 @@ export function touchArticlePage(page: SitePage, now = new Date()) {
   next.editorial = {
     status: next.editorial?.status ?? "pending",
     mode: next.editorial?.mode ?? "editorial",
+    executionMode: next.editorial?.executionMode,
     category: next.editorial?.category ?? "Conseils",
     createdAt: next.editorial?.createdAt ?? iso,
     updatedAt: iso,

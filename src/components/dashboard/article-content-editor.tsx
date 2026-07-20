@@ -237,6 +237,27 @@ export function ArticleContentEditor({
     setSelectedBlockId(copy.id ?? null);
   }
 
+  function splitParagraphIntoHeading(index: number, start: number, end: number) {
+    const block = fields.blocks[index];
+    if (block?.kind !== "paragraph" || start === end) return;
+    const before = block.text.slice(0, start).trim();
+    const headingText = block.text.slice(start, end).trim();
+    const after = block.text.slice(end).trim();
+    if (!headingText) return;
+    const headingId = crypto.randomUUID();
+    const replacements: ArticleBlock[] = [
+      ...(before ? [{ ...block, text: before }] : []),
+      { id: headingId, kind: "heading", level: "h3", text: headingText },
+      ...(after
+        ? [{ id: crypto.randomUUID(), kind: "paragraph" as const, text: after, size: block.size }]
+        : []),
+    ];
+    updatePage((_next, nextFields) => {
+      nextFields.blocks.splice(index, 1, ...replacements);
+    });
+    setSelectedBlockId(headingId);
+  }
+
   async function regenerateImage(imageId: string) {
     setRegeneratingImageId(imageId);
     setImageError("");
@@ -430,6 +451,9 @@ export function ArticleContentEditor({
                   block={selectedBlock}
                   fields={fields}
                   onChange={(block) => updateBlock(selectedIndex, block)}
+                  onSplitHeading={(start, end) =>
+                    splitParagraphIntoHeading(selectedIndex, start, end)
+                  }
                   onRegenerate={
                     page.editorial?.outline?.imageRequests.some(
                       (request) => request.id === selectedBlock.id,
@@ -631,41 +655,19 @@ function BlockSettings({
   block,
   fields,
   onChange,
+  onSplitHeading,
   onRegenerate,
   regenerating,
 }: {
   block: ArticleBlock;
   fields: ArticleDetailFields;
   onChange: (block: ArticleBlock) => void;
+  onSplitHeading: (start: number, end: number) => void;
   onRegenerate?: () => void;
   regenerating?: boolean;
 }) {
   if (block.kind === "paragraph")
-    return (
-      <Settings title="Paragraphe">
-        <Field label="Texte">
-          <textarea
-            value={block.text}
-            onChange={(event) =>
-              onChange({ ...block, text: event.target.value })
-            }
-            className={textareaClass}
-          />
-        </Field>
-        <Field label="Taille">
-          <Select
-            value={block.size ?? "medium"}
-            onChange={(value) =>
-              onChange({
-                ...block,
-                size: value as "small" | "medium" | "large",
-              })
-            }
-            options={["small", "medium", "large"]}
-          />
-        </Field>
-      </Settings>
-    );
+    return <ParagraphSettings block={block} onChange={onChange} onSplitHeading={onSplitHeading} />;
   if (block.kind === "heading")
     return (
       <Settings title="Titre de section">
@@ -863,6 +865,56 @@ function BlockSettings({
       <p className="text-[11px] leading-5 text-black/40">
         La configuration détaillée du quiz reste dans son éditeur spécialisé.
       </p>
+    </Settings>
+  );
+}
+
+function ParagraphSettings({
+  block,
+  onChange,
+  onSplitHeading,
+}: {
+  block: Extract<ArticleBlock, { kind: "paragraph" }>;
+  onChange: (block: ArticleBlock) => void;
+  onSplitHeading: (start: number, end: number) => void;
+}) {
+  const [selection, setSelection] = React.useState({ start: 0, end: 0 });
+  return (
+    <Settings title="Paragraphe">
+      <Field label="Texte">
+        <textarea
+          value={block.text}
+          onChange={(event) => onChange({ ...block, text: event.target.value })}
+          onSelect={(event) =>
+            setSelection({
+              start: event.currentTarget.selectionStart,
+              end: event.currentTarget.selectionEnd,
+            })
+          }
+          className={textareaClass}
+        />
+      </Field>
+      <button
+        type="button"
+        onClick={() => onSplitHeading(selection.start, selection.end)}
+        disabled={selection.start === selection.end}
+        className="flex h-10 items-center justify-center gap-2 rounded-[9px] bg-[#f3f3f3] px-4 text-[11px] font-semibold disabled:opacity-35"
+      >
+        <Heading2 size={14} />
+        Transformer la sélection en sous-titre H3
+      </button>
+      <Field label="Taille">
+        <Select
+          value={block.size ?? "medium"}
+          onChange={(value) =>
+            onChange({
+              ...block,
+              size: value as "small" | "medium" | "large",
+            })
+          }
+          options={["small", "medium", "large"]}
+        />
+      </Field>
     </Settings>
   );
 }

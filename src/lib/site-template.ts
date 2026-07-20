@@ -682,6 +682,7 @@ export type EditorialPageStatus = "pending" | "approved" | "rejected";
 export type EditorialPageWorkflow = {
   status: EditorialPageStatus;
   mode: "seo" | "youtube" | "trends" | "editorial";
+  executionMode?: "test" | "classic";
   category: string;
   createdAt: string;
   updatedAt: string;

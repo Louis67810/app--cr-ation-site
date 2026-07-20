@@ -6,6 +6,7 @@ import {
   structureArticle,
   writeArticle,
   type ArticleOutline,
+  type EditorialExecutionMode,
   type EditorialMode,
   type GeneratedArticle,
   type GeneratedQuizPlan,
@@ -72,6 +73,7 @@ function addArticleToPages(
   images: ResolvedArticleImage[],
   workflow: {
     mode: EditorialMode;
+    executionMode: EditorialExecutionMode;
     research: ResearchBrief;
     outline: ArticleOutline;
     quizPlan?: GeneratedQuizPlan;
@@ -96,6 +98,7 @@ function addArticleToPages(
   page.editorial = {
     status: "pending",
     mode: workflow.mode,
+    executionMode: workflow.executionMode,
     category: article.category?.trim() || "Conseils",
     createdAt: now,
     updatedAt: now,
@@ -175,6 +178,7 @@ export async function POST(request: Request) {
   const payload = (await request.json()) as {
     phase?: unknown;
     mode?: unknown;
+    executionMode?: unknown;
     topic?: unknown;
     source?: unknown;
     projectKey?: unknown;
@@ -187,6 +191,7 @@ export async function POST(request: Request) {
   if (
     !isPipelinePhase(payload.phase) ||
     !isEditorialMode(payload.mode) ||
+    (payload.executionMode !== "test" && payload.executionMode !== "classic") ||
     typeof payload.topic !== "string" ||
     !payload.topic.trim()
   ) {
@@ -197,6 +202,7 @@ export async function POST(request: Request) {
   }
 
   const projectKey = normalizeProjectKey(payload.projectKey);
+  const executionMode = payload.executionMode;
   const projectOwnerId =
     typeof payload.projectOwnerId === "string"
       ? payload.projectOwnerId
@@ -264,6 +270,7 @@ export async function POST(request: Request) {
       });
       const research = await researchTopic({
         mode: payload.mode,
+        executionMode,
         topic,
         projectName,
         source,
@@ -281,7 +288,7 @@ export async function POST(request: Request) {
     }
 
     if (payload.phase === "outline") {
-      const outline = await structureArticle({ topic, research });
+      const outline = await structureArticle({ topic, research, executionMode });
       return NextResponse.json({ phase: "outline", outline });
     }
 
@@ -309,15 +316,14 @@ export async function POST(request: Request) {
         demoDetail?.type === "article-detail"
           ? demoDetail.fields.heroImageUrl
           : "";
-      const allowImageGeneration =
-        process.env.AI_DEMO_MODE === "false" ||
-        process.env.AI_DEMO_IMAGES === "true";
+      const allowImageGeneration = executionMode === "classic";
       const images: ResolvedArticleImage[] = [];
 
-      for (const [index, imageRequest] of outline.imageRequests.entries()) {
-        let url =
-          fallbackAssets[index % Math.max(1, fallbackAssets.length)]
-            ?.public_url ?? fallbackHero;
+      for (const imageRequest of outline.imageRequests) {
+        let url = fallbackAssets.length
+          ? fallbackAssets[Math.floor(Math.random() * fallbackAssets.length)]
+              .public_url
+          : fallbackHero;
         let generated = false;
         const visual = allowImageGeneration
           ? await generateArticleImage(imageRequest, {
@@ -372,7 +378,12 @@ export async function POST(request: Request) {
       let quizWarning = "";
       if (outline.quizRequest.enabled) {
         try {
-          quizPlan = await generateArticleQuiz({ topic, projectName, outline });
+          quizPlan = await generateArticleQuiz({
+            topic,
+            projectName,
+            outline,
+            executionMode,
+          });
         } catch {
           quizWarning =
             "Le quiz facultatif n’a pas pu être généré. L’article peut continuer sans lui.";
@@ -401,11 +412,18 @@ export async function POST(request: Request) {
       );
     }
     const quizPlan = payload.quizPlan as GeneratedQuizPlan | undefined;
-    const article = await writeArticle({ topic, outline, images, quizPlan });
+    const article = await writeArticle({
+      topic,
+      outline,
+      images,
+      quizPlan,
+      executionMode,
+    });
     const pages = projectPages;
 
     const updated = addArticleToPages(pages, article, images, {
       mode: payload.mode,
+      executionMode,
       research,
       outline,
       quizPlan,
@@ -440,6 +458,7 @@ export async function POST(request: Request) {
       metadata: {
         slug: updated.href,
         mode: payload.mode,
+        executionMode,
         pipeline: [
           "research",
           "outline",

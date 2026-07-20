@@ -11,6 +11,8 @@ Créer le plan sans rédiger les paragraphes.
 
 - Attribuer un identifiant stable et unique à chaque section.
 - Définir pour chaque section son titre, son niveau, son objectif, ses points et son format.
+- Utiliser H2 pour chaque grande partie de l'article et H3 uniquement pour une sous-partie directement rattachée au H2 précédent.
+- Séparer systématiquement les titres et les paragraphes : aucun titre ne doit être caché dans le texte d'un paragraphe.
 - Ne jamais écrire le texte final ni produire les blocs du CMS.
 - Imposer exactement une image principale.
 - Demander zéro à trois images secondaires uniquement si elles améliorent la compréhension.

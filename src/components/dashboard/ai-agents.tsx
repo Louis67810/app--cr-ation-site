@@ -24,6 +24,7 @@ import {
 import type { DashboardProject } from "@/components/dashboard/dashboard-shell";
 import type {
   ArticleOutline,
+  EditorialExecutionMode,
   EditorialMode,
   GeneratedArticle,
   GeneratedQuizPlan,
@@ -66,6 +67,7 @@ type ProductionPhase = "research" | "outline" | "images" | "write";
 type ProductionPhaseStatus = "pending" | "running" | "completed" | "error";
 type ProductionState = {
   idea: EditorialIdea;
+  executionMode: EditorialExecutionMode;
   statuses: Record<ProductionPhase, ProductionPhaseStatus>;
   error?: string;
   warning?: string;
@@ -160,6 +162,8 @@ export function AiAgents({
   const [ideas, setIdeas] = useState<EditorialIdea[]>([]);
   const [savingPageId, setSavingPageId] = useState<string | null>(null);
   const [production, setProduction] = useState<ProductionState | null>(null);
+  const [executionMode, setExecutionMode] =
+    useState<EditorialExecutionMode>("test");
   const analytics = initialAnalytics;
   const articles = useMemo(() => getArticlePages(pages), [pages]);
   const performanceByPath = useMemo(
@@ -171,6 +175,17 @@ export function AiAgents({
   const activeIdea = ideas.find((idea) => idea.id === activeIdeaId) ?? null;
   const visibleIdeas = ideas.filter((idea) => idea.mode === ideaFilter);
   const storageKey = `editorial-ideas:${project.ownerId}:${project.key}`;
+  const executionModeStorageKey = `editorial-execution-mode:${project.ownerId}:${project.key}`;
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(executionModeStorageKey);
+    if (stored === "test" || stored === "classic") setExecutionMode(stored);
+  }, [executionModeStorageKey]);
+
+  function changeExecutionMode(mode: EditorialExecutionMode) {
+    setExecutionMode(mode);
+    window.localStorage.setItem(executionModeStorageKey, mode);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -266,11 +281,13 @@ export function AiAgents({
   async function runProduction(updated: EditorialIdea) {
     if (!updated.approved) return;
     const idea = updated;
+    const selectedExecutionMode = executionMode;
     saveIdea(idea);
     setActiveIdeaId(idea.id);
     setView("production");
     setProduction({
       idea,
+      executionMode: selectedExecutionMode,
       statuses: {
         research: "running",
         outline: "pending",
@@ -289,6 +306,7 @@ export function AiAgents({
         body: JSON.stringify({
           phase,
           mode: idea.mode,
+          executionMode: selectedExecutionMode,
           topic: idea.title,
           source: idea.content,
           projectKey: project.key,
@@ -454,6 +472,7 @@ export function AiAgents({
                 editorial: {
                   status,
                   mode: candidate.editorial?.mode ?? "editorial",
+                  executionMode: candidate.editorial?.executionMode,
                   category: candidate.editorial?.category ?? "Conseils",
                   createdAt:
                     candidate.editorial?.createdAt ?? new Date().toISOString(),
@@ -482,6 +501,10 @@ export function AiAgents({
       <header className="flex min-h-[148px] flex-col justify-center gap-5 px-6 py-8 sm:px-[clamp(32px,5.75vw,71px)] lg:flex-row lg:items-center lg:justify-between">
         <h1 className="font-serif text-[32px] leading-none">Pages générées</h1>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="mr-1 flex h-12 items-center rounded-[10px] border border-black/[0.08] bg-[#f7f7f7] p-1" role="group" aria-label="Mode de production">
+            <button type="button" onClick={() => changeExecutionMode("test")} className={`${executionMode === "test" ? "bg-white text-[#222] shadow-sm" : "text-black/40"} h-10 rounded-[8px] px-3 text-[11px] font-semibold transition`}>Test</button>
+            <button type="button" onClick={() => changeExecutionMode("classic")} className={`${executionMode === "classic" ? "bg-[#222] text-white shadow-sm" : "text-black/40"} h-10 rounded-[8px] px-3 text-[11px] font-semibold transition`}>Classique</button>
+          </div>
           <button
             type="button"
             onClick={openIdeas}
@@ -1293,7 +1316,12 @@ function ProductionOverlay({
   return (
     <>
       <OverlayTop title="Production de l’article" onClose={onClose}>
-        <ModePill mode={production.idea.mode} />
+        <div className="flex items-center gap-2">
+          <span className={`rounded-full px-3 py-1.5 text-[10px] font-semibold ${production.executionMode === "test" ? "bg-[#eef4ff] text-[#355b91]" : "bg-[#ebffe8] text-[#2f7a25]"}`}>
+            {production.executionMode === "test" ? "Mode test" : "Mode classique"}
+          </span>
+          <ModePill mode={production.idea.mode} />
+        </div>
       </OverlayTop>
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-7 sm:px-12">
         <div className="rounded-[18px] border border-black/[0.06] bg-[#fafafa] p-5">
@@ -1301,8 +1329,10 @@ function ProductionOverlay({
             {production.idea.title}
           </p>
           <p className="mt-2 text-[12px] leading-5 text-black/45">
-            Les agents travaillent dans l’ordre. Le brouillon reste non publié
-            après la production.
+            {production.executionMode === "test"
+              ? "Qwen exécute toutes les étapes et les images sont choisies aléatoirement dans Assets, sans génération d’image."
+              : "Les modèles classiques exécutent toutes les étapes et génèrent une seule proposition pour chaque image demandée."} {" "}
+            Le brouillon reste non publié après la production.
           </p>
         </div>
         <div className="mt-6 grid gap-3">
