@@ -1372,7 +1372,7 @@ function ProductionOverlay({
           </p>
           <p className="mt-2 text-[12px] leading-5 text-black/45">
             {production.executionMode === "test"
-              ? "Qwen exécute toutes les étapes et les images sont choisies aléatoirement dans Assets, sans génération d’image."
+              ? "Le routeur gratuit OpenRouter exécute toutes les étapes et les images sont choisies aléatoirement dans Assets, sans génération d’image."
               : "Les modèles classiques exécutent toutes les étapes et génèrent une seule proposition pour chaque image demandée."} {" "}
             Le brouillon reste non publié après la production.
           </p>

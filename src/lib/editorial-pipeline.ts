@@ -125,72 +125,71 @@ async function askOpenRouter(input: {
     );
 
   const testMode = input.executionMode === "test";
-  const model = testMode
-    ? (process.env.OPENROUTER_DEMO_MODEL ?? "qwen/qwen3-4b:free")
+  let model = testMode
+    ? (process.env.OPENROUTER_DEMO_MODEL ?? "openrouter/free")
     : (input.model ??
       process.env.OPENROUTER_CONTENT_MODEL ??
       "openai/gpt-4.1-mini");
   const webSearchEnabled =
     input.research &&
     (!testMode || process.env.OPENROUTER_DEMO_WEB_SEARCH === "true");
-  let response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer":
-        process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-      "X-OpenRouter-Title": "Atelier Site Builder - Editorial Pipeline",
-    },
-    body: JSON.stringify({
-      model,
-      temperature: input.research ? 0.25 : 0.4,
-      max_tokens: input.maxTokens ?? 3600,
-      ...(webSearchEnabled
-        ? {
-            tools: [
-              {
-                type: "openrouter:web_search",
-                engine: "auto",
-                max_total_results: 7,
-                search_context_size: "high",
-              },
-            ],
-          }
-        : {}),
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: input.schemaName,
-          strict: true,
-          schema: input.schema,
-        },
-      },
-      messages: [
-        { role: "system", content: input.system },
-        { role: "user", content: input.prompt },
-      ],
-    }),
-  });
-
-  if (!response.ok && testMode) {
-    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const sendRequest = (selectedModel: string, strictSchema: boolean) =>
+    fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        "HTTP-Referer":
+          process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+        "X-OpenRouter-Title": "Atelier Site Builder - Editorial Pipeline",
       },
       body: JSON.stringify({
-        model,
+        model: selectedModel,
         temperature: input.research ? 0.25 : 0.4,
         max_tokens: input.maxTokens ?? 3600,
-        response_format: { type: "json_object" },
+        ...(webSearchEnabled
+          ? {
+              tools: [
+                {
+                  type: "openrouter:web_search",
+                  engine: "auto",
+                  max_total_results: 7,
+                  search_context_size: "high",
+                },
+              ],
+            }
+          : {}),
+        response_format: strictSchema
+          ? {
+              type: "json_schema",
+              json_schema: {
+                name: input.schemaName,
+                strict: true,
+                schema: input.schema,
+              },
+            }
+          : { type: "json_object" },
         messages: [
           { role: "system", content: input.system },
           { role: "user", content: input.prompt },
         ],
       }),
     });
+
+  let response = await sendRequest(model, true);
+
+  if (
+    !response.ok &&
+    response.status === 404 &&
+    testMode &&
+    model !== "openrouter/free"
+  ) {
+    model = "openrouter/free";
+    response = await sendRequest(model, true);
+  }
+
+  if (!response.ok && testMode) {
+    response = await sendRequest(model, false);
   }
 
   if (!response.ok) {
