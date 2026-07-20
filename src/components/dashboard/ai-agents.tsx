@@ -244,6 +244,19 @@ export function AiAgents({
     setView("idea-form");
   }
 
+  function openArticleCreation() {
+    const readyIdea =
+      ideas.find((idea) => idea.approved && idea.mode === ideaFilter) ??
+      ideas.find((idea) => idea.approved);
+    if (!readyIdea) {
+      openIdeaForm();
+      return;
+    }
+    setIdeaFilter(readyIdea.mode);
+    setActiveIdeaId(readyIdea.id);
+    setView("idea-detail");
+  }
+
   function addIdea(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!ideaTitle.trim() || !ideaText.trim()) return;
@@ -516,10 +529,18 @@ export function AiAgents({
           <button
             type="button"
             onClick={openIdeaForm}
-            className="flex h-12 min-w-[154px] items-center justify-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232_0%,#222_100%)] px-5 text-[14px] font-semibold tracking-[-.02em] text-[#fcfcfc] shadow-[0_2px_4px_-1px_rgba(13,13,13,.5),0_0_0_1px_#333,inset_0_.5px_1px_rgba(255,255,255,.15),inset_0_-1px_1.2px_.35px_#121212]"
+            className="flex h-12 min-w-[145px] items-center justify-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold tracking-[-.02em] text-[#222]"
           >
             <Plus size={16} />
             Ajouter une idée
+          </button>
+          <button
+            type="button"
+            onClick={openArticleCreation}
+            className="flex h-12 min-w-[172px] items-center justify-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232_0%,#222_100%)] px-5 text-[14px] font-semibold tracking-[-.02em] text-[#fcfcfc] shadow-[0_2px_4px_-1px_rgba(13,13,13,.5),0_0_0_1px_#333,inset_0_.5px_1px_rgba(255,255,255,.15),inset_0_-1px_1.2px_.35px_#121212]"
+          >
+            <Sparkles size={16} />
+            Créer un article
           </button>
         </div>
       </header>
@@ -550,6 +571,14 @@ export function AiAgents({
               <p className="mt-3 text-[12px] text-black/40">
                 Aucune page article générée.
               </p>
+              <button
+                type="button"
+                onClick={openArticleCreation}
+                className="mt-5 inline-flex h-11 items-center gap-2 rounded-[10px] bg-[#222] px-5 text-[13px] font-semibold text-white"
+              >
+                <Sparkles size={15} />
+                Créer mon premier article
+              </button>
             </div>
           </div>
         ) : null}
