@@ -1,0 +1,4 @@
+interface:
+  display_name: "Generation quiz"
+  short_description: "Creer un quiz utile quand le plan le demande."
+  default_prompt: "Produire la configuration du quiz sans modifier son emplacement."

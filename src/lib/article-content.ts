@@ -5,7 +5,9 @@ import type {
 } from "@/lib/site-template";
 
 export function getArticleDetail(page: SitePage) {
-  const section = page.sections.find((candidate) => candidate.type === "article-detail");
+  const section = page.sections.find(
+    (candidate) => candidate.type === "article-detail",
+  );
   return section?.type === "article-detail" ? section : null;
 }
 
@@ -29,8 +31,9 @@ export function touchArticlePage(page: SitePage, now = new Date()) {
     research: next.editorial?.research,
     outline: next.editorial?.outline,
     article: next.editorial?.article,
+    images: next.editorial?.images,
     quiz: next.editorial?.quiz,
-    quizPlacementAfterHeading: next.editorial?.quizPlacementAfterHeading,
+    quizPlacementAfterSectionId: next.editorial?.quizPlacementAfterSectionId,
   };
   return next;
 }
@@ -54,7 +57,11 @@ export function synchronizeArticleCollections(sourcePages: SitePage[]) {
   const articles = pages
     .filter((page) => page.slug.startsWith("/blog/") && getArticleDetail(page))
     .sort((left, right) =>
-      (right.editorial?.updatedAt ?? right.editorial?.createdAt ?? "").localeCompare(
+      (
+        right.editorial?.updatedAt ??
+        right.editorial?.createdAt ??
+        ""
+      ).localeCompare(
         left.editorial?.updatedAt ?? left.editorial?.createdAt ?? "",
       ),
     );
@@ -66,7 +73,10 @@ export function synchronizeArticleCollections(sourcePages: SitePage[]) {
         return { ...section, fields: { ...section.fields, posts } };
       }
       if (section.type === "blog-advice") {
-        return { ...section, fields: { ...section.fields, posts: posts.slice(0, 4) } };
+        return {
+          ...section,
+          fields: { ...section.fields, posts: posts.slice(0, 4) },
+        };
       }
       if (section.type !== "article-detail") return section;
 

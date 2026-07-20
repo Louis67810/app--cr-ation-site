@@ -1,0 +1,4 @@
+interface:
+  display_name: "Direction images"
+  short_description: "Preparer des visuels paysagistes coherents."
+  default_prompt: "Combiner la demande image avec la direction artistique du projet."

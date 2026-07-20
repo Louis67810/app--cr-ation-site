@@ -12,26 +12,57 @@ export async function PATCH(request: Request) {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getClaims();
   const userId = authData?.claims?.sub;
-  if (!userId) return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
+  if (!userId)
+    return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
 
-  const payload = (await request.json()) as { projectKey?: unknown; projectOwnerId?: unknown; pageId?: unknown; status?: unknown };
-  if (typeof payload.pageId !== "string" || !isEditorialStatus(payload.status)) {
-    return NextResponse.json({ error: "Page ou statut invalide." }, { status: 400 });
+  const payload = (await request.json()) as {
+    projectKey?: unknown;
+    projectOwnerId?: unknown;
+    pageId?: unknown;
+    status?: unknown;
+  };
+  if (
+    typeof payload.pageId !== "string" ||
+    !isEditorialStatus(payload.status)
+  ) {
+    return NextResponse.json(
+      { error: "Page ou statut invalide." },
+      { status: 400 },
+    );
   }
 
   const projectKey = normalizeProjectKey(payload.projectKey);
-  const projectOwnerId = typeof payload.projectOwnerId === "string" ? payload.projectOwnerId : userId;
+  const projectOwnerId =
+    typeof payload.projectOwnerId === "string"
+      ? payload.projectOwnerId
+      : userId;
   if (projectOwnerId !== userId) {
-    const { data: membership } = await supabase.from("project_members").select("user_id").eq("owner_id", projectOwnerId).eq("project_key", projectKey).eq("user_id", userId).maybeSingle();
-    if (!membership) return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
+    const { data: membership } = await supabase
+      .from("project_members")
+      .select("user_id")
+      .eq("owner_id", projectOwnerId)
+      .eq("project_key", projectKey)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!membership)
+      return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
 
-  const { data: project } = await supabase.from("site_projects").select("project_name, pages").eq("owner_id", projectOwnerId).eq("project_key", projectKey).maybeSingle();
+  const { data: project } = await supabase
+    .from("site_projects")
+    .select("project_name, pages")
+    .eq("owner_id", projectOwnerId)
+    .eq("project_key", projectKey)
+    .maybeSingle();
   const pages = Array.isArray(project?.pages)
-    ? structuredClone(project.pages) as SitePage[]
+    ? (structuredClone(project.pages) as SitePage[])
     : structuredClone(demoSitePages);
   const page = pages.find((candidate) => candidate.id === payload.pageId);
-  if (!page || !page.slug.startsWith("/blog/")) return NextResponse.json({ error: "Article introuvable." }, { status: 404 });
+  if (!page || !page.slug.startsWith("/blog/"))
+    return NextResponse.json(
+      { error: "Article introuvable." },
+      { status: 404 },
+    );
 
   const now = new Date().toISOString();
   page.editorial = {
@@ -44,7 +75,8 @@ export async function PATCH(request: Request) {
     outline: page.editorial?.outline,
     article: page.editorial?.article,
     quiz: page.editorial?.quiz,
-    quizPlacementAfterHeading: page.editorial?.quizPlacementAfterHeading,
+    images: page.editorial?.images,
+    quizPlacementAfterSectionId: page.editorial?.quizPlacementAfterSectionId,
   };
 
   const values = {
@@ -52,13 +84,25 @@ export async function PATCH(request: Request) {
     pages,
     updated_at: now,
   };
-  const { error } = projectOwnerId === userId
-    ? await supabase.from("site_projects").upsert(
-        { owner_id: userId, project_key: projectKey, ...values },
-        { onConflict: "owner_id,project_key" },
-      )
-    : await supabase.from("site_projects").update(values).eq("owner_id", projectOwnerId).eq("project_key", projectKey);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const { error } =
+    projectOwnerId === userId
+      ? await supabase
+          .from("site_projects")
+          .upsert(
+            { owner_id: userId, project_key: projectKey, ...values },
+            { onConflict: "owner_id,project_key" },
+          )
+      : await supabase
+          .from("site_projects")
+          .update(values)
+          .eq("owner_id", projectOwnerId)
+          .eq("project_key", projectKey);
+  if (error)
+    return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ pageId: page.id, status: payload.status, updatedAt: now });
+  return NextResponse.json({
+    pageId: page.id,
+    status: payload.status,
+    updatedAt: now,
+  });
 }

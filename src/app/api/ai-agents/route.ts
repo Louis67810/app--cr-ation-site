@@ -9,13 +9,15 @@ import {
   type EditorialMode,
   type GeneratedArticle,
   type GeneratedQuizPlan,
+  type ResolvedArticleImage,
   type ResearchBrief,
 } from "@/lib/editorial-pipeline";
+import { assembleArticleBlocks, getHeroImage } from "@/lib/article-assembly";
+import { generateArticleImage } from "@/lib/article-image-generation";
 import { normalizeProjectKey } from "@/lib/project-key";
 import { buildEditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 import { createClient } from "@/lib/supabase/server";
 import type {
-  ArticleBlock,
   ArticleDetailFields,
   BlogPost,
   SitePage,
@@ -25,7 +27,7 @@ import { synchronizeArticleCollections } from "@/lib/article-content";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-type PipelinePhase = "research" | "outline" | "write";
+type PipelinePhase = "research" | "outline" | "images" | "write";
 
 const modeNames: Record<EditorialMode, string> = {
   seo: "Pipeline SEO",
@@ -44,7 +46,12 @@ function isEditorialMode(value: unknown): value is EditorialMode {
 }
 
 function isPipelinePhase(value: unknown): value is PipelinePhase {
-  return value === "research" || value === "outline" || value === "write";
+  return (
+    value === "research" ||
+    value === "outline" ||
+    value === "images" ||
+    value === "write"
+  );
 }
 
 function slugify(value: string) {
@@ -59,44 +66,10 @@ function slugify(value: string) {
   );
 }
 
-async function generateArticleVisual(
-  article: GeneratedArticle,
-  sourceLabel: string,
-) {
-  const demoMode = process.env.AI_DEMO_MODE !== "false";
-  if (demoMode && process.env.AI_DEMO_IMAGES !== "true") return null;
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return null;
-  const response = await fetch("https://openrouter.ai/api/v1/images", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model:
-        process.env.OPENROUTER_IMAGE_MODEL ?? "bytedance-seed/seedream-4.5",
-      prompt: `Photographie éditoriale réaliste et naturelle pour un article de paysagiste français. Sujet : ${article.heroImageAlt}. Inspiration : ${sourceLabel}. Montrer le geste, les végétaux et les outils de façon crédible, lumière naturelle, composition horizontale, sans texte, logo ni filigrane.`,
-      aspect_ratio: "16:9",
-      output_format: "webp",
-    }),
-  });
-  if (!response.ok) return null;
-  const result = (await response.json()) as {
-    data?: Array<{ b64_json?: string; media_type?: string }>;
-  };
-  const image = result.data?.find((item) => item.b64_json);
-  if (!image?.b64_json) return null;
-  return {
-    bytes: Buffer.from(image.b64_json, "base64"),
-    mediaType: image.media_type ?? "image/webp",
-  };
-}
-
 function addArticleToPages(
   pages: SitePage[],
   article: GeneratedArticle,
-  heroImageUrl: string,
+  images: ResolvedArticleImage[],
   workflow: {
     mode: EditorialMode;
     research: ResearchBrief;
@@ -129,8 +102,9 @@ function addArticleToPages(
     research: workflow.research,
     outline: workflow.outline,
     article,
+    images,
     quiz: workflow.quizPlan?.quiz,
-    quizPlacementAfterHeading: workflow.quizPlan?.placementAfterHeading,
+    quizPlacementAfterSectionId: workflow.quizPlan?.placementAfterSectionId,
   };
   const date = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long" }).format(
     new Date(),
@@ -141,33 +115,13 @@ function addArticleToPages(
   if (!detail || detail.type !== "article-detail")
     throw new Error("Le modèle d’article est introuvable dans ce projet.");
   const previous = detail.fields as ArticleDetailFields;
-  const blocks: ArticleBlock[] = article.blocks.map((block) =>
-    block.kind === "heading"
-      ? {
-          kind: "heading",
-          level: block.level === "h3" ? "h3" : "h2",
-          text: block.text.trim(),
-        }
-      : { kind: "paragraph", text: block.text.trim() },
-  );
-  if (workflow.quizPlan) {
-    const headingIndex = blocks.findIndex(
-      (block) =>
-        block.kind === "heading" &&
-        block.text.trim().toLocaleLowerCase("fr") ===
-          workflow.quizPlan?.placementAfterHeading
-            .trim()
-            .toLocaleLowerCase("fr"),
-    );
-    const insertionIndex =
-      headingIndex >= 0
-        ? Math.min(headingIndex + 2, blocks.length)
-        : Math.max(1, Math.floor(blocks.length / 2));
-    blocks.splice(insertionIndex, 0, {
-      kind: "quiz",
-      quizId: workflow.quizPlan.quiz.id,
-    });
-  }
+  const blocks = assembleArticleBlocks({
+    outline: workflow.outline,
+    article,
+    images,
+    quizPlan: workflow.quizPlan,
+  });
+  const heroImageUrl = getHeroImage(images)?.url ?? previous.heroImageUrl;
   const quizzes = workflow.quizPlan
     ? [
         workflow.quizPlan.quiz,
@@ -227,6 +181,8 @@ export async function POST(request: Request) {
     projectOwnerId?: unknown;
     research?: unknown;
     outline?: unknown;
+    images?: unknown;
+    quizPlan?: unknown;
   };
   if (
     !isPipelinePhase(payload.phase) ||
@@ -337,81 +293,118 @@ export async function POST(request: Request) {
       );
     }
 
-    const article = await writeArticle({ topic, research, outline });
-    let quizPlan: GeneratedQuizPlan | undefined;
-    let quizWarning = "";
-    if (payload.mode === "seo" || payload.mode === "editorial") {
-      try {
-        quizPlan = await generateArticleQuiz({
-          topic,
-          projectName,
-          outline,
-          article,
-        });
-      } catch {
-        quizWarning =
-          " Le quiz interactif n’a pas pu être généré et devra être relancé avant validation.";
-      }
-    }
-    const pages = projectPages;
-    const { data: assetRows } = await supabase
-      .from("project_assets")
-      .select("public_url")
-      .eq("owner_id", projectOwnerId)
-      .eq("project_key", projectKey)
-      .order("created_at", { ascending: false })
-      .limit(12);
-    const assets = (assetRows ?? []) as Array<{ public_url: string }>;
-    let heroImageUrl = assets.length
-      ? assets[Math.floor(Math.random() * assets.length)].public_url
-      : "";
-    let visualWarning = "";
-
-    if (payload.mode === "youtube") {
-      const visual = await generateArticleVisual(
-        article,
-        source?.slice(0, 180) ?? topic,
+    if (payload.phase === "images") {
+      const { data: assetRows } = await supabase
+        .from("project_assets")
+        .select("public_url")
+        .eq("owner_id", projectOwnerId)
+        .eq("project_key", projectKey)
+        .order("created_at", { ascending: false })
+        .limit(12);
+      const fallbackAssets = (assetRows ?? []) as Array<{ public_url: string }>;
+      const demoDetail = demoArticlePage.sections.find(
+        (section) => section.type === "article-detail",
       );
-      if (visual) {
-        const extension = visual.mediaType.includes("png")
-          ? "png"
-          : visual.mediaType.includes("jpeg")
-            ? "jpg"
-            : "webp";
-        const storagePath = `${projectOwnerId}/${projectKey}/ai-${crypto.randomUUID()}.${extension}`;
-        const { error: uploadError } = await supabase.storage
-          .from("project-assets")
-          .upload(storagePath, visual.bytes, {
-            contentType: visual.mediaType,
-            upsert: false,
-          });
-        if (!uploadError) {
-          const { data: publicData } = supabase.storage
+      const fallbackHero =
+        demoDetail?.type === "article-detail"
+          ? demoDetail.fields.heroImageUrl
+          : "";
+      const allowImageGeneration =
+        process.env.AI_DEMO_MODE === "false" ||
+        process.env.AI_DEMO_IMAGES === "true";
+      const images: ResolvedArticleImage[] = [];
+
+      for (const [index, imageRequest] of outline.imageRequests.entries()) {
+        let url =
+          fallbackAssets[index % Math.max(1, fallbackAssets.length)]
+            ?.public_url ?? fallbackHero;
+        let generated = false;
+        const visual = allowImageGeneration
+          ? await generateArticleImage(imageRequest, {
+              articleTitle: outline.title,
+              projectName,
+            })
+          : null;
+        if (visual) {
+          const extension = visual.mediaType.includes("png")
+            ? "png"
+            : visual.mediaType.includes("jpeg")
+              ? "jpg"
+              : "webp";
+          const storagePath = `${projectOwnerId}/${projectKey}/ai-${crypto.randomUUID()}.${extension}`;
+          const { error: uploadError } = await supabase.storage
             .from("project-assets")
-            .getPublicUrl(storagePath);
-          const { error: assetError } = await supabase
-            .from("project_assets")
-            .insert({
-              owner_id: projectOwnerId,
-              project_key: projectKey,
-              storage_path: storagePath,
-              public_url: publicData.publicUrl,
-              original_name: `visuel-${slugify(article.title)}.${extension}`,
-              title: article.title.slice(0, 70),
-              alt_text: article.heroImageAlt.slice(0, 240),
-              ai_generated: true,
-              created_by: userId,
+            .upload(storagePath, visual.bytes, {
+              contentType: visual.mediaType,
+              upsert: false,
             });
-          if (!assetError) heroImageUrl = publicData.publicUrl;
-          else
-            await supabase.storage.from("project-assets").remove([storagePath]);
+          if (!uploadError) {
+            const { data: publicData } = supabase.storage
+              .from("project-assets")
+              .getPublicUrl(storagePath);
+            const { error: assetError } = await supabase
+              .from("project_assets")
+              .insert({
+                owner_id: projectOwnerId,
+                project_key: projectKey,
+                storage_path: storagePath,
+                public_url: publicData.publicUrl,
+                original_name: `${imageRequest.id}.${extension}`,
+                title: imageRequest.purpose.slice(0, 70),
+                alt_text: imageRequest.alt.slice(0, 240),
+                ai_generated: true,
+                created_by: userId,
+              });
+            if (!assetError) {
+              url = publicData.publicUrl;
+              generated = true;
+            } else {
+              await supabase.storage
+                .from("project-assets")
+                .remove([storagePath]);
+            }
+          }
+        }
+        images.push({ ...imageRequest, url, generated });
+      }
+
+      let quizPlan: GeneratedQuizPlan | undefined;
+      let quizWarning = "";
+      if (outline.quizRequest.enabled) {
+        try {
+          quizPlan = await generateArticleQuiz({ topic, projectName, outline });
+        } catch {
+          quizWarning =
+            "Le quiz facultatif n’a pas pu être généré. L’article peut continuer sans lui.";
         }
       }
-      if (!heroImageUrl)
-        visualWarning = " Le visuel IA n’a pas pu être généré.";
+      return NextResponse.json({
+        phase: "images",
+        images,
+        quizPlan,
+        warning:
+          quizWarning ||
+          (allowImageGeneration
+            ? undefined
+            : "Mode économique : les visuels existants du projet sont utilisés. La génération d’images reste désactivée pendant les tests."),
+      });
     }
 
-    const updated = addArticleToPages(pages, article, heroImageUrl, {
+    const images = payload.images as ResolvedArticleImage[] | undefined;
+    if (
+      !Array.isArray(images) ||
+      !images.some((image) => image.kind === "hero" && image.url)
+    ) {
+      return NextResponse.json(
+        { error: "L’image principale obligatoire est manquante." },
+        { status: 400 },
+      );
+    }
+    const quizPlan = payload.quizPlan as GeneratedQuizPlan | undefined;
+    const article = await writeArticle({ topic, outline, images, quizPlan });
+    const pages = projectPages;
+
+    const updated = addArticleToPages(pages, article, images, {
       mode: payload.mode,
       research,
       outline,
@@ -437,26 +430,25 @@ export async function POST(request: Request) {
             .eq("project_key", projectKey);
     if (error) throw new Error(error.message);
 
-    await supabase
-      .from("project_activity_events")
-      .insert({
-        owner_id: projectOwnerId,
-        project_key: projectKey,
-        actor_user_id: userId,
-        event_type: "article_created",
-        entity_id: `article-${updated.slug}`,
-        entity_title: article.title,
-        metadata: {
-          slug: updated.href,
-          mode: payload.mode,
-          pipeline: [
-            "research",
-            "outline",
-            "write",
-            ...(quizPlan ? ["quiz"] : []),
-          ],
-        },
-      });
+    await supabase.from("project_activity_events").insert({
+      owner_id: projectOwnerId,
+      project_key: projectKey,
+      actor_user_id: userId,
+      event_type: "article_created",
+      entity_id: `article-${updated.slug}`,
+      entity_title: article.title,
+      metadata: {
+        slug: updated.href,
+        mode: payload.mode,
+        pipeline: [
+          "research",
+          "outline",
+          "images",
+          "write",
+          ...(quizPlan ? ["quiz"] : []),
+        ],
+      },
+    });
     const sourceUrl = source?.startsWith("http")
       ? source.split(/\s/)[0]
       : (research.facts.find((fact) => fact.sourceUrl.startsWith("http"))
@@ -472,7 +464,8 @@ export async function POST(request: Request) {
           sourceUrl,
           agentName: modeNames[payload.mode],
         },
-        warning: `Les phases de production sont terminées. Le brouillon a été ajouté au CMS Articles et reste non publié.${visualWarning}${quizWarning}`,
+        warning:
+          "Les phases de production sont terminées. Le brouillon a été ajouté au CMS Articles et reste non publié.",
       },
       { status: 201 },
     );

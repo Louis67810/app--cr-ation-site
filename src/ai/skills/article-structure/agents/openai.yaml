@@ -1,0 +1,4 @@
+interface:
+  display_name: "Structure article"
+  short_description: "Creer un plan editorial verrouille."
+  default_prompt: "Transformer un dossier de recherche en structure et demandes media."

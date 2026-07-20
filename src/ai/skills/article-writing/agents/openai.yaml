@@ -1,0 +1,4 @@
+interface:
+  display_name: "Redaction article"
+  short_description: "Rediger chaque section sans changer le plan."
+  default_prompt: "Rediger le contenu associe aux identifiants de sections imposes."

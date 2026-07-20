@@ -1,6 +1,7 @@
 import "server-only";
 import type { ReusableQuiz } from "@/lib/site-template";
 import type { EditorialPerformanceSnapshot } from "@/lib/editorial-performance";
+import { loadRuntimeSkill } from "@/lib/ai-runtime-skills";
 
 export type EditorialMode = "seo" | "youtube" | "trends" | "editorial";
 
@@ -24,6 +25,33 @@ export type ResearchBrief = {
   };
 };
 
+export type ArticleSectionFormat = "prose" | "table" | "cards" | "callout";
+
+export type ArticleImageRequest = {
+  id: string;
+  kind: "hero" | "inline";
+  afterSectionId: string;
+  purpose: string;
+  prompt: string;
+  alt: string;
+  caption: string;
+  aspectRatio: "16:9" | "4:3" | "1:1";
+};
+
+export type ArticleQuizRequest = {
+  enabled: boolean;
+  afterSectionId: string;
+  goal: string;
+  format: "visual-preference" | "diagnostic" | "recommendation" | "branching";
+  resultCategories: string[];
+  ctaLabel: string;
+};
+
+export type ResolvedArticleImage = ArticleImageRequest & {
+  url: string;
+  generated: boolean;
+};
+
 export type ArticleOutline = {
   title: string;
   excerpt: string;
@@ -32,11 +60,16 @@ export type ArticleOutline = {
   heroImageAlt: string;
   readingTime: string;
   sections: Array<{
+    id: string;
     level: "h2" | "h3";
     title: string;
     purpose: string;
     points: string[];
+    format: ArticleSectionFormat;
+    componentInstruction: string;
   }>;
+  imageRequests: ArticleImageRequest[];
+  quizRequest: ArticleQuizRequest;
 };
 
 export type GeneratedArticle = {
@@ -46,10 +79,16 @@ export type GeneratedArticle = {
   slug: string;
   heroImageAlt: string;
   readingTime: string;
-  blocks: Array<{
-    kind: "heading" | "paragraph";
-    level?: "h2" | "h3";
-    text: string;
+  sections: Array<{
+    sectionId: string;
+    paragraphs: string[];
+    tableTitle: string;
+    tableColumns: string[];
+    tableRows: string[][];
+    cardsTitle: string;
+    cards: Array<{ icon: string; title: string; text: string }>;
+    calloutTitle: string;
+    calloutText: string;
   }>;
 };
 
@@ -93,48 +132,45 @@ async function askOpenRouter(input: {
   const webSearchEnabled =
     input.research &&
     (!demoMode || process.env.OPENROUTER_DEMO_WEB_SEARCH === "true");
-  let response = await fetch(
-    "https://openrouter.ai/api/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer":
-          process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-        "X-OpenRouter-Title": "Atelier Site Builder — Pipeline éditorial",
-      },
-      body: JSON.stringify({
-        model,
-        temperature: input.research ? 0.25 : 0.4,
-        max_tokens: input.maxTokens ?? 3600,
-        ...(webSearchEnabled
-          ? {
-              tools: [
-                {
-                  type: "openrouter:web_search",
-                  engine: "auto",
-                  max_total_results: 7,
-                  search_context_size: "high",
-                },
-              ],
-            }
-          : {}),
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: input.schemaName,
-            strict: true,
-            schema: input.schema,
-          },
-        },
-        messages: [
-          { role: "system", content: input.system },
-          { role: "user", content: input.prompt },
-        ],
-      }),
+  let response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer":
+        process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+      "X-OpenRouter-Title": "Atelier Site Builder — Pipeline éditorial",
     },
-  );
+    body: JSON.stringify({
+      model,
+      temperature: input.research ? 0.25 : 0.4,
+      max_tokens: input.maxTokens ?? 3600,
+      ...(webSearchEnabled
+        ? {
+            tools: [
+              {
+                type: "openrouter:web_search",
+                engine: "auto",
+                max_total_results: 7,
+                search_context_size: "high",
+              },
+            ],
+          }
+        : {}),
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: input.schemaName,
+          strict: true,
+          schema: input.schema,
+        },
+      },
+      messages: [
+        { role: "system", content: input.system },
+        { role: "user", content: input.prompt },
+      ],
+    }),
+  });
 
   if (!response.ok && demoMode) {
     response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -173,7 +209,7 @@ async function askOpenRouter(input: {
 }
 
 type RawGeneratedQuiz = Omit<ReusableQuiz, "questions"> & {
-  placementAfterHeading: string;
+  placementAfterSectionId: string;
   questions: Array<{
     id: string;
     question: string;
@@ -194,23 +230,22 @@ type RawGeneratedQuiz = Omit<ReusableQuiz, "questions"> & {
 
 export type GeneratedQuizPlan = {
   quiz: ReusableQuiz;
-  placementAfterHeading: string;
+  placementAfterSectionId: string;
 };
 
 export async function generateArticleQuiz(input: {
   topic: string;
   projectName: string;
   outline: ArticleOutline;
-  article: GeneratedArticle;
 }) {
+  const skill = await loadRuntimeSkill("quiz-generation");
   const raw = (await askOpenRouter({
     schemaName: "interactive_article_quiz",
     model:
       process.env.OPENROUTER_QUIZ_MODEL ?? process.env.OPENROUTER_CONTENT_MODEL,
     maxTokens: 4200,
-    system:
-      "Tu es un concepteur senior d'expériences interactives et de quiz de recommandation pour des articles web. Tu transformes le contenu d'un article en outil réellement utile à la décision. Tu ne rédiges pas de code React : tu produis une configuration JSON exacte pour le moteur de quiz existant.",
-    prompt: `Projet : ${input.projectName}\nSujet : ${input.topic}\n\nStructure :\n${JSON.stringify(input.outline)}\n\nArticle final :\n${JSON.stringify(input.article)}\n\nCrée un quiz interactif directement lié au problème du lecteur. Choisis le mécanisme le plus pertinent : visual-preference pour comparer des styles en images, diagnostic pour qualifier une situation, recommendation pour proposer une solution, ou branching pour un parcours conditionnel. Le quiz doit aider à décider et conduire naturellement vers un CTA. Prévois 3 à 6 questions et 2 à 5 résultats distincts. Pour visual-preference, crée exactement deux options illustrées par question. Pour les autres mécanismes, utilise 2 à 4 options. Chaque option peut pondérer plusieurs résultats, diriger vers une autre question ou déclencher un résultat direct. Fournis pour chaque choix visuel un alt précis et un prompt d'image réaliste sans texte ni logo. Les identifiants sont courts, uniques et en kebab-case. nextQuestionId et resultId sont des chaînes vides quand ils ne sont pas utilisés. Le placement doit correspondre exactement au titre d'un H2 de l'article. N'invente aucun chiffre ni promesse commerciale.`,
+    system: `${skill}\n\nTu produis une configuration JSON exacte pour le moteur de quiz existant.`,
+    prompt: `Projet : ${input.projectName}\nSujet : ${input.topic}\n\nPlan verrouillé :\n${JSON.stringify(input.outline)}\n\nCrée uniquement le quiz demandé par quizRequest. Respecte exactement son format, son objectif, ses catégories, son CTA et placementAfterSectionId. Les identifiants sont courts, uniques et en kebab-case. nextQuestionId et resultId sont des chaînes vides quand ils ne sont pas utilisés. N'invente aucun chiffre ni promesse commerciale.`,
     schema: {
       type: "object",
       additionalProperties: false,
@@ -224,7 +259,7 @@ export async function generateArticleQuiz(input: {
         "resultTitle",
         "resultText",
         "cta",
-        "placementAfterHeading",
+        "placementAfterSectionId",
         "questions",
         "results",
       ],
@@ -251,7 +286,7 @@ export async function generateArticleQuiz(input: {
           required: ["label", "href"],
           properties: { label: { type: "string" }, href: { type: "string" } },
         },
-        placementAfterHeading: { type: "string" },
+        placementAfterSectionId: { type: "string" },
         questions: {
           type: "array",
           minItems: 3,
@@ -377,11 +412,11 @@ export async function generateArticleQuiz(input: {
       })),
     })),
   };
-  delete (quiz as ReusableQuiz & { placementAfterHeading?: string })
-    .placementAfterHeading;
+  delete (quiz as ReusableQuiz & { placementAfterSectionId?: string })
+    .placementAfterSectionId;
   return {
     quiz,
-    placementAfterHeading: raw.placementAfterHeading,
+    placementAfterSectionId: raw.placementAfterSectionId,
   } satisfies GeneratedQuizPlan;
 }
 
@@ -392,6 +427,7 @@ export async function researchTopic(input: {
   source?: string;
   performance: EditorialPerformanceSnapshot;
 }) {
+  const skill = await loadRuntimeSkill("article-research");
   const sourceContext = input.source
     ? `Source imposée par l’utilisateur (URL ou transcription) :\n${input.source.slice(0, 12000)}`
     : process.env.AI_DEMO_MODE !== "false" &&
@@ -403,8 +439,7 @@ export async function researchTopic(input: {
     schemaName: "landscaper_research_brief",
     research: true,
     maxTokens: 3000,
-    system:
-      "Tu es l’agent de recherche d’une rédaction française spécialisée dans le paysage et le jardin. Tu ne rédiges pas l’article. Tu construis un dossier factuel, sourcé et exploitable. N’invente jamais d’URL, de chiffre, d’étude ou de citation.",
+    system: `${skill}\n\nTu es l’agent de recherche d’une rédaction française spécialisée dans le paysage et le jardin.`,
     prompt: `${modeInstructions[input.mode]}\n\nProjet : ${input.projectName}\nSujet : ${input.topic}\n\n${sourceContext}\n\nDONNÉES HISTORIQUES RÉELLES DU SITE :\n${JSON.stringify(input.performance)}\n\nCommence par comparer les anciennes pages sans inventer de données. Une page récente ou sans données ne doit jamais être déclarée faible. Croise Google Analytics 4 et Google Search Console lorsqu'ils sont présents : trafic et engagement d'un côté, impressions, clics, CTR et position de l'autre. Utilise les pages gagnantes, faibles et les opportunités SEO pour choisir l'angle du nouveau contenu. Puis complète par des sources web fiables si l'outil de recherche est disponible. Chaque fait externe doit être associé à une URL réellement consultée. Si aucune recherche web n'est disponible, n'invente aucune URL et utilise un tableau facts vide. Prépare aussi les questions auxquelles l’article doit répondre, les mots-clés naturels et les précautions éventuelles.`,
     schema: {
       type: "object",
@@ -540,11 +575,169 @@ export async function structureArticle(input: {
   topic: string;
   research: ResearchBrief;
 }) {
+  const skill = await loadRuntimeSkill("article-structure");
   const result = (await askOpenRouter({
     schemaName: "landscaper_article_outline",
-    system:
-      "Tu es l’architecte éditorial d’un blog de paysagiste français. Tu ne rédiges pas encore l’article. Tu transformes un dossier de recherche en plan logique, utile, sans répétition et adapté à l’intention de recherche.",
-    prompt: `Sujet : ${input.topic}\n\nDossier de recherche :\n${JSON.stringify(input.research)}\n\nConstruis un titre clair, un résumé de 140 à 220 caractères et un plan H2/H3 détaillé pour un article de 900 à 1400 mots. Chaque section doit avoir un objectif et des points précis à traiter. Le slug ne contient que des lettres ASCII, chiffres et tirets.`,
+    system: `${skill}\n\nTu es l’architecte éditorial d’un blog de paysagiste français.`,
+    prompt: `Sujet : ${input.topic}\n\nDossier de recherche validé :\n${JSON.stringify(input.research)}\n\nConstruis un titre clair, un résumé de 140 à 220 caractères et un plan H2/H3 détaillé pour un article de 900 à 1400 mots. Chaque section reçoit un identifiant kebab-case, un objectif, des points précis, un format et une instruction de composant. Demande exactement une image hero et au maximum trois images inline. Une image inline doit référencer un sectionId existant. Décide si un quiz apporte une vraie aide au lecteur ; sinon retourne enabled=false et des champs vides. Le slug ne contient que des lettres ASCII, chiffres et tirets.`,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "title",
+        "excerpt",
+        "category",
+        "slug",
+        "heroImageAlt",
+        "readingTime",
+        "sections",
+        "imageRequests",
+        "quizRequest",
+      ],
+      properties: {
+        title: { type: "string" },
+        excerpt: { type: "string" },
+        category: { type: "string" },
+        slug: { type: "string" },
+        heroImageAlt: { type: "string" },
+        readingTime: { type: "string" },
+        sections: {
+          type: "array",
+          minItems: 4,
+          maxItems: 10,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "id",
+              "level",
+              "title",
+              "purpose",
+              "points",
+              "format",
+              "componentInstruction",
+            ],
+            properties: {
+              id: { type: "string" },
+              level: { type: "string", enum: ["h2", "h3"] },
+              title: { type: "string" },
+              purpose: { type: "string" },
+              points: {
+                type: "array",
+                minItems: 1,
+                maxItems: 6,
+                items: { type: "string" },
+              },
+              format: {
+                type: "string",
+                enum: ["prose", "table", "cards", "callout"],
+              },
+              componentInstruction: { type: "string" },
+            },
+          },
+        },
+        imageRequests: {
+          type: "array",
+          minItems: 1,
+          maxItems: 4,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "id",
+              "kind",
+              "afterSectionId",
+              "purpose",
+              "prompt",
+              "alt",
+              "caption",
+              "aspectRatio",
+            ],
+            properties: {
+              id: { type: "string" },
+              kind: { type: "string", enum: ["hero", "inline"] },
+              afterSectionId: { type: "string" },
+              purpose: { type: "string" },
+              prompt: { type: "string" },
+              alt: { type: "string" },
+              caption: { type: "string" },
+              aspectRatio: { type: "string", enum: ["16:9", "4:3", "1:1"] },
+            },
+          },
+        },
+        quizRequest: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "enabled",
+            "afterSectionId",
+            "goal",
+            "format",
+            "resultCategories",
+            "ctaLabel",
+          ],
+          properties: {
+            enabled: { type: "boolean" },
+            afterSectionId: { type: "string" },
+            goal: { type: "string" },
+            format: {
+              type: "string",
+              enum: [
+                "visual-preference",
+                "diagnostic",
+                "recommendation",
+                "branching",
+              ],
+            },
+            resultCategories: {
+              type: "array",
+              maxItems: 5,
+              items: { type: "string" },
+            },
+            ctaLabel: { type: "string" },
+          },
+        },
+      },
+    },
+  })) as ArticleOutline;
+
+  const sectionIds = new Set(result.sections?.map((section) => section.id));
+  const heroRequests =
+    result.imageRequests?.filter((image) => image.kind === "hero") ?? [];
+  const invalidInline = result.imageRequests?.some(
+    (image) => image.kind === "inline" && !sectionIds.has(image.afterSectionId),
+  );
+  const invalidQuiz =
+    result.quizRequest?.enabled &&
+    !sectionIds.has(result.quizRequest.afterSectionId);
+  if (
+    !result.title?.trim() ||
+    !Array.isArray(result.sections) ||
+    result.sections.length < 4 ||
+    sectionIds.size !== result.sections.length ||
+    heroRequests.length !== 1 ||
+    invalidInline ||
+    invalidQuiz
+  ) {
+    throw new Error(
+      "Le plan éditorial ou ses emplacements média sont invalides.",
+    );
+  }
+  return result;
+}
+
+export async function writeArticle(input: {
+  topic: string;
+  outline: ArticleOutline;
+  images: ResolvedArticleImage[];
+  quizPlan?: GeneratedQuizPlan;
+}) {
+  const skill = await loadRuntimeSkill("article-writing");
+  const result = (await askOpenRouter({
+    schemaName: "landscaper_article",
+    maxTokens: 4800,
+    system: `${skill}\n\nTu es le rédacteur final d’un blog de paysagiste français. Le texte est concret, original, fluide et compréhensible, sans bourrage de mots-clés.`,
+    prompt: `Sujet : ${input.topic}\n\nPlan éditorial verrouillé :\n${JSON.stringify(input.outline)}\n\nImages déjà résolues :\n${JSON.stringify(input.images)}\n\nQuiz déjà résolu :\n${JSON.stringify(input.quizPlan ?? null)}\n\nRédige maintenant l’article complet de 900 à 1400 mots. Retourne exactement une entrée par sectionId, dans le même ordre que le plan. Les titres, images et quiz seront assemblés par le code : ne les répète pas. Pour format=prose, remplis paragraphs et laisse les composants vides. Pour table, cards ou callout, rédige aussi le composant demandé tout en conservant au moins un paragraphe d’introduction.`,
     schema: {
       type: "object",
       additionalProperties: false,
@@ -571,76 +764,57 @@ export async function structureArticle(input: {
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["level", "title", "purpose", "points"],
+            required: [
+              "sectionId",
+              "paragraphs",
+              "tableTitle",
+              "tableColumns",
+              "tableRows",
+              "cardsTitle",
+              "cards",
+              "calloutTitle",
+              "calloutText",
+            ],
             properties: {
-              level: { type: "string", enum: ["h2", "h3"] },
-              title: { type: "string" },
-              purpose: { type: "string" },
-              points: {
+              sectionId: { type: "string" },
+              paragraphs: {
                 type: "array",
                 minItems: 1,
+                maxItems: 5,
+                items: { type: "string" },
+              },
+              tableTitle: { type: "string" },
+              tableColumns: {
+                type: "array",
                 maxItems: 6,
                 items: { type: "string" },
               },
-            },
-          },
-        },
-      },
-    },
-  })) as ArticleOutline;
-
-  if (
-    !result.title?.trim() ||
-    !Array.isArray(result.sections) ||
-    result.sections.length < 4
-  ) {
-    throw new Error("Le plan éditorial est incomplet.");
-  }
-  return result;
-}
-
-export async function writeArticle(input: {
-  topic: string;
-  research: ResearchBrief;
-  outline: ArticleOutline;
-}) {
-  const result = (await askOpenRouter({
-    schemaName: "landscaper_article",
-    maxTokens: 4800,
-    system:
-      "Tu es le rédacteur final d’un blog de paysagiste français. Tu suis strictement le dossier de recherche et le plan validé. Le texte est concret, original, fluide et compréhensible, sans bourrage de mots-clés. N’ajoute aucun fait, chiffre, étude ou citation absent du dossier.",
-    prompt: `Sujet : ${input.topic}\n\nDossier de recherche :\n${JSON.stringify(input.research)}\n\nPlan éditorial :\n${JSON.stringify(input.outline)}\n\nRédige maintenant l’article complet de 900 à 1400 mots. Respecte le titre, le résumé, le slug et l’ordre du plan. Utilise des titres H2/H3 et des paragraphes substantiels. Ne mets pas de Markdown dans les textes et ne produis que le JSON demandé.`,
-    schema: {
-      type: "object",
-      additionalProperties: false,
-      required: [
-        "title",
-        "excerpt",
-        "category",
-        "slug",
-        "heroImageAlt",
-        "readingTime",
-        "blocks",
-      ],
-      properties: {
-        title: { type: "string" },
-        excerpt: { type: "string" },
-        category: { type: "string" },
-        slug: { type: "string" },
-        heroImageAlt: { type: "string" },
-        readingTime: { type: "string" },
-        blocks: {
-          type: "array",
-          minItems: 8,
-          maxItems: 22,
-          items: {
-            type: "object",
-            additionalProperties: false,
-            required: ["kind", "text"],
-            properties: {
-              kind: { type: "string", enum: ["heading", "paragraph"] },
-              level: { type: "string", enum: ["h2", "h3"] },
-              text: { type: "string" },
+              tableRows: {
+                type: "array",
+                maxItems: 10,
+                items: {
+                  type: "array",
+                  maxItems: 6,
+                  items: { type: "string" },
+                },
+              },
+              cardsTitle: { type: "string" },
+              cards: {
+                type: "array",
+                maxItems: 6,
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["icon", "title", "text"],
+                  properties: {
+                    icon: { type: "string" },
+                    title: { type: "string" },
+                    text: { type: "string" },
+                  },
+                },
+              },
+              calloutTitle: { type: "string" },
+              calloutText: { type: "string" },
             },
           },
         },
@@ -648,13 +822,16 @@ export async function writeArticle(input: {
     },
   })) as GeneratedArticle;
 
+  const expectedIds = input.outline.sections.map((section) => section.id);
+  const actualIds = result.sections?.map((section) => section.sectionId) ?? [];
   if (
     !result.title?.trim() ||
     !result.excerpt?.trim() ||
-    !Array.isArray(result.blocks) ||
-    result.blocks.length < 6
+    !Array.isArray(result.sections) ||
+    actualIds.length !== expectedIds.length ||
+    actualIds.some((id, index) => id !== expectedIds[index])
   ) {
-    throw new Error("L’article rédigé est incomplet.");
+    throw new Error("La rédaction ne respecte pas la structure verrouillée.");
   }
   return result;
 }

@@ -26,6 +26,8 @@ import type {
   ArticleOutline,
   EditorialMode,
   GeneratedArticle,
+  GeneratedQuizPlan,
+  ResolvedArticleImage,
   ResearchBrief,
 } from "@/lib/editorial-pipeline";
 import type {
@@ -60,7 +62,7 @@ type OverlayView =
   | "writing"
   | "quiz"
   | null;
-type ProductionPhase = "research" | "outline" | "write";
+type ProductionPhase = "research" | "outline" | "images" | "write";
 type ProductionPhaseStatus = "pending" | "running" | "completed" | "error";
 type ProductionState = {
   idea: EditorialIdea;
@@ -236,7 +238,7 @@ export function AiAgents({
       content: ideaText.trim(),
       mode: ideaMode,
       createdAt: new Date().toISOString(),
-      approved: true,
+      approved: false,
     };
     setIdeas((current) => {
       const next = [idea, ...current];
@@ -262,13 +264,19 @@ export function AiAgents({
   }
 
   async function runProduction(updated: EditorialIdea) {
-    const idea = { ...updated, approved: true };
+    if (!updated.approved) return;
+    const idea = updated;
     saveIdea(idea);
     setActiveIdeaId(idea.id);
     setView("production");
     setProduction({
       idea,
-      statuses: { research: "running", outline: "pending", write: "pending" },
+      statuses: {
+        research: "running",
+        outline: "pending",
+        images: "pending",
+        write: "pending",
+      },
     });
 
     const requestPhase = async <T,>(
@@ -317,7 +325,7 @@ export function AiAgents({
         "outline",
         { research: researchResult.research },
       );
-      currentPhase = "write";
+      currentPhase = "images";
       setProduction((current) =>
         current
           ? {
@@ -325,8 +333,31 @@ export function AiAgents({
               statuses: {
                 ...current.statuses,
                 outline: "completed",
+                images: "running",
+              },
+            }
+          : current,
+      );
+
+      const imageResult = await requestPhase<{
+        images: ResolvedArticleImage[];
+        quizPlan?: GeneratedQuizPlan;
+        warning?: string;
+      }>("images", {
+        research: researchResult.research,
+        outline: outlineResult.outline,
+      });
+      currentPhase = "write";
+      setProduction((current) =>
+        current
+          ? {
+              ...current,
+              statuses: {
+                ...current.statuses,
+                images: "completed",
                 write: "running",
               },
+              warning: imageResult.warning,
             }
           : current,
       );
@@ -337,6 +368,8 @@ export function AiAgents({
       }>("write", {
         research: researchResult.research,
         outline: outlineResult.outline,
+        images: imageResult.images,
+        quizPlan: imageResult.quizPlan,
       });
       if (!writeResult.page)
         throw new Error(
@@ -357,9 +390,12 @@ export function AiAgents({
               statuses: {
                 research: "completed",
                 outline: "completed",
+                images: "completed",
                 write: "completed",
               },
-              warning: writeResult.warning,
+              warning: [imageResult.warning, writeResult.warning]
+                .filter(Boolean)
+                .join(" "),
               pageId: writeResult.page.id,
             }
           : current,
@@ -425,9 +461,10 @@ export function AiAgents({
                   research: candidate.editorial?.research,
                   outline: candidate.editorial?.outline,
                   article: candidate.editorial?.article,
+                  images: candidate.editorial?.images,
                   quiz: candidate.editorial?.quiz,
-                  quizPlacementAfterHeading:
-                    candidate.editorial?.quizPlacementAfterHeading,
+                  quizPlacementAfterSectionId:
+                    candidate.editorial?.quizPlacementAfterSectionId,
                 },
               }
             : candidate,
@@ -1080,7 +1117,7 @@ function IdeaForm({
           disabled={!title.trim() || !text.trim()}
           className="h-12 rounded-[10px] bg-[#222] px-7 text-[14px] font-semibold text-white disabled:opacity-35"
         >
-          Valider l’idée
+          Ajouter l’idée
         </button>
       </footer>
     </form>
@@ -1103,16 +1140,21 @@ function IdeaDetail({
   const [title, setTitle] = useState(idea.title);
   const [content, setContent] = useState(idea.content);
   const [mode, setMode] = useState<IdeaMode>(idea.mode);
+  const hasChanges =
+    title.trim() !== idea.title ||
+    content.trim() !== idea.content ||
+    mode !== idea.mode;
+  const currentIdea = (approved: boolean): EditorialIdea => ({
+    ...idea,
+    title: title.trim(),
+    content: content.trim(),
+    mode,
+    approved,
+  });
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!title.trim() || !content.trim()) return;
-    onSave({
-      ...idea,
-      title: title.trim(),
-      content: content.trim(),
-      mode,
-      approved: true,
-    });
+    onSave(currentIdea(hasChanges ? false : idea.approved));
   }
   return (
     <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
@@ -1176,23 +1218,26 @@ function IdeaDetail({
           >
             Enregistrer
           </button>
-          <button
-            type="button"
-            disabled={!title.trim() || !content.trim()}
-            onClick={() =>
-              onProduce({
-                ...idea,
-                title: title.trim(),
-                content: content.trim(),
-                mode,
-                approved: true,
-              })
-            }
-            className="flex h-12 items-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232_0%,#222_100%)] px-6 text-[14px] font-semibold text-white shadow-sm disabled:opacity-35"
-          >
-            <Sparkles size={16} />
-            Lancer la production
-          </button>
+          {idea.approved && !hasChanges ? (
+            <button
+              type="button"
+              onClick={() => onProduce(currentIdea(true))}
+              className="flex h-12 items-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232_0%,#222_100%)] px-6 text-[14px] font-semibold text-white shadow-sm"
+            >
+              <Sparkles size={16} />
+              Lancer la production
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={!title.trim() || !content.trim()}
+              onClick={() => onSave(currentIdea(true))}
+              className="flex h-12 items-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232_0%,#222_100%)] px-6 text-[14px] font-semibold text-white shadow-sm disabled:opacity-35"
+            >
+              <Check size={16} />
+              Valider l’idée
+            </button>
+          )}
         </div>
       </footer>
     </form>
@@ -1219,9 +1264,30 @@ function ProductionOverlay({
     title: string;
     description: string;
   }> = [
-    { id: "research", title: "1. Recherche", description: "Analyse des statistiques, de l’intention et des informations utiles." },
-    { id: "outline", title: "2. Structure", description: "Construction du plan SEO, des sections et du maillage éditorial." },
-    { id: "write", title: "3. Rédaction", description: "Rédaction finale et création du brouillon dans le CMS Articles." },
+    {
+      id: "research",
+      title: "1. Recherche",
+      description:
+        "Analyse des statistiques, de l’intention et des informations utiles.",
+    },
+    {
+      id: "outline",
+      title: "2. Structure",
+      description:
+        "Construction du plan SEO, des sections et du maillage éditorial.",
+    },
+    {
+      id: "images",
+      title: "3. Images et quiz",
+      description:
+        "Résolution de l’image principale obligatoire, des visuels utiles et du quiz facultatif.",
+    },
+    {
+      id: "write",
+      title: "4. Rédaction",
+      description:
+        "Rédaction finale et assemblage du brouillon dans le CMS Articles.",
+    },
   ];
 
   return (
@@ -1231,32 +1297,118 @@ function ProductionOverlay({
       </OverlayTop>
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-7 sm:px-12">
         <div className="rounded-[18px] border border-black/[0.06] bg-[#fafafa] p-5">
-          <p className="font-serif text-[21px] leading-tight">{production.idea.title}</p>
-          <p className="mt-2 text-[12px] leading-5 text-black/45">Les trois agents travaillent dans l’ordre. Le brouillon reste non publié après la production.</p>
+          <p className="font-serif text-[21px] leading-tight">
+            {production.idea.title}
+          </p>
+          <p className="mt-2 text-[12px] leading-5 text-black/45">
+            Les agents travaillent dans l’ordre. Le brouillon reste non publié
+            après la production.
+          </p>
         </div>
         <div className="mt-6 grid gap-3">
-          {phases.map((phase) => <ProductionStep key={phase.id} title={phase.title} description={phase.description} status={production.statuses[phase.id]} />)}
+          {phases.map((phase) => (
+            <ProductionStep
+              key={phase.id}
+              title={phase.title}
+              description={phase.description}
+              status={production.statuses[phase.id]}
+            />
+          ))}
         </div>
-        {production.error ? <div className="mt-5 rounded-[14px] border border-[#e1957e]/35 bg-[#fff4f0] p-4 text-[12px] leading-5 text-[#8c3e2a]">{production.error}</div> : null}
-        {completed ? <div className="mt-5 rounded-[14px] border border-[#4ac872]/25 bg-[#f2fff6] p-4 text-[12px] leading-5 text-[#246d3b]">{production.warning || "Le brouillon a été ajouté au CMS Articles. Il attend ta validation manuelle."}</div> : null}
+        {production.error ? (
+          <div className="mt-5 rounded-[14px] border border-[#e1957e]/35 bg-[#fff4f0] p-4 text-[12px] leading-5 text-[#8c3e2a]">
+            {production.error}
+          </div>
+        ) : null}
+        {completed ? (
+          <div className="mt-5 rounded-[14px] border border-[#4ac872]/25 bg-[#f2fff6] p-4 text-[12px] leading-5 text-[#246d3b]">
+            {production.warning ||
+              "Le brouillon a été ajouté au CMS Articles. Il attend ta validation manuelle."}
+          </div>
+        ) : null}
       </div>
       <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-black/[0.07] bg-white p-5 sm:px-12">
-        <button type="button" onClick={onBack} disabled={running} className="flex h-12 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold disabled:opacity-35"><ArrowLeft size={17} />Retour aux idées</button>
-        {production.error ? <button type="button" onClick={onRetry} className="h-12 rounded-[10px] bg-[#222] px-6 text-[14px] font-semibold text-white">Réessayer</button> : null}
-        {completed ? <button type="button" onClick={onOpenArticle} className="flex h-12 items-center gap-2 rounded-[10px] bg-[#222] px-6 text-[14px] font-semibold text-white"><ExternalLink size={17} />Ouvrir le brouillon</button> : null}
-        {running ? <span className="flex items-center gap-2 text-[12px] font-medium text-black/45"><LoaderCircle size={16} className="animate-spin" />Production en cours…</span> : null}
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={running}
+          className="flex h-12 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold disabled:opacity-35"
+        >
+          <ArrowLeft size={17} />
+          Retour aux idées
+        </button>
+        {production.error ? (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="h-12 rounded-[10px] bg-[#222] px-6 text-[14px] font-semibold text-white"
+          >
+            Réessayer
+          </button>
+        ) : null}
+        {completed ? (
+          <button
+            type="button"
+            onClick={onOpenArticle}
+            className="flex h-12 items-center gap-2 rounded-[10px] bg-[#222] px-6 text-[14px] font-semibold text-white"
+          >
+            <ExternalLink size={17} />
+            Ouvrir le brouillon
+          </button>
+        ) : null}
+        {running ? (
+          <span className="flex items-center gap-2 text-[12px] font-medium text-black/45">
+            <LoaderCircle size={16} className="animate-spin" />
+            Production en cours…
+          </span>
+        ) : null}
       </footer>
     </>
   );
 }
 
-function ProductionStep({ title, description, status }: { title: string; description: string; status: ProductionPhaseStatus }) {
-  const icon = status === "running" ? <LoaderCircle size={19} className="animate-spin" /> : status === "completed" ? <Check size={19} /> : status === "error" ? <X size={19} /> : <span className="size-2 rounded-full bg-current" />;
-  const color = status === "completed" ? "bg-[#ebffe8] text-[#37982a]" : status === "error" ? "bg-[#fff0ec] text-[#b85d45]" : status === "running" ? "bg-[#222] text-white" : "bg-[#f3f3f3] text-black/25";
+function ProductionStep({
+  title,
+  description,
+  status,
+}: {
+  title: string;
+  description: string;
+  status: ProductionPhaseStatus;
+}) {
+  const icon =
+    status === "running" ? (
+      <LoaderCircle size={19} className="animate-spin" />
+    ) : status === "completed" ? (
+      <Check size={19} />
+    ) : status === "error" ? (
+      <X size={19} />
+    ) : (
+      <span className="size-2 rounded-full bg-current" />
+    );
+  const color =
+    status === "completed"
+      ? "bg-[#ebffe8] text-[#37982a]"
+      : status === "error"
+        ? "bg-[#fff0ec] text-[#b85d45]"
+        : status === "running"
+          ? "bg-[#222] text-white"
+          : "bg-[#f3f3f3] text-black/25";
   return (
-    <div className={`flex items-center gap-4 rounded-[16px] border p-4 transition ${status === "running" ? "border-black/15 bg-white shadow-sm" : "border-black/[0.05] bg-white"}`}>
-      <div className={`grid size-10 shrink-0 place-items-center rounded-full ${color}`}>{icon}</div>
-      <div><p className="text-[14px] font-semibold">{title}</p><p className="mt-1 text-[11px] leading-5 text-black/45">{description}</p></div>
+    <div
+      className={`flex items-center gap-4 rounded-[16px] border p-4 transition ${status === "running" ? "border-black/15 bg-white shadow-sm" : "border-black/[0.05] bg-white"}`}
+    >
+      <div
+        className={`grid size-10 shrink-0 place-items-center rounded-full ${color}`}
+      >
+        {icon}
+      </div>
+      <div>
+        <p className="text-[14px] font-semibold">{title}</p>
+        <p className="mt-1 text-[11px] leading-5 text-black/45">
+          {description}
+        </p>
+      </div>
     </div>
   );
 }
@@ -1846,11 +1998,9 @@ function WritingContent({
   fields: ArticleDetailFields | null;
 }) {
   const blocks =
-    article?.blocks ??
     fields?.blocks.filter(
       (block) => block.kind === "heading" || block.kind === "paragraph",
-    ) ??
-    [];
+    ) ?? [];
   if (!blocks.length)
     return (
       <EmptyPhase text="Aucune rédaction finale n’a été conservée pour cet article." />

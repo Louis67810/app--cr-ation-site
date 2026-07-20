@@ -1,0 +1,4 @@
+interface:
+  display_name: "Recherche article"
+  short_description: "Analyser les donn�es et produire un dossier factuel."
+  default_prompt: "Analyse un sujet et retourne uniquement le dossier de recherche structur�."

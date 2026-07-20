@@ -178,23 +178,31 @@ export type ReusableQuiz = {
   name: string;
   title: string;
   subtitle: string;
-  mode?: "simple" | "visual-preference" | "diagnostic" | "recommendation" | "branching";
+  mode?:
+    | "simple"
+    | "visual-preference"
+    | "diagnostic"
+    | "recommendation"
+    | "branching";
   questions: Array<{
     id?: string;
     question: string;
     subtitle?: string;
-    options: Array<string | {
-      id: string;
-      label: string;
-      description?: string;
-      imageUrl?: string;
-      imageAlt?: string;
-      imagePrompt?: string;
-      category?: string;
-      scores?: Record<string, number>;
-      nextQuestionId?: string;
-      resultId?: string;
-    }>;
+    options: Array<
+      | string
+      | {
+          id: string;
+          label: string;
+          description?: string;
+          imageUrl?: string;
+          imageAlt?: string;
+          imagePrompt?: string;
+          category?: string;
+          scores?: Record<string, number>;
+          nextQuestionId?: string;
+          resultId?: string;
+        }
+    >;
   }>;
   nextLabel: string;
   resultTitle: string;
@@ -680,8 +688,9 @@ export type EditorialPageWorkflow = {
   research?: import("@/lib/editorial-pipeline").ResearchBrief;
   outline?: import("@/lib/editorial-pipeline").ArticleOutline;
   article?: import("@/lib/editorial-pipeline").GeneratedArticle;
+  images?: import("@/lib/editorial-pipeline").ResolvedArticleImage[];
   quiz?: ReusableQuiz;
-  quizPlacementAfterHeading?: string;
+  quizPlacementAfterSectionId?: string;
 };
 
 export type SitePage = {
