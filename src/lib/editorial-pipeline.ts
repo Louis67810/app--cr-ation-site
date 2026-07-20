@@ -3,6 +3,8 @@ import type { ReusableQuiz } from "@/lib/site-template";
 import type { EditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 import { loadRuntimeSkill } from "@/lib/ai-runtime-skills";
 
+const OPENROUTER_TEST_MODEL = "inclusionai/ling-2.6-flash";
+
 export type EditorialMode = "seo" | "youtube" | "trends" | "editorial";
 export type EditorialExecutionMode = "test" | "classic";
 
@@ -298,18 +300,70 @@ function cleanJson(content: string) {
     : cleaned;
 }
 
-function getOpenRouterContent(result: {
+type OpenRouterResult = {
+  id?: string;
+  model?: string;
+  provider?: string;
+  error?: unknown;
+  usage?: unknown;
   choices?: Array<{
+    finish_reason?: string | null;
+    native_finish_reason?: string | null;
+    error?: unknown;
     message?: {
       content?: string | Array<{ type?: string; text?: string }>;
+      refusal?: string | null;
+      reasoning?: string | null;
     };
   }>;
-}) {
+};
+
+function getOpenRouterContent(result: OpenRouterResult) {
   const rawContent = result.choices?.[0]?.message?.content;
   if (typeof rawContent === "string") return rawContent;
   if (Array.isArray(rawContent))
     return rawContent.map((part) => part.text ?? "").join("");
   return "";
+}
+
+function describeOpenRouterResult(
+  result: OpenRouterResult,
+  requestedModel: string,
+  label: string,
+) {
+  const choice = result.choices?.[0];
+  const content = getOpenRouterContent(result);
+  return [
+    `${label} :`,
+    `- modele demande : ${requestedModel}`,
+    `- modele retourne : ${result.model ?? "absent"}`,
+    `- fournisseur : ${result.provider ?? "absent"}`,
+    `- identifiant : ${result.id ?? "absent"}`,
+    `- nombre de choix : ${result.choices?.length ?? 0}`,
+    `- raison d'arret : ${choice?.finish_reason ?? "absente"}`,
+    `- raison fournisseur : ${choice?.native_finish_reason ?? "absente"}`,
+    `- longueur du contenu : ${content.length}`,
+    `- refus : ${choice?.message?.refusal ?? "aucun"}`,
+    `- erreur globale : ${result.error ? JSON.stringify(result.error) : "aucune"}`,
+    `- erreur du choix : ${choice?.error ? JSON.stringify(choice.error) : "aucune"}`,
+    `- usage : ${result.usage ? JSON.stringify(result.usage) : "absent"}`,
+  ].join("\n");
+}
+
+async function readOpenRouterResult(
+  response: Response,
+  requestedModel: string,
+  label: string,
+) {
+  const raw = await response.text();
+  try {
+    return JSON.parse(raw) as OpenRouterResult;
+  } catch (error) {
+    throw new Error(
+      `OpenRouter a retourne une reponse non JSON.\n${label}\n- modele : ${requestedModel}\n- statut HTTP : ${response.status}\n- corps : ${raw.slice(0, 2000) || "vide"}`,
+      { cause: error },
+    );
+  }
 }
 
 async function askOpenRouter(input: {
@@ -332,7 +386,7 @@ async function askOpenRouter(input: {
 
   const testMode = input.executionMode === "test";
   let model = testMode
-    ? (process.env.OPENROUTER_DEMO_MODEL ?? "openrouter/free")
+    ? OPENROUTER_TEST_MODEL
     : (input.model ??
       process.env.OPENROUTER_CONTENT_MODEL ??
       "openai/gpt-4.1-mini");
@@ -397,38 +451,60 @@ async function askOpenRouter(input: {
     });
 
   let response = await sendRequest(model, true);
-
-  if (
-    !response.ok &&
-    response.status === 404 &&
-    testMode &&
-    model !== "openrouter/free"
-  ) {
-    model = "openrouter/free";
-    response = await sendRequest(model, true);
-  }
+  const httpDiagnostics: string[] = [];
 
   if (!response.ok && testMode) {
+    const strictDetail = await response.text();
+    httpDiagnostics.push(
+      `Tentative avec schéma strict :\n- statut HTTP : ${response.status}\n- détails : ${strictDetail.slice(0, 2000) || "aucun"}`,
+    );
     response = await sendRequest(model, false);
   }
 
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(
-      `OpenRouter a refusé la phase (${response.status})${detail ? ` : ${detail.slice(0, 220)}` : "."}`,
+      `OpenRouter a refusé la phase.\n- modèle : ${model}\n- schéma : ${input.schemaName}\n- statut HTTP : ${response.status}\n- détails : ${detail.slice(0, 2000) || "aucun"}${httpDiagnostics.length ? `\n\n${httpDiagnostics.join("\n\n")}` : ""}`,
     );
   }
 
-  const result = (await response.json()) as {
-    choices?: Array<{
-      message?: {
-        content?: string | Array<{ type?: string; text?: string }>;
-      };
-    }>;
-  };
-  const content = getOpenRouterContent(result);
+  let result = await readOpenRouterResult(
+    response,
+    model,
+    "Tentative initiale",
+  );
+  const diagnostics = [
+    ...httpDiagnostics,
+    describeOpenRouterResult(result, model, "Tentative initiale"),
+  ];
+  let content = getOpenRouterContent(result);
+  if (!content) {
+    response = await sendRequest(
+      model,
+      false,
+      1,
+      "choices[0].message.content était vide ou absent",
+    );
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(
+        `OpenRouter n'a retourné aucun contenu et la relance a échoué.\n${diagnostics.join("\n\n")}\n\nRelance sans schéma strict :\n- statut HTTP : ${response.status}\n- détails : ${detail.slice(0, 2000) || "aucun"}`,
+      );
+    }
+    result = await readOpenRouterResult(
+      response,
+      model,
+      "Relance sans schéma strict",
+    );
+    diagnostics.push(
+      describeOpenRouterResult(result, model, "Relance sans schéma strict"),
+    );
+    content = getOpenRouterContent(result);
+  }
   if (!content)
-    throw new Error("OpenRouter n’a retourné aucun résultat pour cette phase.");
+    throw new Error(
+      `OpenRouter n'a retourné aucun contenu après deux tentatives.\n${diagnostics.join("\n\n")}`,
+    );
   let candidateContent = content;
   for (let parseAttempt = 0; parseAttempt < 3; parseAttempt += 1) {
     let repairReason = "";
@@ -445,11 +521,11 @@ async function askOpenRouter(input: {
 
     if (parseAttempt === 2) {
       throw new Error(
-        `La phase IA reste invalide apres trois tentatives (${repairReason}). Clique sur Reessayer : les etapes deja terminees seront conservees.`,
+        `La phase IA reste invalide après trois tentatives.\n- modèle : ${model}\n- schéma : ${input.schemaName}\n- dernière erreur : ${repairReason}\n\n${diagnostics.join("\n\n")}\n\nClique sur Réessayer : les étapes déjà terminées seront conservées.`,
       );
     }
 
-    if (testMode) model = "openrouter/free";
+    if (testMode) model = OPENROUTER_TEST_MODEL;
     response = await sendRequest(
       model,
       parseAttempt === 0,
@@ -457,6 +533,10 @@ async function askOpenRouter(input: {
       repairReason,
     );
     if (!response.ok && parseAttempt === 0) {
+      const strictRepairDetail = await response.text();
+      diagnostics.push(
+        `Réparation ${parseAttempt + 1} avec schéma strict :\n- statut HTTP : ${response.status}\n- détails : ${strictRepairDetail.slice(0, 2000) || "aucun"}`,
+      );
       response = await sendRequest(
         model,
         false,
@@ -467,21 +547,26 @@ async function askOpenRouter(input: {
     if (!response.ok) {
       const detail = await response.text();
       throw new Error(
-        `OpenRouter n'a pas pu reparer la reponse (${response.status})${detail ? ` : ${detail.slice(0, 220)}` : "."}`,
+        `OpenRouter n'a pas pu réparer la réponse.\n- modèle : ${model}\n- schéma : ${input.schemaName}\n- tentative : ${parseAttempt + 2}\n- statut HTTP : ${response.status}\n- détails : ${detail.slice(0, 2000) || "aucun"}\n\n${diagnostics.join("\n\n")}`,
       );
     }
 
-    const repairedResult = (await response.json()) as {
-      choices?: Array<{
-        message?: {
-          content?: string | Array<{ type?: string; text?: string }>;
-        };
-      }>;
-    };
+    const repairedResult = await readOpenRouterResult(
+      response,
+      model,
+      `Réparation ${parseAttempt + 1}`,
+    );
+    diagnostics.push(
+      describeOpenRouterResult(
+        repairedResult,
+        model,
+        `Réparation ${parseAttempt + 1}`,
+      ),
+    );
     candidateContent = getOpenRouterContent(repairedResult);
     if (!candidateContent)
       throw new Error(
-        "OpenRouter n'a retourne aucun resultat pendant la reparation JSON.",
+        `OpenRouter n'a retourné aucun contenu pendant la réparation.\n${diagnostics.join("\n\n")}`,
       );
   }
 

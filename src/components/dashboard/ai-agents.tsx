@@ -351,9 +351,20 @@ export function AiAgents({
           ...extra,
         }),
       });
-      const result = (await response.json()) as T & { error?: string };
+      const rawResponse = await response.text();
+      let result: T & { error?: string };
+      try {
+        result = JSON.parse(rawResponse) as T & { error?: string };
+      } catch {
+        throw new Error(
+          `La route des agents a retourné une réponse non JSON.\n- phase : ${phase}\n- statut HTTP : ${response.status}\n- corps : ${rawResponse.slice(0, 3000) || "vide"}`,
+        );
+      }
       if (!response.ok)
-        throw new Error(result.error ?? `La phase ${phase} a échoué.`);
+        throw new Error(
+          result.error ??
+            `La phase ${phase} a échoué sans message détaillé (HTTP ${response.status}).`,
+        );
       return result;
     };
 
@@ -1450,7 +1461,7 @@ function ProductionOverlay({
           </p>
           <p className="mt-2 text-[12px] leading-5 text-black/45">
             {production.executionMode === "test"
-              ? "Le routeur gratuit OpenRouter exécute toutes les étapes et les images sont choisies aléatoirement dans Assets, sans génération d’image."
+              ? "Le modèle économique Ling 2.6 Flash exécute toutes les étapes et les images sont choisies aléatoirement dans Assets, sans génération d’image."
               : "Les modèles classiques exécutent toutes les étapes et génèrent une seule proposition pour chaque image demandée."}{" "}
             Le brouillon reste non publié après la production.
           </p>
@@ -1466,7 +1477,7 @@ function ProductionOverlay({
           ))}
         </div>
         {production.error ? (
-          <div className="mt-5 rounded-[14px] border border-[#e1957e]/35 bg-[#fff4f0] p-4 text-[12px] leading-5 text-[#8c3e2a]">
+          <div className="mt-5 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-[14px] border border-[#e1957e]/35 bg-[#fff4f0] p-4 font-mono text-[11px] leading-5 text-[#8c3e2a]">
             {production.error}
           </div>
         ) : null}

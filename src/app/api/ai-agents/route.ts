@@ -495,12 +495,26 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Pipeline éditorial interrompu.";
+    const cause =
+      error instanceof Error && error.cause instanceof Error
+        ? `${error.cause.name}: ${error.cause.message}`
+        : error instanceof Error && error.cause
+          ? String(error.cause)
+          : "aucune";
+    console.error("[ai-agents] Pipeline failure", {
+      phase: payload.phase,
+      mode: payload.mode,
+      executionMode,
+      projectKey,
+      message,
+      cause,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Pipeline éditorial interrompu.",
+        error: `${message}\n\nContexte serveur :\n- phase : ${String(payload.phase)}\n- mode éditorial : ${String(payload.mode)}\n- mode d'exécution : ${executionMode}\n- projet : ${projectKey}\n- cause interne : ${cause}`,
       },
       { status: 500 },
     );
