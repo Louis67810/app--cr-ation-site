@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArticleQuiz } from "@/components/article-quiz";
 import {
   ArrowLeft,
+  Activity,
+  BarChart3,
   Bot,
   Check,
   CheckCircle2,
@@ -15,13 +17,17 @@ import {
   Images,
   Lightbulb,
   LoaderCircle,
+  MousePointerClick,
   Plus,
+  RefreshCw,
+  Search,
   Sparkles,
   X,
   XCircle,
 } from "lucide-react";
 import type { DashboardProject } from "@/components/dashboard/dashboard-shell";
 import type { EditorialMode, GeneratedArticle } from "@/lib/editorial-pipeline";
+import type { EditorialPerformanceSnapshot, PagePerformanceMetrics } from "@/lib/editorial-performance";
 import type { ArticleDetailFields, EditorialPageStatus, SitePage } from "@/lib/site-template";
 
 type IdeaMode = "seo" | "youtube" | "trends";
@@ -90,7 +96,7 @@ function defaultIdeas(pages: SitePage[]): EditorialIdea[] {
   }));
 }
 
-export function AiAgents({ project }: { project: DashboardProject }) {
+export function AiAgents({ project, initialAnalytics, gaPropertyId }: { project: DashboardProject; initialAnalytics: EditorialPerformanceSnapshot; gaPropertyId?: string }) {
   const [pages, setPages] = useState(project.pages);
   const [view, setView] = useState<OverlayView>(null);
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
@@ -101,7 +107,11 @@ export function AiAgents({ project }: { project: DashboardProject }) {
   const [ideaFilter, setIdeaFilter] = useState<IdeaMode>("seo");
   const [ideas, setIdeas] = useState<EditorialIdea[]>([]);
   const [savingPageId, setSavingPageId] = useState<string | null>(null);
+  const [analytics, setAnalytics] = useState(initialAnalytics);
+  const [syncingAnalytics, setSyncingAnalytics] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState("");
   const articles = useMemo(() => getArticlePages(pages), [pages]);
+  const performanceByPath = useMemo(() => new Map(analytics.pages.map((page) => [page.path, page])), [analytics.pages]);
   const activeArticle = articles.find((page) => page.id === activeArticleId) ?? null;
   const activeIdea = ideas.find((idea) => idea.id === activeIdeaId) ?? null;
   const visibleIdeas = ideas.filter((idea) => idea.mode === ideaFilter);
@@ -197,6 +207,25 @@ export function AiAgents({ project }: { project: DashboardProject }) {
     setView("article");
   }
 
+  async function synchronizeAnalytics() {
+    setSyncingAnalytics(true);
+    setAnalyticsError("");
+    try {
+      const response = await fetch("/api/analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectKey: project.key, projectOwnerId: project.ownerId }),
+      });
+      const result = await response.json() as EditorialPerformanceSnapshot & { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "La synchronisation a échoué.");
+      setAnalytics(result);
+    } catch (caught) {
+      setAnalyticsError(caught instanceof Error ? caught.message : "La synchronisation a échoué.");
+    } finally {
+      setSyncingAnalytics(false);
+    }
+  }
+
   async function setEditorialStatus(page: SitePage, status: EditorialPageStatus) {
     if (savingPageId) return;
     setSavingPageId(page.id);
@@ -239,8 +268,10 @@ export function AiAgents({ project }: { project: DashboardProject }) {
       </div>
     </header>
 
+    <AnalyticsConnectionStrip data={analytics} gaPropertyId={gaPropertyId} syncing={syncingAnalytics} error={analyticsError} onSync={synchronizeAnalytics} />
+
     <section className="border-t border-black/[0.07]">
-      {articles.map((page) => <GeneratedRow key={page.id} title={getTitle(page)} mode={getMode(page)} status={getStatus(page)} date={getRelativeDate(page.editorial?.updatedAt ?? page.editorial?.createdAt)} hero={getHero(page)} loading={savingPageId === page.id} onApprove={() => setEditorialStatus(page, "approved")} onReject={() => setEditorialStatus(page, "rejected")} onReset={() => setEditorialStatus(page, "pending")} onOpen={() => openArticle(page)} />)}
+      {articles.map((page) => <GeneratedRow key={page.id} title={getTitle(page)} mode={getMode(page)} status={getStatus(page)} date={getRelativeDate(page.editorial?.updatedAt ?? page.editorial?.createdAt)} hero={getHero(page)} performance={performanceByPath.get(page.slug)} loading={savingPageId === page.id} onApprove={() => setEditorialStatus(page, "approved")} onReject={() => setEditorialStatus(page, "rejected")} onReset={() => setEditorialStatus(page, "pending")} onOpen={() => openArticle(page)} />)}
       {!articles.length ? <div className="grid min-h-[300px] place-items-center text-center"><div><FilePenLine size={28} className="mx-auto text-black/15" /><p className="mt-3 text-[12px] text-black/40">Aucune page article générée.</p></div></div> : null}
     </section>
 
@@ -248,7 +279,7 @@ export function AiAgents({ project }: { project: DashboardProject }) {
       {view === "ideas" ? <IdeasOverlay ideas={visibleIdeas} filter={ideaFilter} onFilter={setIdeaFilter} onAdd={openIdeaForm} onOpen={(idea) => { setActiveIdeaId(idea.id); setView("idea-detail"); }} onClose={closeOverlay} /> : null}
       {view === "idea-form" ? <IdeaForm mode={ideaMode} title={ideaTitle} text={ideaText} onMode={setIdeaMode} onTitle={setIdeaTitle} onText={setIdeaText} onSubmit={addIdea} onBack={openIdeas} onClose={closeOverlay} /> : null}
       {view === "idea-detail" && activeIdea ? <IdeaDetail idea={activeIdea} onSave={saveIdea} onBack={openIdeas} onClose={closeOverlay} /> : null}
-      {view === "article" && activeArticle ? <ArticleOverlay page={activeArticle} onOpen={setView} onClose={closeOverlay} /> : null}
+      {view === "article" && activeArticle ? <ArticleOverlay page={activeArticle} performance={performanceByPath.get(activeArticle.slug)} onOpen={setView} onClose={closeOverlay} /> : null}
       {view === "images" && activeArticle ? <ImagesOverlay page={activeArticle} onBack={() => setView("article")} onClose={closeOverlay} /> : null}
       {view === "research" && activeArticle ? <PhaseOverlay kind="research" page={activeArticle} onBack={() => setView("article")} onClose={closeOverlay} /> : null}
       {view === "outline" && activeArticle ? <PhaseOverlay kind="outline" page={activeArticle} onBack={() => setView("article")} onClose={closeOverlay} /> : null}
@@ -258,7 +289,59 @@ export function AiAgents({ project }: { project: DashboardProject }) {
   </div>;
 }
 
-function GeneratedRow({ title, mode, status, date, hero, loading, onApprove, onReject, onReset, onOpen }: { title: string; mode: IdeaMode; status: EditorialPageStatus; date: string; hero: string; loading: boolean; onApprove: () => void; onReject: () => void; onReset: () => void; onOpen: () => void }) {
+function formatMetric(value: number) {
+  return new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(value);
+}
+
+function formatAnalyticsDate(value: string | null) {
+  return value
+    ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value))
+    : "jamais";
+}
+
+function AnalyticsConnectionStrip({ data, gaPropertyId, syncing, error, onSync }: { data: EditorialPerformanceSnapshot; gaPropertyId?: string; syncing: boolean; error: string; onSync: () => void }) {
+  const totals = [
+    ["Sessions", data.siteTotals.sessions, Activity],
+    ["Vues", data.siteTotals.pageViews, BarChart3],
+    ["Impressions", data.siteTotals.impressions, Search],
+    ["Clics", data.siteTotals.clicks, MousePointerClick],
+  ] as const;
+  return <section className="mx-5 mb-6 rounded-[16px] border border-black/[0.07] bg-[#fafafa] p-4 sm:mx-[clamp(32px,5.75vw,71px)] sm:p-5">
+    <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`size-2 rounded-full ${data.status === "connected" ? "bg-emerald-500" : data.status === "partial" ? "bg-amber-500" : "bg-black/20"}`} />
+          <p className="text-[12px] font-semibold">{gaPropertyId ? `Google Analytics connecté · propriété ${gaPropertyId}` : "Google Analytics non configuré"}</p>
+          <span className="rounded-full bg-white px-2 py-1 text-[9px] font-medium text-black/40">90 jours</span>
+        </div>
+        <p className="mt-1.5 text-[10px] text-black/40">Dernière synchronisation : {formatAnalyticsDate(data.updatedAt)}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+        {totals.map(([label, value, Icon]) => <div key={label} className="flex min-w-[82px] items-center gap-2 rounded-[10px] bg-white px-3 py-2 shadow-sm"><Icon size={14} className="text-black/30" /><div><p className="text-[9px] text-black/35">{label}</p><p className="text-[13px] font-semibold">{formatMetric(value)}</p></div></div>)}
+        <button type="button" onClick={onSync} disabled={syncing || !gaPropertyId} className="flex h-10 items-center gap-2 rounded-[10px] bg-[#222] px-4 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-35">{syncing ? <LoaderCircle size={14} className="animate-spin" /> : <RefreshCw size={14} />}{syncing ? "Synchronisation…" : "Synchroniser"}</button>
+      </div>
+    </div>
+    {error ? <p className="mt-3 rounded-[8px] bg-red-50 px-3 py-2 text-[11px] text-red-700">{error}</p> : null}
+    {!error && !gaPropertyId ? <p className="mt-3 text-[10px] text-amber-700">Ajoute l’identifiant de propriété GA4 dans l’onglet Paramètres de ce projet.</p> : null}
+    {!error && gaPropertyId && data.warnings.length ? <p className="mt-3 text-[10px] leading-4 text-amber-700">{data.warnings.join(" ")}</p> : null}
+  </section>;
+}
+
+function PagePerformance({ performance, compact = false }: { performance?: PagePerformanceMetrics; compact?: boolean }) {
+  const hasData = performance && (performance.googleAnalytics.sessions || performance.googleAnalytics.pageViews || performance.searchConsole.impressions || performance.searchConsole.clicks);
+  if (!hasData) return <div className={`${compact ? "hidden xl:block" : "rounded-[14px] border border-dashed border-black/10 p-4"} text-[10px] text-black/35`}>Aucune statistique synchronisée pour cette page</div>;
+  const metrics = [
+    ["Sessions", performance.googleAnalytics.sessions],
+    ["Vues", performance.googleAnalytics.pageViews],
+    ["Impressions", performance.searchConsole.impressions],
+    ["Clics", performance.searchConsole.clicks],
+  ] as const;
+  return <div className={compact ? "hidden items-center gap-4 xl:flex" : "grid grid-cols-2 gap-3 rounded-[14px] border border-black/[0.06] bg-[#fafafa] p-4 sm:grid-cols-4"}>
+    {metrics.map(([label, value]) => <div key={label} className={compact ? "min-w-[54px]" : "rounded-[10px] bg-white p-3"}><p className="text-[9px] text-black/35">{label}</p><p className={`${compact ? "text-[12px]" : "mt-1 text-[17px]"} font-semibold`}>{formatMetric(value)}</p></div>)}
+  </div>;
+}
+
+function GeneratedRow({ title, mode, status, date, hero, performance, loading, onApprove, onReject, onReset, onOpen }: { title: string; mode: IdeaMode; status: EditorialPageStatus; date: string; hero: string; performance?: PagePerformanceMetrics; loading: boolean; onApprove: () => void; onReject: () => void; onReset: () => void; onOpen: () => void }) {
   const decided = status !== "pending";
   return <div className={`grid min-h-[74px] border-b border-black/[0.07] bg-white transition md:grid-cols-[199px_minmax(0,1fr)] ${decided ? "opacity-30" : ""}`}>
     <div className="flex items-center justify-center gap-3 px-5 py-3 md:border-r md:border-black/[0.07]"><Grip size={15} className="text-[#d9d9d9]" /><div><p className="font-serif text-[16px] leading-none">Page article</p><p className="mt-1 text-[9px] text-black/35">{modeLabel(mode)}</p></div></div>
@@ -267,7 +350,8 @@ function GeneratedRow({ title, mode, status, date, hero, loading, onApprove, onR
         <div className="h-[45px] w-[62px] shrink-0 overflow-hidden rounded-[6px] border border-black/[0.07] bg-[#d9d9d9]">{hero ? <Image src={hero} alt="" width={62} height={45} unoptimized className="h-full w-full object-cover" /> : null}</div>
         <div className="min-w-0"><p className="truncate text-[14px] font-medium leading-5 text-black/60">{title}</p><div className="mt-1 flex items-center gap-2"><ModePill mode={mode} /><span className="text-[12px] leading-5 text-black/55">{date}</span></div></div>
       </div>
-      <div className="flex shrink-0 items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4 lg:flex-nowrap">
+        <PagePerformance performance={performance} compact />
         {status === "pending" ? <div className="flex items-center gap-2"><button type="button" disabled={loading} onClick={onApprove} className="flex h-9 min-w-[68px] items-center justify-center rounded-[27px] border border-black/[0.08] bg-[#4ac872] px-3 text-[14px] text-white shadow-sm disabled:opacity-50">{loading ? <LoaderCircle size={13} className="animate-spin" /> : "Valider"}</button><button type="button" disabled={loading} onClick={onReject} className="flex h-9 min-w-[74px] items-center justify-center rounded-[27px] border border-black/[0.08] bg-[#e1957e] px-3 text-[14px] text-white shadow-sm disabled:opacity-50">Refuser</button></div> : <button type="button" disabled={loading} onClick={onReset} aria-label="Modifier le choix" className={`grid size-8 place-items-center rounded-full ${status === "approved" ? "bg-[#ebffe8] text-[#37982a]" : "bg-[#fff0ec] text-[#b85d45]"}`}>{loading ? <LoaderCircle size={16} className="animate-spin" /> : status === "approved" ? <CheckCircle2 size={19} /> : <XCircle size={19} />}</button>}
         <button type="button" onClick={onOpen} aria-label="Ouvrir l’article" className="grid size-[36px] place-items-center rounded-[6px] border border-black/10 bg-white text-[#525866]"><ExternalLink size={18} /></button>
       </div>
@@ -312,9 +396,9 @@ function IdeaDetail({ idea, onSave, onBack, onClose }: { idea: EditorialIdea; on
   return <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col"><OverlayTop title="Modifier l’idée" onClose={onClose}>{idea.approved ? <span className="hidden items-center gap-2 text-[12px] font-semibold text-[#37982a] sm:flex"><CheckCircle2 size={16} />Validée</span> : null}</OverlayTop><div className="min-h-0 flex-1 overflow-y-auto px-5 py-7 sm:px-12"><div className="grid gap-5 sm:grid-cols-[1fr_240px]"><label className="block text-[12px] font-semibold text-black/45">Titre<input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} className="mt-2 h-12 w-full rounded-[10px] border border-black/10 px-4 text-[14px] outline-none focus:border-black/25" /></label><label className="block text-[12px] font-semibold text-black/45">Catégorie<select value={mode} onChange={(event) => setMode(event.target.value as IdeaMode)} className="mt-2 h-12 w-full rounded-[10px] border border-black/10 bg-white px-4 text-[14px] outline-none">{ideaModes.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label></div><label className="mt-6 block text-[12px] font-semibold text-black/45">Informations sur l’idée<textarea value={content} onChange={(event) => setContent(event.target.value)} className="mt-2 min-h-[220px] w-full resize-none rounded-[14px] border border-black/10 p-5 text-[15px] leading-7 text-black/70 outline-none focus:border-black/25" /></label></div><footer className="flex shrink-0 justify-between border-t border-black/[0.07] p-5 sm:px-12"><button type="button" onClick={onBack} className="flex h-12 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold"><ArrowLeft size={17} />Retour aux idées</button><button type="submit" disabled={!title.trim() || !content.trim()} className="h-12 rounded-[10px] bg-[#222] px-7 text-[14px] font-semibold text-white disabled:opacity-35">{idea.approved ? "Enregistrer les modifications" : "Enregistrer et valider"}</button></footer></form>;
 }
 
-function ArticleOverlay({ page, onOpen, onClose }: { page: SitePage; onOpen: (view: OverlayView) => void; onClose: () => void }) {
+function ArticleOverlay({ page, performance, onOpen, onClose }: { page: SitePage; performance?: PagePerformanceMetrics; onOpen: (view: OverlayView) => void; onClose: () => void }) {
   const fields = getArticleFields(page);
-  return <><OverlayTop title={getTitle(page)} onClose={onClose}><span className="hidden text-[13px] font-medium text-black/45 md:block">{fields?.readingTime || "Production terminée"}</span></OverlayTop><div className="min-h-0 flex-1 overflow-y-auto p-5 sm:px-9 sm:py-12"><div className="grid gap-4"><ArticleFolder icon={<Images size={22} />} title="Images" onClick={() => onOpen("images")} preview={getHero(page)} /><ArticleFolder icon={<FolderSearch2 size={22} />} title="Dossier de recherche" onClick={() => onOpen("research")} /><ArticleFolder icon={<Bot size={22} />} title="Structure de l’article" onClick={() => onOpen("outline")} /><ArticleFolder icon={<FilePenLine size={22} />} title="Rédaction finale" onClick={() => onOpen("writing")} />{page.editorial?.quiz || fields?.quizzes[0] ? <ArticleFolder icon={<Sparkles size={22} />} title="Quiz interactif" onClick={() => onOpen("quiz")} /> : null}</div></div></>;
+  return <><OverlayTop title={getTitle(page)} onClose={onClose}><span className="hidden text-[13px] font-medium text-black/45 md:block">{fields?.readingTime || "Production terminée"}</span></OverlayTop><div className="min-h-0 flex-1 overflow-y-auto p-5 sm:px-9 sm:py-8"><PagePerformance performance={performance} /><div className="mt-5 grid gap-4"><ArticleFolder icon={<Images size={22} />} title="Images" onClick={() => onOpen("images")} preview={getHero(page)} /><ArticleFolder icon={<FolderSearch2 size={22} />} title="Dossier de recherche" onClick={() => onOpen("research")} /><ArticleFolder icon={<Bot size={22} />} title="Structure de l’article" onClick={() => onOpen("outline")} /><ArticleFolder icon={<FilePenLine size={22} />} title="Rédaction finale" onClick={() => onOpen("writing")} />{page.editorial?.quiz || fields?.quizzes[0] ? <ArticleFolder icon={<Sparkles size={22} />} title="Quiz interactif" onClick={() => onOpen("quiz")} /> : null}</div></div></>;
 }
 
 function QuizOverlay({ page, onBack, onClose }: { page: SitePage; onBack: () => void; onClose: () => void }) {
