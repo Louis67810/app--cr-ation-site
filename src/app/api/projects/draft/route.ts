@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { SitePage } from "@/lib/site-template";
 import { normalizeProjectKey } from "@/lib/project-key";
+import { synchronizeArticleCollections } from "@/lib/article-content";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -32,10 +33,11 @@ export async function POST(request: Request) {
 
   const { data: previousProject } = await supabase.from("site_projects").select("pages").eq("owner_id", projectOwnerId).eq("project_key", projectKey).maybeSingle();
   const previousPages = Array.isArray(previousProject?.pages) ? previousProject.pages as SitePage[] : null;
+  const normalizedPages = synchronizeArticleCollections(payload.pages);
   const previousSlugs = new Set(previousPages?.map((page) => page.slug) ?? []);
-  const createdPages = previousPages ? payload.pages.filter((page) => !previousSlugs.has(page.slug)) : [];
+  const createdPages = previousPages ? normalizedPages.filter((page) => !previousSlugs.has(page.slug)) : [];
 
-  const values = { project_name: payload.projectName, pages: payload.pages, updated_at: new Date().toISOString() };
+  const values = { project_name: payload.projectName, pages: normalizedPages, updated_at: new Date().toISOString() };
   const { error } = projectOwnerId === ownerId
     ? await supabase.from("site_projects").upsert({ owner_id: ownerId, project_key: projectKey, ...values }, { onConflict: "owner_id,project_key" })
     : await supabase.from("site_projects").update(values).eq("owner_id", projectOwnerId).eq("project_key", projectKey);
@@ -48,5 +50,5 @@ export async function POST(request: Request) {
     await supabase.from("project_activity_events").insert(createdPages.map((page) => ({ owner_id: projectOwnerId, project_key: projectKey, actor_user_id: ownerId, event_type: page.slug.startsWith("/blog/") ? "article_created" : page.slug.startsWith("/realisations/") ? "realisation_created" : "page_created", entity_id: page.id, entity_title: page.title, metadata: { slug: page.slug } })));
   }
 
-  return NextResponse.json({ saved: true });
+  return NextResponse.json({ saved: true, pages: normalizedPages });
 }

@@ -20,6 +20,7 @@ import type {
   BlogPost,
   SitePage,
 } from "@/lib/site-template";
+import { synchronizeArticleCollections } from "@/lib/article-content";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -207,7 +208,7 @@ function addArticleToPages(
       } as typeof section;
     });
   }
-  return { pages: nextPages, slug, href };
+  return { pages: synchronizeArticleCollections(nextPages), slug, href };
 }
 
 export async function POST(request: Request) {

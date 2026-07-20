@@ -1407,6 +1407,7 @@ function ArticleDetailA({
           <article id="article" className="grid scroll-mt-28 gap-12">
             {fields.blocks.map((block, index) => {
               if (block.kind === "paragraph") {
+                const sizeClass = block.size === "large" ? "typo-body-large" : block.size === "small" ? "typo-body-small" : "typo-body-medium";
                 return (
                   <EditableText
                     key={index}
@@ -1414,7 +1415,7 @@ function ArticleDetailA({
                     value={block.text}
                     path={["blocks", index, "text"]}
                     options={options}
-                    className="typo-body-medium text-black/68"
+                    className={`${sizeClass} text-black/68`}
                   />
                 );
               }
@@ -1425,11 +1426,11 @@ function ArticleDetailA({
                 return (
                   <div key={index} id={headingId} className="scroll-mt-28">
                     <EditableText
-                      as="h2"
+                      as={block.level}
                       value={block.text}
                       path={["blocks", index, "text"]}
                       options={options}
-                      className="typo-h3 text-[#003441]"
+                      className={`${block.level === "h3" ? "typo-h4" : "typo-h3"} ${block.alignment === "center" ? "text-center" : ""} text-[#003441]`}
                     />
                   </div>
                 );
@@ -1497,50 +1498,53 @@ function ArticleDetailA({
               }
 
               if (block.kind === "callout") {
+                const isQuote = block.variant === "quote";
+                const isSolution = block.variant === "solution";
                 return (
                   <div
                     key={index}
-                    className="flex items-center gap-4 rounded-3xl border border-[#d59e1e]/30 bg-[linear-gradient(180deg,rgba(255,208,0,0.19)_0%,rgba(255,253,242,0.12)_100%)] px-6 py-6 md:px-12"
+                    className={`flex items-start gap-4 rounded-3xl border px-6 py-6 md:px-12 ${isQuote ? "border-[#003441]/15 bg-[#f1f7f6]" : isSolution ? "border-[#d59e1e]/30 bg-[#fff7cf]" : "border-[#d59e1e]/30 bg-[linear-gradient(180deg,rgba(255,208,0,0.19)_0%,rgba(255,253,242,0.12)_100%)]"}`}
                   >
-                    <Lightbulb size={32} className="shrink-0 text-[#e2c54a]" />
-                    <EditableText
-                      as="p"
-                      value={block.text}
-                      path={["blocks", index, "text"]}
-                      options={options}
-                      className="typo-body-medium text-black/68"
-                    />
+                    <Lightbulb size={32} className={`shrink-0 ${isQuote ? "text-[#003441]" : "text-[#e2c54a]"}`} />
+                    <div>
+                      {block.title ? <EditableText as="h3" value={block.title} path={["blocks", index, "title"]} options={options} className="typo-h5 mb-2 text-[#003441]" /> : null}
+                      <EditableText as="p" value={block.text} path={["blocks", index, "text"]} options={options} className={`${isQuote ? "italic" : ""} typo-body-medium text-black/68`} />
+                    </div>
                   </div>
                 );
               }
 
               if (block.kind === "image") {
+                const widthClass = block.size === "small" ? "max-w-[520px]" : block.size === "medium" ? "max-w-[760px]" : "w-full";
+                const alignmentClass = block.alignment === "left" ? "mr-auto" : block.alignment === "right" ? "ml-auto" : "mx-auto";
                 return (
-                  <div
-                    key={index}
-                    className="min-h-[360px] rounded-[28px] bg-cover bg-center md:min-h-[560px] lg:min-h-[702px]"
-                    style={{ backgroundImage: `url(${block.imageUrl})` }}
-                    role="img"
-                    aria-label={block.alt}
-                  />
+                  <figure key={index} className={`${widthClass} ${alignmentClass}`}>
+                    <div className="aspect-[16/10] rounded-[28px] bg-cover bg-center" style={{ backgroundImage: `url(${block.imageUrl})` }} role="img" aria-label={block.alt} />
+                    {block.caption ? <figcaption className="typo-body-small mt-3 text-center text-black/45">{block.caption}</figcaption> : null}
+                  </figure>
                 );
               }
 
               if (block.kind === "cards") {
+                const columns = block.columns ?? 2;
+                const gridClass = columns === 1 ? "md:grid-cols-1" : columns === 2 ? "md:grid-cols-2" : columns === 3 ? "md:grid-cols-3" : "md:grid-cols-2 xl:grid-cols-4";
                 return (
-                  <div key={index} className="grid gap-4 md:grid-cols-2">
+                  <div key={index}>
+                    {block.title ? <h2 className="typo-h3 mb-8 text-[#003441]">{block.title}</h2> : null}
+                    <div className={`grid gap-4 ${gridClass}`}>
                     {block.cards.map((card, cardIndex) => (
                       <div
                         key={`${card.title}-${cardIndex}`}
-                        className="rounded-[40px] border border-black/10 bg-white p-10 shadow-[0_31px_12px_rgba(0,0,0,0.01),0_17px_10px_rgba(0,0,0,0.03),0_8px_8px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.05)]"
+                        className={`rounded-[40px] border p-10 ${block.variant === "yellow" ? "border-[#d59e1e]/25 bg-[#fff7cf]" : block.variant === "outlined" ? "border-[#003441]/20 bg-transparent" : "border-black/10 bg-white shadow-[0_31px_12px_rgba(0,0,0,0.01),0_17px_10px_rgba(0,0,0,0.03),0_8px_8px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.05)]"}`}
                       >
                         <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg bg-[#e8f7fb] text-[#003441]">
-                          <Lightbulb size={32} strokeWidth={2} />
+                          {card.icon === "leaf" ? <Leaf size={32} /> : card.icon === "shield" ? <ShieldCheck size={32} /> : card.icon === "sprout" ? <Sprout size={32} /> : card.icon === "tree" ? <TreePine size={32} /> : <Lightbulb size={32} strokeWidth={2} />}
                         </div>
                         <h3 className="typo-h4 text-black">{card.title}</h3>
                         <p className="typo-body-small mt-5 text-black/60">{card.text}</p>
                       </div>
                     ))}
+                    </div>
                   </div>
                 );
               }

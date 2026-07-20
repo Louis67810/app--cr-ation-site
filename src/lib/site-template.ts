@@ -116,34 +116,47 @@ export type BlogPost = {
   date: string;
 };
 
-export type ArticleBlock =
+export type ArticleBlock = { id?: string } & (
   | {
       kind: "paragraph";
       text: string;
+      size?: "small" | "medium" | "large";
     }
   | {
       kind: "heading";
       level: "h2" | "h3";
       text: string;
+      alignment?: "left" | "center";
     }
   | {
       kind: "image";
       imageUrl: string;
       alt: string;
+      caption?: string;
+      size?: "small" | "medium" | "full";
+      alignment?: "left" | "center" | "right";
     }
   | {
       kind: "callout";
       text: string;
+      title?: string;
+      icon?: string;
+      variant?: "highlight" | "quote" | "solution";
     }
   | {
       kind: "table";
       title: string;
       columns: string[];
       rows: string[][];
+      variant?: "default" | "comparison";
     }
   | {
       kind: "cards";
+      title?: string;
+      columns?: 1 | 2 | 3 | 4;
+      variant?: "default" | "yellow" | "outlined";
       cards: Array<{
+        icon?: string;
         title: string;
         text: string;
       }>;
@@ -157,7 +170,8 @@ export type ArticleBlock =
   | {
       kind: "quiz";
       quizId: string;
-    };
+    }
+);
 
 export type ReusableQuiz = {
   id: string;

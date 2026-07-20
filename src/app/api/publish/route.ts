@@ -3,6 +3,7 @@ import { slugifyProjectName } from "@/lib/local-publications";
 import { createClient } from "@/lib/supabase/server";
 import type { SitePage } from "@/lib/site-template";
 import { normalizeProjectKey } from "@/lib/project-key";
+import { synchronizeArticleCollections } from "@/lib/article-content";
 
 export async function POST(request: Request) {
   try {
@@ -41,7 +42,8 @@ export async function POST(request: Request) {
       if (!membership) return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
     }
     const publishedSlug = `${slugifyProjectName(payload.projectName)}-${projectOwnerId.slice(0, 8)}${projectKey === "default" ? "" : `-${projectKey}`}`;
-    const values = { project_name: payload.projectName.trim(), pages: payload.pages, published_slug: publishedSlug, published_at: publishedAt, updated_at: publishedAt };
+    const normalizedPages = synchronizeArticleCollections(payload.pages);
+    const values = { project_name: payload.projectName.trim(), pages: normalizedPages, published_slug: publishedSlug, published_at: publishedAt, updated_at: publishedAt };
     const { error } = projectOwnerId === ownerId
       ? await supabase.from("site_projects").upsert({ owner_id: ownerId, project_key: projectKey, ...values }, { onConflict: "owner_id,project_key" })
       : await supabase.from("site_projects").update(values).eq("owner_id", projectOwnerId).eq("project_key", projectKey);
@@ -53,6 +55,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       url: `/published/${publishedSlug}`,
       publishedAt,
+      pages: normalizedPages,
     });
   } catch {
     return NextResponse.json(

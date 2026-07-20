@@ -13,6 +13,8 @@ import {
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CMS_SECTION_OWNERS } from "@/lib/content-sections";
+import { ArticleContentEditor } from "@/components/dashboard/article-content-editor";
+import { getArticleDetail, synchronizeArticleCollections } from "@/lib/article-content";
 import type { SitePage } from "@/lib/site-template";
 
 type CmsProject = { key: string; ownerId: string; name: string; pages: SitePage[]; publishedAt: string | null };
@@ -62,6 +64,8 @@ function cellWidth(column: ContentColumn) {
 
 function isEditableSection(section: SitePage["sections"][number], collectionId: string) {
   if (section.type === "site-header" || section.type === "site-footer") return false;
+  if (section.type === "blog-advice" || section.type === "blog-index") return false;
+  if (section.type === "article-detail" && collectionId !== "articles") return false;
   const owner = CMS_SECTION_OWNERS[section.type];
   if (!owner) return false;
   return collectionId === "all" || owner === collectionId;
@@ -69,11 +73,12 @@ function isEditableSection(section: SitePage["sections"][number], collectionId: 
 
 export function CmsEditor({ project, canOpenBuilder }: { project: CmsProject; canOpenBuilder: boolean }) {
   const [pages, setPages] = useState(project.pages);
-  const [collectionId, setCollectionId] = useState("all");
+  const [collectionId, setCollectionId] = useState("articles");
   const [collectionOpen, setCollectionOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "publishing">("idle");
   const [message, setMessage] = useState("");
+  const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
   const collection = collections.find((item) => item.id === collectionId) ?? collections[0];
   const rows = useMemo(() => pages.filter((page) => collection.match(page) && `${page.title} ${page.slug}`.toLowerCase().includes(query.toLowerCase())), [collection, pages, query]);
   const columns = useMemo(() => {
@@ -86,6 +91,8 @@ export function CmsEditor({ project, canOpenBuilder }: { project: CmsProject; ca
         : []),
     ]).filter((column) => !seen.has(column.key) && Boolean(seen.add(column.key)));
   }, [collectionId, rows]);
+  const articleRows = useMemo(() => rows.filter((page) => page.slug.startsWith("/blog/") && getArticleDetail(page)), [rows]);
+  const activeArticle = pages.find((page) => page.id === activeArticleId) ?? null;
 
   function updateCell(pageId: string, path: Path, value: JsonValue) {
     setPages((current) => current.map((page) => page.id === pageId ? setAtPath(page, path, value) : page));
@@ -95,8 +102,11 @@ export function CmsEditor({ project, canOpenBuilder }: { project: CmsProject; ca
   async function save(nextStatus: "saving" | "publishing" = "saving") {
     setStatus(nextStatus);
     setMessage("");
-    const response = await fetch("/api/projects/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectKey: project.key, projectOwnerId: project.ownerId, projectName: project.name, pages }) });
-    if (!response.ok) { const result = await response.json() as { error?: string }; setStatus("idle"); setMessage(result.error ?? "Enregistrement impossible"); return false; }
+    const synchronizedPages = synchronizeArticleCollections(pages);
+    const response = await fetch("/api/projects/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectKey: project.key, projectOwnerId: project.ownerId, projectName: project.name, pages: synchronizedPages }) });
+    const result = await response.json() as { error?: string; pages?: SitePage[] };
+    if (!response.ok) { setStatus("idle"); setMessage(result.error ?? "Enregistrement impossible"); return false; }
+    setPages(result.pages ?? synchronizedPages);
     if (nextStatus === "saving") { setStatus("idle"); setMessage("Contenu synchronisé"); }
     return true;
   }
@@ -107,8 +117,10 @@ export function CmsEditor({ project, canOpenBuilder }: { project: CmsProject; ca
 
   async function publish() {
     if (!(await save("publishing"))) return;
-    const response = await fetch("/api/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectKey: project.key, projectOwnerId: project.ownerId, projectName: project.name, pages }) });
-    const result = await response.json() as { url?: string; error?: string };
+    const pagesToPublish = synchronizeArticleCollections(pages);
+    const response = await fetch("/api/publish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectKey: project.key, projectOwnerId: project.ownerId, projectName: project.name, pages: pagesToPublish }) });
+    const result = await response.json() as { url?: string; error?: string; pages?: SitePage[] };
+    if (result.pages) setPages(result.pages);
     setStatus("idle");
     setMessage(response.ok ? "Publié" : result.error ?? "Publication impossible");
     if (response.ok && result.url) window.open(result.url, "_blank", "noopener,noreferrer");
@@ -128,14 +140,19 @@ export function CmsEditor({ project, canOpenBuilder }: { project: CmsProject; ca
         </header>
         <div className="flex min-h-11 shrink-0 items-center gap-2 border-b border-black/[0.07] px-3 sm:h-10 sm:min-h-0 sm:px-4"><label className="flex min-w-0 flex-1 items-center gap-2 text-black/35"><Search size={13} className="shrink-0" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher dans la collection" className="min-w-0 flex-1 bg-transparent text-[10px] outline-none sm:w-48 sm:flex-none" /></label><button type="button" onClick={() => save()} disabled={status !== "idle"} className="shrink-0 text-[10px] font-medium text-black/50 hover:text-black">{status === "saving" ? "Enregistrement…" : "Enregistrer"}</button></div>
         {message ? <div className="shrink-0 border-b border-black/[0.06] px-3 py-1.5 text-[9px] text-black/45 xl:hidden">{message}</div> : null}
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain [scrollbar-gutter:stable]">
+        {collectionId === "articles" ? <ArticleCollection pages={articleRows} onOpen={(page) => setActiveArticleId(page.id)} /> : <div className="min-h-0 flex-1 overflow-auto overscroll-contain [scrollbar-gutter:stable]">
           <table className="w-max min-w-full table-fixed border-collapse text-[10px]">
             <colgroup><col className="w-[34px]" /><col className="w-[155px]" /><col className="w-[110px]" />{columns.map((column) => <col key={column.key} style={{ width: cellWidth(column) }} />)}</colgroup>
             <thead className="sticky top-0 z-20 bg-white text-left text-black/45"><tr className="h-10 border-b border-black/[0.07]"><th /><th className="border-r border-black/[0.07] px-3 font-medium">Entrée</th><th className="border-r border-black/[0.07] px-3 font-medium">Aperçu</th>{columns.map((column) => <th key={column.key} className="border-r border-black/[0.07] px-3 font-medium"><span className="block max-w-[250px] truncate" title={column.label}>{column.label}</span></th>)}</tr></thead>
             <tbody>{rows.map((page) => { const firstImage = columns.find((column) => column.image && typeof getAtPath(page, column.path) === "string"); const preview = firstImage ? String(getAtPath(page, firstImage.path) ?? "") : ""; return <tr key={page.id} className="h-[74px] border-b border-black/[0.07] bg-white hover:bg-[#fcfcfb]"><td className="text-center text-black/20"><GripVertical size={13} className="mx-auto" /></td><td className="border-r border-black/[0.07] px-3 font-serif text-[11px]"><span className="block max-w-[130px] truncate">{page.title}</span></td><td className="border-r border-black/[0.07] px-3">{preview ? <img src={preview} alt="" className="h-[45px] w-[62px] rounded-[5px] border border-black/[0.07] object-cover" /> : <span className="grid h-[45px] w-[62px] place-items-center rounded-[5px] bg-[#d9d9d9] text-black/20"><ImageIcon size={14} /></span>}</td>{columns.map((column) => { const value = getAtPath(page, column.path); const exists = value !== undefined; return <td key={column.key} className="border-r border-black/[0.07] p-0">{exists ? column.image ? <label className="flex h-[74px] cursor-pointer items-center gap-2 px-3"><span className="grid h-[45px] w-[62px] shrink-0 place-items-center overflow-hidden rounded-[5px] bg-[#d9d9d9]">{value ? <img src={String(value)} alt="" className="h-full w-full object-cover" /> : <ImageIcon size={14} className="text-black/20" />}</span><input type="file" accept="image/*" className="absolute h-px w-px opacity-0" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => updateCell(page.id, column.path, String(reader.result)); reader.readAsDataURL(file); }} /></label> : typeof value === "boolean" ? <label className="grid h-[74px] place-items-center"><input type="checkbox" checked={value} onChange={(event) => updateCell(page.id, column.path, event.target.checked)} className="size-4 accent-black" /></label> : <input value={value == null ? "" : String(value)} onChange={(event) => updateCell(page.id, column.path, typeof value === "number" ? Number(event.target.value) : event.target.value)} className="h-[74px] w-full bg-transparent px-3 text-[10px] outline-none focus:bg-[#fffdf5]" /> : null}</td>; })}</tr>; })}</tbody>
           </table>
           {rows.length === 0 ? <div className="grid h-48 place-items-center text-[11px] text-black/35">Aucune entrée dans cette collection.</div> : null}
-        </div>
+        </div>}
+        {activeArticle ? <ArticleContentEditor page={activeArticle} onChange={(updated) => { setPages((current) => current.map((page) => page.id === updated.id ? updated : page)); setMessage("Modifications non enregistrées"); }} onClose={() => setActiveArticleId(null)} /> : null}
     </section>
   );
+}
+
+function ArticleCollection({ pages, onOpen }: { pages: SitePage[]; onOpen: (page: SitePage) => void }) {
+  return <div className="min-h-0 flex-1 overflow-y-auto bg-[#fafaf8] p-4 sm:p-7"><div className="mx-auto max-w-[1180px]"><div className="mb-4 flex items-end justify-between gap-4"><div><h2 className="font-serif text-[24px]">Articles</h2><p className="mt-1 text-[10px] text-black/40">Double-clique sur un article pour modifier son contenu structuré.</p></div><span className="rounded-full bg-white px-3 py-1.5 text-[10px] text-black/40 shadow-sm">{pages.length} articles</span></div><div className="overflow-hidden rounded-[16px] border border-black/[0.07] bg-white">{pages.map((page) => { const detail = getArticleDetail(page); if (!detail) return null; return <button key={page.id} type="button" onDoubleClick={() => onOpen(page)} onClick={() => onOpen(page)} className="grid min-h-[82px] w-full grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 border-b border-black/[0.06] px-4 text-left transition last:border-0 hover:bg-[#fcfcfa] sm:grid-cols-[82px_minmax(0,1fr)_150px_130px]"><div className="h-[52px] w-[72px] rounded-[8px] bg-[#deded9] bg-cover bg-center" style={{ backgroundImage: `url(${detail.fields.heroImageUrl})` }} /><div className="min-w-0"><p className="truncate text-[13px] font-semibold">{detail.fields.title}</p><p className="mt-1 truncate text-[10px] text-black/35">{page.slug}</p></div><span className="hidden rounded-full bg-[#f3f3f3] px-3 py-1.5 text-center text-[10px] text-black/50 sm:block">{page.editorial?.category ?? "Conseils"}</span><div className="text-right"><p className="text-[10px] text-black/45">{detail.fields.updatedAt}</p><p className="mt-1 text-[9px] text-black/25">{detail.fields.blocks.length} blocs</p></div></button>; })}{!pages.length ? <div className="p-16 text-center text-[11px] text-black/35">Aucun article dans cette collection.</div> : null}</div></div></div>;
 }
