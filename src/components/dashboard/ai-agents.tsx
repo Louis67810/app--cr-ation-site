@@ -70,6 +70,11 @@ type ProductionState = {
   executionMode: EditorialExecutionMode;
   discoverTopic: boolean;
   statuses: Record<ProductionPhase, ProductionPhaseStatus>;
+  research?: ResearchBrief;
+  outline?: ArticleOutline;
+  images?: ResolvedArticleImage[];
+  quizPlan?: GeneratedQuizPlan;
+  failedPhase?: ProductionPhase;
   error?: string;
   warning?: string;
   pageId?: string;
@@ -297,11 +302,17 @@ export function AiAgents({
   async function runProduction(
     updated: EditorialIdea,
     discoverTopic = false,
+    resume?: ProductionState,
   ) {
     if (!updated.approved) return;
     const idea = updated;
-    const selectedExecutionMode = executionMode;
-    if (!discoverTopic) saveIdea(idea);
+    const selectedExecutionMode = resume?.executionMode ?? executionMode;
+    if (!discoverTopic && !resume) saveIdea(idea);
+    let research = resume?.research;
+    let outline = resume?.outline;
+    let images = resume?.images;
+    let quizPlan = resume?.quizPlan;
+    let productionWarning = resume?.warning;
     setActiveIdeaId(idea.id);
     setView("production");
     setProduction({
@@ -309,11 +320,16 @@ export function AiAgents({
       executionMode: selectedExecutionMode,
       discoverTopic,
       statuses: {
-        research: "running",
-        outline: "pending",
-        images: "pending",
-        write: "pending",
+        research: research ? "completed" : "running",
+        outline: outline ? "completed" : research ? "running" : "pending",
+        images: images ? "completed" : outline ? "running" : "pending",
+        write: images ? "running" : "pending",
       },
+      research,
+      outline,
+      images,
+      quizPlan,
+      warning: productionWarning,
     });
 
     const requestPhase = async <T,>(
@@ -343,63 +359,86 @@ export function AiAgents({
 
     let currentPhase: ProductionPhase = "research";
     try {
-      const researchResult = await requestPhase<{ research: ResearchBrief }>(
-        "research",
-      );
+      if (!research) {
+        const researchResult = await requestPhase<{
+          research: ResearchBrief;
+        }>("research");
+        research = researchResult.research;
+      }
+      if (!research)
+        throw new Error("Le dossier de recherche est introuvable.");
+
       currentPhase = "outline";
       setProduction((current) =>
         current
           ? {
               ...current,
               idea: discoverTopic
-                ? { ...current.idea, title: researchResult.research.topic }
+                ? {
+                    ...current.idea,
+                    title: research?.topic ?? current.idea.title,
+                  }
                 : current.idea,
+              research,
               statuses: {
                 ...current.statuses,
                 research: "completed",
-                outline: "running",
+                outline: outline ? "completed" : "running",
               },
             }
           : current,
       );
 
-      const outlineResult = await requestPhase<{ outline: ArticleOutline }>(
-        "outline",
-        { research: researchResult.research },
-      );
+      if (!outline) {
+        const outlineResult = await requestPhase<{
+          outline: ArticleOutline;
+        }>("outline", { research });
+        outline = outlineResult.outline;
+      }
+      if (!outline)
+        throw new Error("La structure de l'article est introuvable.");
+
       currentPhase = "images";
       setProduction((current) =>
         current
           ? {
               ...current,
+              outline,
               statuses: {
                 ...current.statuses,
                 outline: "completed",
-                images: "running",
+                images: images ? "completed" : "running",
               },
             }
           : current,
       );
 
-      const imageResult = await requestPhase<{
-        images: ResolvedArticleImage[];
-        quizPlan?: GeneratedQuizPlan;
-        warning?: string;
-      }>("images", {
-        research: researchResult.research,
-        outline: outlineResult.outline,
-      });
+      if (!images) {
+        const imageResult = await requestPhase<{
+          images: ResolvedArticleImage[];
+          quizPlan?: GeneratedQuizPlan;
+          warning?: string;
+        }>("images", { research, outline });
+        images = imageResult.images;
+        quizPlan = imageResult.quizPlan;
+        productionWarning = imageResult.warning;
+      }
+      if (!images)
+        throw new Error("Les visuels de l'article sont introuvables.");
+
       currentPhase = "write";
       setProduction((current) =>
         current
           ? {
               ...current,
+              images,
+              quizPlan,
               statuses: {
                 ...current.statuses,
                 images: "completed",
                 write: "running",
               },
-              warning: imageResult.warning,
+              warning: productionWarning,
             }
           : current,
       );
@@ -408,10 +447,10 @@ export function AiAgents({
         page: SitePage;
         warning?: string;
       }>("write", {
-        research: researchResult.research,
-        outline: outlineResult.outline,
-        images: imageResult.images,
-        quizPlan: imageResult.quizPlan,
+        research,
+        outline,
+        images,
+        quizPlan,
       });
       if (!writeResult.page)
         throw new Error(
@@ -435,7 +474,13 @@ export function AiAgents({
                 images: "completed",
                 write: "completed",
               },
-              warning: [imageResult.warning, writeResult.warning]
+              research,
+              outline,
+              images,
+              quizPlan,
+              failedPhase: undefined,
+              error: undefined,
+              warning: [productionWarning, writeResult.warning]
                 .filter(Boolean)
                 .join(" "),
               pageId: writeResult.page.id,
@@ -447,6 +492,15 @@ export function AiAgents({
         current
           ? {
               ...current,
+              idea:
+                discoverTopic && research
+                  ? { ...current.idea, title: research.topic }
+                  : current.idea,
+              research,
+              outline,
+              images,
+              quizPlan,
+              failedPhase: currentPhase,
               statuses: { ...current.statuses, [currentPhase]: "error" },
               error:
                 error instanceof Error
@@ -525,9 +579,25 @@ export function AiAgents({
       <header className="flex min-h-[148px] flex-col justify-center gap-5 px-6 py-8 sm:px-[clamp(32px,5.75vw,71px)] lg:flex-row lg:items-center lg:justify-between">
         <h1 className="font-serif text-[32px] leading-none">Pages générées</h1>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="mr-1 flex h-12 items-center rounded-[10px] border border-black/[0.08] bg-[#f7f7f7] p-1" role="group" aria-label="Mode de production">
-            <button type="button" onClick={() => changeExecutionMode("test")} className={`${executionMode === "test" ? "bg-white text-[#222] shadow-sm" : "text-black/40"} h-10 rounded-[8px] px-3 text-[11px] font-semibold transition`}>Test</button>
-            <button type="button" onClick={() => changeExecutionMode("classic")} className={`${executionMode === "classic" ? "bg-[#222] text-white shadow-sm" : "text-black/40"} h-10 rounded-[8px] px-3 text-[11px] font-semibold transition`}>Classique</button>
+          <div
+            className="mr-1 flex h-12 items-center rounded-[10px] border border-black/[0.08] bg-[#f7f7f7] p-1"
+            role="group"
+            aria-label="Mode de production"
+          >
+            <button
+              type="button"
+              onClick={() => changeExecutionMode("test")}
+              className={`${executionMode === "test" ? "bg-white text-[#222] shadow-sm" : "text-black/40"} h-10 rounded-[8px] px-3 text-[11px] font-semibold transition`}
+            >
+              Test
+            </button>
+            <button
+              type="button"
+              onClick={() => changeExecutionMode("classic")}
+              className={`${executionMode === "classic" ? "bg-[#222] text-white shadow-sm" : "text-black/40"} h-10 rounded-[8px] px-3 text-[11px] font-semibold transition`}
+            >
+              Classique
+            </button>
           </div>
           <button
             type="button"
@@ -648,7 +718,11 @@ export function AiAgents({
             <ProductionOverlay
               production={production}
               onRetry={() =>
-                runProduction(production.idea, production.discoverTopic)
+                runProduction(
+                  production.idea,
+                  production.discoverTopic,
+                  production,
+                )
               }
               onOpenArticle={() => setView("article")}
               onBack={() => {
@@ -1359,8 +1433,12 @@ function ProductionOverlay({
     <>
       <OverlayTop title="Production de l’article" onClose={onClose}>
         <div className="flex items-center gap-2">
-          <span className={`rounded-full px-3 py-1.5 text-[10px] font-semibold ${production.executionMode === "test" ? "bg-[#eef4ff] text-[#355b91]" : "bg-[#ebffe8] text-[#2f7a25]"}`}>
-            {production.executionMode === "test" ? "Mode test" : "Mode classique"}
+          <span
+            className={`rounded-full px-3 py-1.5 text-[10px] font-semibold ${production.executionMode === "test" ? "bg-[#eef4ff] text-[#355b91]" : "bg-[#ebffe8] text-[#2f7a25]"}`}
+          >
+            {production.executionMode === "test"
+              ? "Mode test"
+              : "Mode classique"}
           </span>
           <ModePill mode={production.idea.mode} />
         </div>
@@ -1373,7 +1451,7 @@ function ProductionOverlay({
           <p className="mt-2 text-[12px] leading-5 text-black/45">
             {production.executionMode === "test"
               ? "Le routeur gratuit OpenRouter exécute toutes les étapes et les images sont choisies aléatoirement dans Assets, sans génération d’image."
-              : "Les modèles classiques exécutent toutes les étapes et génèrent une seule proposition pour chaque image demandée."} {" "}
+              : "Les modèles classiques exécutent toutes les étapes et génèrent une seule proposition pour chaque image demandée."}{" "}
             Le brouillon reste non publié après la production.
           </p>
         </div>

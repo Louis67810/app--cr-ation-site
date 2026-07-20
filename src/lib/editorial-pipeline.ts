@@ -105,7 +105,26 @@ const modeInstructions: Record<EditorialMode, string> = {
 };
 
 function cleanJson(content: string) {
-  return content.replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
+  const cleaned = content.replace(/^```(?:json)?\s*|\s*```$/g, "").trim();
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  return firstBrace >= 0 && lastBrace > firstBrace
+    ? cleaned.slice(firstBrace, lastBrace + 1)
+    : cleaned;
+}
+
+function getOpenRouterContent(result: {
+  choices?: Array<{
+    message?: {
+      content?: string | Array<{ type?: string; text?: string }>;
+    };
+  }>;
+}) {
+  const rawContent = result.choices?.[0]?.message?.content;
+  if (typeof rawContent === "string") return rawContent;
+  if (Array.isArray(rawContent))
+    return rawContent.map((part) => part.text ?? "").join("");
+  return "";
 }
 
 async function askOpenRouter(input: {
@@ -133,7 +152,11 @@ async function askOpenRouter(input: {
   const webSearchEnabled =
     input.research &&
     (!testMode || process.env.OPENROUTER_DEMO_WEB_SEARCH === "true");
-  const sendRequest = (selectedModel: string, strictSchema: boolean) =>
+  const sendRequest = (
+    selectedModel: string,
+    strictSchema: boolean,
+    repairAttempt = 0,
+  ) =>
     fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -146,7 +169,10 @@ async function askOpenRouter(input: {
       body: JSON.stringify({
         model: selectedModel,
         temperature: input.research ? 0.25 : 0.4,
-        max_tokens: input.maxTokens ?? 3600,
+        max_tokens:
+          repairAttempt > 0
+            ? Math.max(input.maxTokens ?? 3600, 6000)
+            : (input.maxTokens ?? 3600),
         ...(webSearchEnabled
           ? {
               tools: [
@@ -171,7 +197,13 @@ async function askOpenRouter(input: {
           : { type: "json_object" },
         messages: [
           { role: "system", content: input.system },
-          { role: "user", content: input.prompt },
+          {
+            role: "user",
+            content:
+              repairAttempt > 0
+                ? `${input.prompt}\n\nIMPORTANT : une reponse precedente etait un JSON invalide ou tronque. Renvoie le document JSON complet depuis le debut, compact, sans markdown. Ferme obligatoirement toutes les chaines, listes et accolades. N'ajoute aucun texte avant ou apres le JSON.`
+                : input.prompt,
+          },
         ],
       }),
     });
@@ -200,12 +232,55 @@ async function askOpenRouter(input: {
   }
 
   const result = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
+    choices?: Array<{
+      message?: {
+        content?: string | Array<{ type?: string; text?: string }>;
+      };
+    }>;
   };
-  const content = result.choices?.[0]?.message?.content;
+  const content = getOpenRouterContent(result);
   if (!content)
     throw new Error("OpenRouter n’a retourné aucun résultat pour cette phase.");
-  return JSON.parse(cleanJson(content)) as unknown;
+  let candidateContent = content;
+  for (let parseAttempt = 0; parseAttempt < 3; parseAttempt += 1) {
+    try {
+      return JSON.parse(cleanJson(candidateContent)) as unknown;
+    } catch (error) {
+      if (!(error instanceof SyntaxError) || parseAttempt === 2) {
+        throw new Error(
+          "La phase IA a renvoye un JSON incomplet apres trois tentatives. Clique sur Reessayer : les etapes deja terminees seront conservees.",
+          { cause: error },
+        );
+      }
+
+      if (testMode) model = "openrouter/free";
+      response = await sendRequest(model, parseAttempt === 0, parseAttempt + 1);
+      if (!response.ok && parseAttempt === 0) {
+        response = await sendRequest(model, false, parseAttempt + 1);
+      }
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(
+          `OpenRouter n'a pas pu reparer la reponse (${response.status})${detail ? ` : ${detail.slice(0, 220)}` : "."}`,
+        );
+      }
+
+      const repairedResult = (await response.json()) as {
+        choices?: Array<{
+          message?: {
+            content?: string | Array<{ type?: string; text?: string }>;
+          };
+        }>;
+      };
+      candidateContent = getOpenRouterContent(repairedResult);
+      if (!candidateContent)
+        throw new Error(
+          "OpenRouter n'a retourne aucun resultat pendant la reparation JSON.",
+        );
+    }
+  }
+
+  throw new Error("La phase IA n'a pas produit de JSON exploitable.");
 }
 
 type RawGeneratedQuiz = Omit<ReusableQuiz, "questions"> & {
@@ -588,6 +663,7 @@ export async function structureArticle(input: {
   const result = (await askOpenRouter({
     schemaName: "landscaper_article_outline",
     executionMode: input.executionMode,
+    maxTokens: 5200,
     system: `${skill}\n\nTu es l’architecte éditorial d’un blog de paysagiste français.`,
     prompt: `Sujet : ${input.topic}\n\nDossier de recherche validé :\n${JSON.stringify(input.research)}\n\nConstruis un titre clair, un résumé de 140 à 220 caractères et un plan H2/H3 détaillé pour un article de 900 à 1400 mots. Chaque grande partie est un H2 avec le style de section du builder ; les H3 sont réservés aux sous-parties du H2 précédent. Chaque titre est un bloc distinct des paragraphes. Chaque section reçoit un identifiant kebab-case, un objectif, des points précis, un format et une instruction de composant. Demande exactement une image hero et au maximum trois images inline. Une image inline doit référencer un sectionId existant. Décide si un quiz apporte une vraie aide au lecteur ; sinon retourne enabled=false et des champs vides. Le slug ne contient que des lettres ASCII, chiffres et tirets.`,
     schema: {
@@ -747,7 +823,7 @@ export async function writeArticle(input: {
   const result = (await askOpenRouter({
     schemaName: "landscaper_article",
     executionMode: input.executionMode,
-    maxTokens: 4800,
+    maxTokens: 7200,
     system: `${skill}\n\nTu es le rédacteur final d’un blog de paysagiste français. Le texte est concret, original, fluide et compréhensible, sans bourrage de mots-clés.`,
     prompt: `Sujet : ${input.topic}\n\nPlan éditorial verrouillé :\n${JSON.stringify(input.outline)}\n\nImages déjà résolues :\n${JSON.stringify(input.images)}\n\nQuiz déjà résolu :\n${JSON.stringify(input.quizPlan ?? null)}\n\nRédige maintenant l’article complet de 900 à 1400 mots. Retourne exactement une entrée par sectionId, dans le même ordre que le plan. Les titres, images et quiz seront assemblés par le code : ne les répète pas. Pour format=prose, remplis paragraphs et laisse les composants vides. Pour table, cards ou callout, rédige aussi le composant demandé tout en conservant au moins un paragraphe d’introduction.`,
     schema: {
