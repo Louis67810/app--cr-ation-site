@@ -94,6 +94,191 @@ export type GeneratedArticle = {
   }>;
 };
 
+function validateResearchBrief(value: unknown) {
+  const result = value as Partial<ResearchBrief> | null;
+  const errors: string[] = [];
+  if (!result?.topic?.trim()) errors.push("topic est vide");
+  if (!result?.summary?.trim()) errors.push("summary est vide");
+  if (!Array.isArray(result?.facts)) errors.push("facts doit etre une liste");
+  if (!result?.performanceAnalysis)
+    errors.push("performanceAnalysis est manquant");
+  return errors;
+}
+
+function validateArticleOutline(value: unknown) {
+  const result = value as Partial<ArticleOutline> | null;
+  const errors: string[] = [];
+  if (!result?.title?.trim()) errors.push("title est vide");
+  if (!result?.excerpt?.trim()) errors.push("excerpt est vide");
+  if (!result?.category?.trim()) errors.push("category est vide");
+  if (!result?.slug?.trim()) errors.push("slug est vide");
+  if (!result?.readingTime?.trim()) errors.push("readingTime est vide");
+  if (!Array.isArray(result?.sections) || result.sections.length < 4) {
+    errors.push("sections doit contenir au moins quatre sections");
+    return errors;
+  }
+
+  const ids = result.sections.map((section) => section?.id).filter(Boolean);
+  const sectionIds = new Set(ids);
+  if (sectionIds.size !== result.sections.length)
+    errors.push("chaque section doit avoir un id unique non vide");
+  if (
+    result.sections.some(
+      (section) =>
+        !section?.title?.trim() ||
+        !Array.isArray(section.points) ||
+        section.points.length === 0,
+    )
+  )
+    errors.push("chaque section doit avoir un titre et au moins un point");
+
+  const imageRequests = Array.isArray(result.imageRequests)
+    ? result.imageRequests
+    : [];
+  const heroCount = imageRequests.filter(
+    (image) => image?.kind === "hero",
+  ).length;
+  if (heroCount !== 1)
+    errors.push("imageRequests doit contenir exactement une image hero");
+  if (
+    imageRequests.some(
+      (image) =>
+        image?.kind === "inline" && !sectionIds.has(image.afterSectionId),
+    )
+  )
+    errors.push("chaque image inline doit viser un sectionId existant");
+  if (
+    result.quizRequest?.enabled &&
+    !sectionIds.has(result.quizRequest.afterSectionId)
+  )
+    errors.push("le quiz doit viser un sectionId existant");
+  if (!result.quizRequest) errors.push("quizRequest est manquant");
+  return errors;
+}
+
+function normalizeArticleOutline(value: unknown) {
+  const result = value as Partial<ArticleOutline> | null;
+  if (!result || !Array.isArray(result.sections) || result.sections.length === 0)
+    return value;
+
+  const usedIds = new Set<string>();
+  const idMap = new Map<string, string>();
+  const sections = result.sections.map((section, index) => {
+    const originalId = section?.id?.trim() || `section-${index + 1}`;
+    let id = originalId;
+    let suffix = 2;
+    while (usedIds.has(id)) id = `${originalId}-${suffix++}`;
+    usedIds.add(id);
+    if (!idMap.has(originalId)) idMap.set(originalId, id);
+    return { ...section, id };
+  });
+  const fallbackSectionId =
+    sections.find((section) => section.level === "h2")?.id ?? sections[0].id;
+  const requestedImages = Array.isArray(result.imageRequests)
+    ? result.imageRequests
+    : [];
+  const firstHero = requestedImages.find((image) => image?.kind === "hero");
+  const heroSource = firstHero ?? requestedImages[0];
+  const hero: ArticleImageRequest = {
+    id: heroSource?.id?.trim() || "hero-image",
+    kind: "hero",
+    afterSectionId: "",
+    purpose:
+      heroSource?.purpose?.trim() || "Illustrer le sujet principal de l'article",
+    prompt:
+      heroSource?.prompt?.trim() ||
+      `Photographie editoriale premium illustrant ${result.title ?? "le sujet de l'article"}`,
+    alt:
+      heroSource?.alt?.trim() ||
+      result.heroImageAlt?.trim() ||
+      result.title?.trim() ||
+      "Illustration principale de l'article",
+    caption: heroSource?.caption?.trim() || "",
+    aspectRatio: "16:9",
+  };
+  const inlineImages = requestedImages
+    .filter((image) => image !== firstHero && image !== heroSource)
+    .filter((image) => image?.kind === "inline")
+    .slice(0, 3)
+    .map((image, index) => ({
+      ...image,
+      id: image.id?.trim() || `inline-image-${index + 1}`,
+      kind: "inline" as const,
+      afterSectionId:
+        idMap.get(image.afterSectionId) ??
+        (usedIds.has(image.afterSectionId)
+          ? image.afterSectionId
+          : fallbackSectionId),
+    }));
+  const quizRequest: ArticleQuizRequest = result.quizRequest
+    ? {
+        ...result.quizRequest,
+        afterSectionId: result.quizRequest.enabled
+          ? (idMap.get(result.quizRequest.afterSectionId) ??
+            (usedIds.has(result.quizRequest.afterSectionId)
+              ? result.quizRequest.afterSectionId
+              : fallbackSectionId))
+          : "",
+      }
+    : {
+        enabled: false,
+        afterSectionId: "",
+        goal: "",
+        format: "recommendation",
+        resultCategories: [],
+        ctaLabel: "",
+      };
+
+  return {
+    ...result,
+    sections,
+    imageRequests: [hero, ...inlineImages],
+    quizRequest,
+  };
+}
+
+function validateGeneratedArticle(value: unknown, expectedIds: string[]) {
+  const result = value as Partial<GeneratedArticle> | null;
+  const errors: string[] = [];
+  if (!result?.title?.trim()) errors.push("title est vide");
+  if (!result?.excerpt?.trim()) errors.push("excerpt est vide");
+  if (!Array.isArray(result?.sections)) {
+    errors.push("sections doit etre une liste");
+    return errors;
+  }
+  const actualIds = result.sections.map((section) => section?.sectionId);
+  if (actualIds.length !== expectedIds.length)
+    errors.push("la redaction doit contenir exactement une entree par section");
+  if (actualIds.some((id, index) => id !== expectedIds[index]))
+    errors.push(
+      `les sectionId doivent respecter cet ordre exact : ${expectedIds.join(", ")}`,
+    );
+  if (
+    result.sections.some(
+      (section) => !Array.isArray(section?.paragraphs),
+    )
+  )
+    errors.push("chaque section redigee doit contenir paragraphs");
+  return errors;
+}
+
+function normalizeGeneratedArticle(value: unknown, expectedIds: string[]) {
+  const result = value as Partial<GeneratedArticle> | null;
+  if (!result || !Array.isArray(result.sections)) return value;
+  const sectionsById = new Map(
+    result.sections.map((section) => [section.sectionId, section]),
+  );
+  if (
+    sectionsById.size !== expectedIds.length ||
+    expectedIds.some((id) => !sectionsById.has(id))
+  )
+    return value;
+  return {
+    ...result,
+    sections: expectedIds.map((id) => sectionsById.get(id)),
+  };
+}
+
 const modeInstructions: Record<EditorialMode, string> = {
   seo: "Cherche un angle evergreen qui répond précisément à une intention de recherche utile aux clients d’un paysagiste.",
   youtube:
@@ -136,6 +321,8 @@ async function askOpenRouter(input: {
   maxTokens?: number;
   model?: string;
   executionMode: EditorialExecutionMode;
+  normalize?: (value: unknown) => unknown;
+  validate?: (value: unknown) => string[];
 }) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey)
@@ -156,6 +343,7 @@ async function askOpenRouter(input: {
     selectedModel: string,
     strictSchema: boolean,
     repairAttempt = 0,
+    repairReason = "",
   ) =>
     fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -201,7 +389,7 @@ async function askOpenRouter(input: {
             role: "user",
             content:
               repairAttempt > 0
-                ? `${input.prompt}\n\nIMPORTANT : une reponse precedente etait un JSON invalide ou tronque. Renvoie le document JSON complet depuis le debut, compact, sans markdown. Ferme obligatoirement toutes les chaines, listes et accolades. N'ajoute aucun texte avant ou apres le JSON.`
+                ? `${input.prompt}\n\nIMPORTANT : une reponse precedente etait invalide. Renvoie le document JSON complet depuis le debut, compact, sans markdown. Ferme obligatoirement toutes les chaines, listes et accolades. N'ajoute aucun texte avant ou apres le JSON. Corrige imperativement ces erreurs : ${repairReason}`
                 : input.prompt,
           },
         ],
@@ -243,41 +431,58 @@ async function askOpenRouter(input: {
     throw new Error("OpenRouter n’a retourné aucun résultat pour cette phase.");
   let candidateContent = content;
   for (let parseAttempt = 0; parseAttempt < 3; parseAttempt += 1) {
+    let repairReason = "";
     try {
-      return JSON.parse(cleanJson(candidateContent)) as unknown;
+      const parsed = JSON.parse(cleanJson(candidateContent)) as unknown;
+      const normalized = input.normalize?.(parsed) ?? parsed;
+      const validationErrors = input.validate?.(normalized) ?? [];
+      if (validationErrors.length === 0) return normalized;
+      repairReason = validationErrors.join("; ");
     } catch (error) {
-      if (!(error instanceof SyntaxError) || parseAttempt === 2) {
-        throw new Error(
-          "La phase IA a renvoye un JSON incomplet apres trois tentatives. Clique sur Reessayer : les etapes deja terminees seront conservees.",
-          { cause: error },
-        );
-      }
-
-      if (testMode) model = "openrouter/free";
-      response = await sendRequest(model, parseAttempt === 0, parseAttempt + 1);
-      if (!response.ok && parseAttempt === 0) {
-        response = await sendRequest(model, false, parseAttempt + 1);
-      }
-      if (!response.ok) {
-        const detail = await response.text();
-        throw new Error(
-          `OpenRouter n'a pas pu reparer la reponse (${response.status})${detail ? ` : ${detail.slice(0, 220)}` : "."}`,
-        );
-      }
-
-      const repairedResult = (await response.json()) as {
-        choices?: Array<{
-          message?: {
-            content?: string | Array<{ type?: string; text?: string }>;
-          };
-        }>;
-      };
-      candidateContent = getOpenRouterContent(repairedResult);
-      if (!candidateContent)
-        throw new Error(
-          "OpenRouter n'a retourne aucun resultat pendant la reparation JSON.",
-        );
+      if (!(error instanceof SyntaxError)) throw error;
+      repairReason = `JSON invalide ou tronque : ${error.message}`;
     }
+
+    if (parseAttempt === 2) {
+      throw new Error(
+        `La phase IA reste invalide apres trois tentatives (${repairReason}). Clique sur Reessayer : les etapes deja terminees seront conservees.`,
+      );
+    }
+
+    if (testMode) model = "openrouter/free";
+    response = await sendRequest(
+      model,
+      parseAttempt === 0,
+      parseAttempt + 1,
+      repairReason,
+    );
+    if (!response.ok && parseAttempt === 0) {
+      response = await sendRequest(
+        model,
+        false,
+        parseAttempt + 1,
+        repairReason,
+      );
+    }
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(
+        `OpenRouter n'a pas pu reparer la reponse (${response.status})${detail ? ` : ${detail.slice(0, 220)}` : "."}`,
+      );
+    }
+
+    const repairedResult = (await response.json()) as {
+      choices?: Array<{
+        message?: {
+          content?: string | Array<{ type?: string; text?: string }>;
+        };
+      }>;
+    };
+    candidateContent = getOpenRouterContent(repairedResult);
+    if (!candidateContent)
+      throw new Error(
+        "OpenRouter n'a retourne aucun resultat pendant la reparation JSON.",
+      );
   }
 
   throw new Error("La phase IA n'a pas produit de JSON exploitable.");
@@ -303,6 +508,77 @@ type RawGeneratedQuiz = Omit<ReusableQuiz, "questions"> & {
   }>;
 };
 
+function validateGeneratedQuiz(value: unknown, outline: ArticleOutline) {
+  const quiz = value as Partial<RawGeneratedQuiz> | null;
+  const errors: string[] = [];
+  const sectionIds = new Set(outline.sections.map((section) => section.id));
+  if (!quiz?.placementAfterSectionId)
+    errors.push("placementAfterSectionId est vide");
+  else if (!sectionIds.has(quiz.placementAfterSectionId))
+    errors.push("placementAfterSectionId doit viser une section existante");
+  if (!Array.isArray(quiz?.questions) || quiz.questions.length < 3)
+    errors.push("questions doit contenir au moins trois questions");
+  else {
+    const questionIds = new Set(quiz.questions.map((question) => question.id));
+    if (questionIds.size !== quiz.questions.length)
+      errors.push("chaque question doit avoir un id unique");
+    if (
+      quiz.questions.some(
+        (question) =>
+          !Array.isArray(question?.options) || question.options.length < 2,
+      )
+    )
+      errors.push("chaque question doit proposer au moins deux options");
+    if (
+      quiz.questions.some((question) =>
+        question.options?.some(
+          (option) =>
+            option.nextQuestionId &&
+            !questionIds.has(option.nextQuestionId),
+        ),
+      )
+    )
+      errors.push("chaque nextQuestionId doit viser une question existante");
+  }
+  if (!Array.isArray(quiz?.results) || quiz.results.length < 2)
+    errors.push("results doit contenir au moins deux resultats");
+  else {
+    const resultIds = new Set(quiz.results.map((result) => result.id));
+    if (resultIds.size !== quiz.results.length)
+      errors.push("chaque resultat doit avoir un id unique");
+    if (
+      quiz.questions?.some((question) =>
+        question.options?.some(
+          (option) =>
+            (option.resultId && !resultIds.has(option.resultId)) ||
+            option.weights?.some(
+              (weight) => !resultIds.has(weight.resultId),
+            ),
+        ),
+      )
+    )
+      errors.push("les options doivent viser uniquement des resultats existants");
+  }
+  return errors;
+}
+
+function normalizeGeneratedQuiz(value: unknown, outline: ArticleOutline) {
+  const quiz = value as Partial<RawGeneratedQuiz> | null;
+  if (!quiz) return value;
+  const sectionIds = new Set(outline.sections.map((section) => section.id));
+  const fallbackSectionId = sectionIds.has(outline.quizRequest.afterSectionId)
+    ? outline.quizRequest.afterSectionId
+    : outline.sections.at(-1)?.id;
+  return {
+    ...quiz,
+    placementAfterSectionId: sectionIds.has(
+      quiz.placementAfterSectionId ?? "",
+    )
+      ? quiz.placementAfterSectionId
+      : fallbackSectionId,
+  };
+}
+
 export type GeneratedQuizPlan = {
   quiz: ReusableQuiz;
   placementAfterSectionId: string;
@@ -321,6 +597,8 @@ export async function generateArticleQuiz(input: {
       process.env.OPENROUTER_QUIZ_MODEL ?? process.env.OPENROUTER_CONTENT_MODEL,
     maxTokens: 4200,
     executionMode: input.executionMode,
+    normalize: (value) => normalizeGeneratedQuiz(value, input.outline),
+    validate: (value) => validateGeneratedQuiz(value, input.outline),
     system: `${skill}\n\nTu produis une configuration JSON exacte pour le moteur de quiz existant.`,
     prompt: `Projet : ${input.projectName}\nSujet : ${input.topic}\n\nPlan verrouillé :\n${JSON.stringify(input.outline)}\n\nCrée uniquement le quiz demandé par quizRequest. Respecte exactement son format, son objectif, ses catégories, son CTA et placementAfterSectionId. Les identifiants sont courts, uniques et en kebab-case. nextQuestionId et resultId sont des chaînes vides quand ils ne sont pas utilisés. N'invente aucun chiffre ni promesse commerciale.`,
     schema: {
@@ -519,6 +797,7 @@ export async function researchTopic(input: {
     research: true,
     executionMode: input.executionMode,
     maxTokens: 3000,
+    validate: validateResearchBrief,
     system: `${skill}\n\nTu es l’agent de recherche d’une rédaction française spécialisée dans le paysage et le jardin.`,
     prompt: `${modeInstructions[input.mode]}\n\nProjet : ${input.projectName}\n${input.discoverTopic ? "Aucun sujet n'est imposé. Choisis toi-même UN sujet précis, nouveau et utile à partir des performances, opportunités et pages existantes. Ne propose pas un doublon." : `Sujet imposé : ${input.topic}`}\n\n${sourceContext}\n\nDONNÉES HISTORIQUES RÉELLES DU SITE :\n${JSON.stringify(input.performance)}\n\nCommence par comparer les anciennes pages sans inventer de données. Une page récente ou sans données ne doit jamais être déclarée faible. Croise Google Analytics 4 et Google Search Console lorsqu'ils sont présents : trafic et engagement d'un côté, impressions, clics, CTR et position de l'autre. Utilise les pages gagnantes, faibles et les opportunités SEO pour choisir le sujet exact et l'angle du nouveau contenu. Puis complète par des sources web fiables si l'outil de recherche est disponible. Chaque fait externe doit être associé à une URL réellement consultée. Si aucune recherche web n'est disponible, n'invente aucune URL et utilise un tableau facts vide. Prépare aussi les questions auxquelles l’article doit répondre, les mots-clés naturels et les précautions éventuelles.`,
     schema: {
@@ -664,6 +943,8 @@ export async function structureArticle(input: {
     schemaName: "landscaper_article_outline",
     executionMode: input.executionMode,
     maxTokens: 5200,
+    normalize: normalizeArticleOutline,
+    validate: validateArticleOutline,
     system: `${skill}\n\nTu es l’architecte éditorial d’un blog de paysagiste français.`,
     prompt: `Sujet : ${input.topic}\n\nDossier de recherche validé :\n${JSON.stringify(input.research)}\n\nConstruis un titre clair, un résumé de 140 à 220 caractères et un plan H2/H3 détaillé pour un article de 900 à 1400 mots. Chaque grande partie est un H2 avec le style de section du builder ; les H3 sont réservés aux sous-parties du H2 précédent. Chaque titre est un bloc distinct des paragraphes. Chaque section reçoit un identifiant kebab-case, un objectif, des points précis, un format et une instruction de composant. Demande exactement une image hero et au maximum trois images inline. Une image inline doit référencer un sectionId existant. Décide si un quiz apporte une vraie aide au lecteur ; sinon retourne enabled=false et des champs vides. Le slug ne contient que des lettres ASCII, chiffres et tirets.`,
     schema: {
@@ -824,6 +1105,16 @@ export async function writeArticle(input: {
     schemaName: "landscaper_article",
     executionMode: input.executionMode,
     maxTokens: 7200,
+    normalize: (value) =>
+      normalizeGeneratedArticle(
+        value,
+        input.outline.sections.map((section) => section.id),
+      ),
+    validate: (value) =>
+      validateGeneratedArticle(
+        value,
+        input.outline.sections.map((section) => section.id),
+      ),
     system: `${skill}\n\nTu es le rédacteur final d’un blog de paysagiste français. Le texte est concret, original, fluide et compréhensible, sans bourrage de mots-clés.`,
     prompt: `Sujet : ${input.topic}\n\nPlan éditorial verrouillé :\n${JSON.stringify(input.outline)}\n\nImages déjà résolues :\n${JSON.stringify(input.images)}\n\nQuiz déjà résolu :\n${JSON.stringify(input.quizPlan ?? null)}\n\nRédige maintenant l’article complet de 900 à 1400 mots. Retourne exactement une entrée par sectionId, dans le même ordre que le plan. Les titres, images et quiz seront assemblés par le code : ne les répète pas. Pour format=prose, remplis paragraphs et laisse les composants vides. Pour table, cards ou callout, rédige aussi le composant demandé tout en conservant au moins un paragraphe d’introduction.`,
     schema: {
