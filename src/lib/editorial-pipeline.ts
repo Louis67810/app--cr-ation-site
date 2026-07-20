@@ -7,6 +7,7 @@ export type EditorialMode = "seo" | "youtube" | "trends" | "editorial";
 export type EditorialExecutionMode = "test" | "classic";
 
 export type ResearchBrief = {
+  topic: string;
   summary: string;
   searchIntent: string;
   audience: string;
@@ -139,7 +140,7 @@ async function askOpenRouter(input: {
       "Content-Type": "application/json",
       "HTTP-Referer":
         process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-      "X-OpenRouter-Title": "Atelier Site Builder — Pipeline éditorial",
+      "X-OpenRouter-Title": "Atelier Site Builder - Editorial Pipeline",
     },
     body: JSON.stringify({
       model,
@@ -428,12 +429,13 @@ export async function researchTopic(input: {
   topic: string;
   projectName: string;
   source?: string;
+  discoverTopic?: boolean;
   performance: EditorialPerformanceSnapshot;
 }) {
   const skill = await loadRuntimeSkill("article-research");
   const sourceContext = input.source
     ? `Source imposée par l’utilisateur (URL ou transcription) :\n${input.source.slice(0, 12000)}`
-    : process.env.AI_DEMO_MODE !== "false" &&
+    : input.executionMode === "test" &&
         process.env.OPENROUTER_DEMO_WEB_SEARCH !== "true"
       ? "Mode démo sans recherche web : utilise uniquement les données historiques transmises et indique clairement les informations externes manquantes."
       : "Aucune source imposée : effectue une recherche web indépendante.";
@@ -444,11 +446,12 @@ export async function researchTopic(input: {
     executionMode: input.executionMode,
     maxTokens: 3000,
     system: `${skill}\n\nTu es l’agent de recherche d’une rédaction française spécialisée dans le paysage et le jardin.`,
-    prompt: `${modeInstructions[input.mode]}\n\nProjet : ${input.projectName}\nSujet : ${input.topic}\n\n${sourceContext}\n\nDONNÉES HISTORIQUES RÉELLES DU SITE :\n${JSON.stringify(input.performance)}\n\nCommence par comparer les anciennes pages sans inventer de données. Une page récente ou sans données ne doit jamais être déclarée faible. Croise Google Analytics 4 et Google Search Console lorsqu'ils sont présents : trafic et engagement d'un côté, impressions, clics, CTR et position de l'autre. Utilise les pages gagnantes, faibles et les opportunités SEO pour choisir l'angle du nouveau contenu. Puis complète par des sources web fiables si l'outil de recherche est disponible. Chaque fait externe doit être associé à une URL réellement consultée. Si aucune recherche web n'est disponible, n'invente aucune URL et utilise un tableau facts vide. Prépare aussi les questions auxquelles l’article doit répondre, les mots-clés naturels et les précautions éventuelles.`,
+    prompt: `${modeInstructions[input.mode]}\n\nProjet : ${input.projectName}\n${input.discoverTopic ? "Aucun sujet n'est imposé. Choisis toi-même UN sujet précis, nouveau et utile à partir des performances, opportunités et pages existantes. Ne propose pas un doublon." : `Sujet imposé : ${input.topic}`}\n\n${sourceContext}\n\nDONNÉES HISTORIQUES RÉELLES DU SITE :\n${JSON.stringify(input.performance)}\n\nCommence par comparer les anciennes pages sans inventer de données. Une page récente ou sans données ne doit jamais être déclarée faible. Croise Google Analytics 4 et Google Search Console lorsqu'ils sont présents : trafic et engagement d'un côté, impressions, clics, CTR et position de l'autre. Utilise les pages gagnantes, faibles et les opportunités SEO pour choisir le sujet exact et l'angle du nouveau contenu. Puis complète par des sources web fiables si l'outil de recherche est disponible. Chaque fait externe doit être associé à une URL réellement consultée. Si aucune recherche web n'est disponible, n'invente aucune URL et utilise un tableau facts vide. Prépare aussi les questions auxquelles l’article doit répondre, les mots-clés naturels et les précautions éventuelles.`,
     schema: {
       type: "object",
       additionalProperties: false,
       required: [
+        "topic",
         "summary",
         "searchIntent",
         "audience",
@@ -460,6 +463,7 @@ export async function researchTopic(input: {
         "performanceAnalysis",
       ],
       properties: {
+        topic: { type: "string" },
         summary: { type: "string" },
         searchIntent: { type: "string" },
         audience: { type: "string" },
@@ -566,6 +570,7 @@ export async function researchTopic(input: {
   })) as ResearchBrief;
 
   if (
+    !result.topic?.trim() ||
     !result.summary?.trim() ||
     !Array.isArray(result.facts) ||
     !result.performanceAnalysis

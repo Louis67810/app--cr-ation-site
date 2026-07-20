@@ -68,6 +68,7 @@ type ProductionPhaseStatus = "pending" | "running" | "completed" | "error";
 type ProductionState = {
   idea: EditorialIdea;
   executionMode: EditorialExecutionMode;
+  discoverTopic: boolean;
   statuses: Record<ProductionPhase, ProductionPhaseStatus>;
   error?: string;
   warning?: string;
@@ -245,16 +246,18 @@ export function AiAgents({
   }
 
   function openArticleCreation() {
-    const readyIdea =
-      ideas.find((idea) => idea.approved && idea.mode === ideaFilter) ??
-      ideas.find((idea) => idea.approved);
-    if (!readyIdea) {
-      openIdeaForm();
-      return;
-    }
-    setIdeaFilter(readyIdea.mode);
-    setActiveIdeaId(readyIdea.id);
-    setView("idea-detail");
+    void runProduction(
+      {
+        id: `automatic-${crypto.randomUUID()}`,
+        title: "Sujet choisi automatiquement",
+        content:
+          "Analyse les statistiques, les pages existantes et les opportunités disponibles afin de choisir un nouveau sujet pertinent et non redondant.",
+        mode: ideaFilter,
+        createdAt: new Date().toISOString(),
+        approved: true,
+      },
+      true,
+    );
   }
 
   function addIdea(event: React.FormEvent<HTMLFormElement>) {
@@ -291,16 +294,20 @@ export function AiAgents({
     setIdeaFilter(updated.mode);
   }
 
-  async function runProduction(updated: EditorialIdea) {
+  async function runProduction(
+    updated: EditorialIdea,
+    discoverTopic = false,
+  ) {
     if (!updated.approved) return;
     const idea = updated;
     const selectedExecutionMode = executionMode;
-    saveIdea(idea);
+    if (!discoverTopic) saveIdea(idea);
     setActiveIdeaId(idea.id);
     setView("production");
     setProduction({
       idea,
       executionMode: selectedExecutionMode,
+      discoverTopic,
       statuses: {
         research: "running",
         outline: "pending",
@@ -322,6 +329,7 @@ export function AiAgents({
           executionMode: selectedExecutionMode,
           topic: idea.title,
           source: idea.content,
+          discoverTopic,
           projectKey: project.key,
           projectOwnerId: project.ownerId,
           ...extra,
@@ -343,6 +351,9 @@ export function AiAgents({
         current
           ? {
               ...current,
+              idea: discoverTopic
+                ? { ...current.idea, title: researchResult.research.topic }
+                : current.idea,
               statuses: {
                 ...current.statuses,
                 research: "completed",
@@ -636,7 +647,9 @@ export function AiAgents({
           {view === "production" && production ? (
             <ProductionOverlay
               production={production}
-              onRetry={() => runProduction(production.idea)}
+              onRetry={() =>
+                runProduction(production.idea, production.discoverTopic)
+              }
               onOpenArticle={() => setView("article")}
               onBack={() => {
                 setProduction(null);

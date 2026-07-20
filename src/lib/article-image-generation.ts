@@ -21,7 +21,7 @@ export async function generateArticleImage(
       "Content-Type": "application/json",
       "HTTP-Referer":
         process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-      "X-OpenRouter-Title": "Atelier Site Builder — Images éditoriales",
+      "X-OpenRouter-Title": "Atelier Site Builder - Editorial Images",
     },
     body: JSON.stringify({
       model:

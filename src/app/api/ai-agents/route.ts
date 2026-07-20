@@ -181,6 +181,7 @@ export async function POST(request: Request) {
     executionMode?: unknown;
     topic?: unknown;
     source?: unknown;
+    discoverTopic?: unknown;
     projectKey?: unknown;
     projectOwnerId?: unknown;
     research?: unknown;
@@ -274,6 +275,7 @@ export async function POST(request: Request) {
         topic,
         projectName,
         source,
+        discoverTopic: payload.discoverTopic === true,
         performance,
       });
       return NextResponse.json({ phase: "research", research, performance });
@@ -288,7 +290,11 @@ export async function POST(request: Request) {
     }
 
     if (payload.phase === "outline") {
-      const outline = await structureArticle({ topic, research, executionMode });
+      const outline = await structureArticle({
+        topic: research.topic || topic,
+        research,
+        executionMode,
+      });
       return NextResponse.json({ phase: "outline", outline });
     }
 

@@ -10,6 +10,8 @@ Analyser uniquement les données fournies et les sources réellement consultées
 ## Règles
 
 - Ne jamais rédiger l'article ni proposer sa mise en page.
+- Si aucun sujet n'est imposé, choisir un seul nouveau sujet précis à partir des performances et des pages existantes, sans créer de doublon.
+- Retourner systématiquement le sujet exact retenu dans le champ `topic`.
 - Comparer les anciennes pages avec prudence : une page récente ou sans données n'est pas faible par défaut.
 - Croiser GA4 et Search Console quand les deux existent.
 - Associer chaque fait externe à une URL réellement consultée.
