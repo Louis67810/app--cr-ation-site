@@ -37,15 +37,18 @@ async function context(request: Request) {
 
 async function snapshot(input: Awaited<ReturnType<typeof context>>) {
   if ("error" in input) return input.error;
-  const [performanceResult, summaryResult] = await Promise.all([
+  const [performanceResult, summaryResult, trackingResult] = await Promise.all([
     input.supabase.from("project_page_performance").select("*").eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey).order("ga_page_views", { ascending: false }),
     input.supabase.from("project_analytics_summary").select("*").eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey).maybeSingle(),
+    input.supabase.from("project_page_traffic_daily").select("page_path, day, page_views, unique_visitors, total_engagement_seconds, updated_at").eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey),
   ]);
   return NextResponse.json(buildEditorialPerformanceSnapshot({
     pages: input.pages,
     performanceRows: performanceResult.data,
+    trackingRows: trackingResult.data,
     summaryRow: summaryResult.data,
     performanceError: performanceResult.error?.message ?? summaryResult.error?.message,
+    trackingError: trackingResult.error?.message,
   }));
 }
 

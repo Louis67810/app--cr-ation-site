@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
+import { SiteTracker } from "@/components/site-tracker";
 import { renderSection } from "@/components/site-sections";
 import { getLocalPublication } from "@/lib/local-publications";
 import { createClient } from "@/lib/supabase/server";
@@ -75,18 +76,21 @@ export default async function PublishedSitePage({
   ) as SectionInstance[];
 
   return (
-    <main
-      className="min-h-screen bg-white text-[#0f1112]"
-      style={
-        preview === "dashboard"
-          ? ({ "--site-hero-height": "855px" } as CSSProperties)
-          : undefined
-      }
-    >
-      {sections.map((section) => (
-        <div key={section.id}>{renderSection(section)}</div>
-      ))}
-    </main>
+    <>
+      {remotePublication && preview !== "dashboard" ? <SiteTracker publishedSlug={slug} pagePath={pageSlug} /> : null}
+      <main
+        className="min-h-screen bg-white text-[#0f1112]"
+        style={
+          preview === "dashboard"
+            ? ({ "--site-hero-height": "855px" } as CSSProperties)
+            : undefined
+        }
+      >
+        {sections.map((section) => (
+          <div key={section.id}>{renderSection(section)}</div>
+        ))}
+      </main>
+    </>
   );
 }
 

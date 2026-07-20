@@ -78,16 +78,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const { data: assetRows } = await supabase.from("project_assets").select("id, public_url, original_name, title, alt_text, ai_generated, created_at").eq("owner_id", selected.ownerId).eq("project_key", selected.key).order("created_at", { ascending: false });
   const assets = (assetRows ?? []) as DashboardAsset[];
 
-  const [performanceResult, analyticsSummaryResult, analyticsConnectionResult] = await Promise.all([
+  const [performanceResult, analyticsSummaryResult, analyticsConnectionResult, internalTrackingResult] = await Promise.all([
     supabase.from("project_page_performance").select("*").eq("owner_id", selected.ownerId).eq("project_key", selected.key).order("ga_page_views", { ascending: false }),
     supabase.from("project_analytics_summary").select("*").eq("owner_id", selected.ownerId).eq("project_key", selected.key).maybeSingle(),
     supabase.from("project_analytics_connections").select("ga_property_id, ga_measurement_id, gsc_site_url, updated_at").eq("owner_id", selected.ownerId).eq("project_key", selected.key).maybeSingle(),
+    supabase.from("project_page_traffic_daily").select("page_path, day, page_views, unique_visitors, total_engagement_seconds, updated_at").eq("owner_id", selected.ownerId).eq("project_key", selected.key),
   ]);
   const analytics = buildEditorialPerformanceSnapshot({
     pages: selected.pages,
     performanceRows: performanceResult.data,
+    trackingRows: internalTrackingResult.data,
     summaryRow: analyticsSummaryResult.data,
     performanceError: performanceResult.error?.message ?? analyticsSummaryResult.error?.message,
+    trackingError: internalTrackingResult.error?.message,
   });
 
   const recap: MonthlyRecapData = { settings: null, events: [], deliveries: [], visitors: 0, pageViews: 0, ready: false, defaultEmail: typeof authData?.claims?.email === "string" ? authData.claims.email : "" };

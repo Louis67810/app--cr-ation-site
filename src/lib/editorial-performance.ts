@@ -20,6 +20,12 @@ export type PagePerformanceMetrics = {
     ctr: number;
     position: number;
   };
+  internalTracking: {
+    pageViews: number;
+    uniqueVisitors: number;
+    totalEngagementSeconds: number;
+    averageEngagementSeconds: number;
+  };
 };
 
 export type AnalyticsTotals = {
@@ -41,7 +47,7 @@ export type EditorialPerformanceSnapshot = {
   periodStart: string | null;
   periodEnd: string | null;
   updatedAt: string | null;
-  sources: Array<"googleAnalytics" | "searchConsole">;
+  sources: Array<"googleAnalytics" | "searchConsole" | "internalTracking">;
   siteTotals: AnalyticsTotals;
   pages: PagePerformanceMetrics[];
   warnings: string[];
@@ -77,6 +83,7 @@ function emptyPage(path: string, title: string): PagePerformanceMetrics {
       scrolledUsers: 0,
     },
     searchConsole: { clicks: 0, impressions: 0, ctr: 0, position: 0 },
+    internalTracking: { pageViews: 0, uniqueVisitors: 0, totalEngagementSeconds: 0, averageEngagementSeconds: 0 },
   };
 }
 
@@ -101,24 +108,48 @@ function rowToPage(row: PerformanceRow): PagePerformanceMetrics {
       ctr: number(row.gsc_ctr),
       position: number(row.gsc_position),
     },
+    internalTracking: { pageViews: 0, uniqueVisitors: 0, totalEngagementSeconds: 0, averageEngagementSeconds: 0 },
   };
+}
+
+function aggregateInternalTracking(rows: PerformanceRow[]) {
+  const pages = new Map<string, PagePerformanceMetrics["internalTracking"]>();
+  for (const row of rows) {
+    const path = String(row.page_path ?? "");
+    const current = pages.get(path) ?? { pageViews: 0, uniqueVisitors: 0, totalEngagementSeconds: 0, averageEngagementSeconds: 0 };
+    current.pageViews += number(row.page_views);
+    current.uniqueVisitors += number(row.unique_visitors);
+    current.totalEngagementSeconds += number(row.total_engagement_seconds);
+    current.averageEngagementSeconds = current.pageViews ? current.totalEngagementSeconds / current.pageViews : 0;
+    pages.set(path, current);
+  }
+  return pages;
 }
 
 export function buildEditorialPerformanceSnapshot(input: {
   pages: SitePage[];
   performanceRows?: PerformanceRow[] | null;
+  trackingRows?: PerformanceRow[] | null;
   summaryRow?: PerformanceRow | null;
   performanceError?: string | null;
+  trackingError?: string | null;
 }) {
   const rows = input.performanceRows ?? [];
+  const trackingRows = input.trackingRows ?? [];
+  const internalByPath = aggregateInternalTracking(trackingRows);
   const indexed = new Map(rows.map((row) => [String(row.page_path ?? ""), rowToPage(row)]));
-  const projectPages = input.pages.map((page) => indexed.get(page.slug) ?? emptyPage(page.slug, page.slug.startsWith("/blog/") ? articleTitle(page) : page.title));
-  const extraRows = rows.map(rowToPage).filter((page) => !projectPages.some((existing) => existing.path === page.path));
-  const pages = [...projectPages, ...extraRows];
+  const withInternal = (page: PagePerformanceMetrics) => ({ ...page, internalTracking: internalByPath.get(page.path) ?? page.internalTracking });
+  const projectPages = input.pages.map((page) => withInternal(indexed.get(page.slug) ?? emptyPage(page.slug, page.slug.startsWith("/blog/") ? articleTitle(page) : page.title)));
+  const extraRows = rows.map(rowToPage).filter((page) => !projectPages.some((existing) => existing.path === page.path)).map(withInternal);
+  const trackingOnlyPages = [...internalByPath.entries()]
+    .filter(([path]) => !projectPages.some((page) => page.path === path) && !extraRows.some((page) => page.path === path))
+    .map(([path, internalTracking]) => ({ ...emptyPage(path, path), internalTracking }));
+  const pages = [...projectPages, ...extraRows, ...trackingOnlyPages];
   const sources = new Set<EditorialPerformanceSnapshot["sources"][number]>();
   const summary = input.summaryRow;
   if (summary && (number(summary.ga_sessions) || number(summary.ga_page_views) || number(summary.ga_total_users))) sources.add("googleAnalytics");
   if (summary && (number(summary.gsc_impressions) || number(summary.gsc_clicks))) sources.add("searchConsole");
+  if (trackingRows.some((row) => number(row.page_views) || number(row.unique_visitors) || number(row.total_engagement_seconds))) sources.add("internalTracking");
 
   const siteTotals: AnalyticsTotals = {
     sessions: number(summary?.ga_sessions),
@@ -134,17 +165,18 @@ export function buildEditorialPerformanceSnapshot(input: {
     position: number(summary?.gsc_position),
   };
   const strings = (values: unknown[]) => values.filter((value): value is string => typeof value === "string" && Boolean(value)).sort();
-  const periodStarts = strings([summary?.period_start, ...rows.map((row) => row.period_start)]);
-  const periodEnds = strings([summary?.period_end, ...rows.map((row) => row.period_end)]);
-  const updatedDates = strings([summary?.updated_at, ...rows.map((row) => row.updated_at)]);
+  const periodStarts = strings([summary?.period_start, ...rows.map((row) => row.period_start), ...trackingRows.map((row) => row.day)]);
+  const periodEnds = strings([summary?.period_end, ...rows.map((row) => row.period_end), ...trackingRows.map((row) => row.day)]);
+  const updatedDates = strings([summary?.updated_at, ...rows.map((row) => row.updated_at), ...trackingRows.map((row) => row.updated_at)]);
   const warnings: string[] = [];
   if (input.performanceError) warnings.push("Les tables de statistiques ne sont pas encore disponibles : applique les migrations Supabase fournies.");
+  if (input.trackingError) warnings.push("Le tracking interne n’est pas encore disponible : applique sa migration Supabase.");
   if (!summary && !rows.length) warnings.push("Aucune statistique Google n’a encore été synchronisée. Les zéros ne représentent pas de mauvaises performances.");
   if (!sources.has("googleAnalytics")) warnings.push("Google Analytics 4 n’est pas encore connecté ou ne contient aucune donnée sur la période.");
   if (!sources.has("searchConsole")) warnings.push("Google Search Console n’est pas encore connecté ou ne contient aucune donnée sur la période.");
 
   return {
-    status: summary || rows.length ? (sources.size === 2 ? "connected" : "partial") : "missing",
+    status: sources.size ? (sources.has("internalTracking") || (sources.has("googleAnalytics") && sources.has("searchConsole")) ? "connected" : "partial") : "missing",
     periodStart: periodStarts[0] ?? null,
     periodEnd: periodEnds.at(-1) ?? null,
     updatedAt: updatedDates.at(-1) ?? null,

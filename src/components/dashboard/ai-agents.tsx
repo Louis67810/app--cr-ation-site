@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArticleQuiz } from "@/components/article-quiz";
 import {
   ArrowLeft,
-  Activity,
   BarChart3,
   Bot,
   Check,
@@ -17,10 +16,7 @@ import {
   Images,
   Lightbulb,
   LoaderCircle,
-  MousePointerClick,
   Plus,
-  RefreshCw,
-  Search,
   Sparkles,
   X,
   XCircle,
@@ -96,7 +92,7 @@ function defaultIdeas(pages: SitePage[]): EditorialIdea[] {
   }));
 }
 
-export function AiAgents({ project, initialAnalytics, gaPropertyId }: { project: DashboardProject; initialAnalytics: EditorialPerformanceSnapshot; gaPropertyId?: string }) {
+export function AiAgents({ project, initialAnalytics }: { project: DashboardProject; initialAnalytics: EditorialPerformanceSnapshot }) {
   const [pages, setPages] = useState(project.pages);
   const [view, setView] = useState<OverlayView>(null);
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
@@ -107,9 +103,7 @@ export function AiAgents({ project, initialAnalytics, gaPropertyId }: { project:
   const [ideaFilter, setIdeaFilter] = useState<IdeaMode>("seo");
   const [ideas, setIdeas] = useState<EditorialIdea[]>([]);
   const [savingPageId, setSavingPageId] = useState<string | null>(null);
-  const [analytics, setAnalytics] = useState(initialAnalytics);
-  const [syncingAnalytics, setSyncingAnalytics] = useState(false);
-  const [analyticsError, setAnalyticsError] = useState("");
+  const analytics = initialAnalytics;
   const articles = useMemo(() => getArticlePages(pages), [pages]);
   const performanceByPath = useMemo(() => new Map(analytics.pages.map((page) => [page.path, page])), [analytics.pages]);
   const activeArticle = articles.find((page) => page.id === activeArticleId) ?? null;
@@ -207,25 +201,6 @@ export function AiAgents({ project, initialAnalytics, gaPropertyId }: { project:
     setView("article");
   }
 
-  async function synchronizeAnalytics() {
-    setSyncingAnalytics(true);
-    setAnalyticsError("");
-    try {
-      const response = await fetch("/api/analytics", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectKey: project.key, projectOwnerId: project.ownerId }),
-      });
-      const result = await response.json() as EditorialPerformanceSnapshot & { error?: string };
-      if (!response.ok) throw new Error(result.error ?? "La synchronisation a échoué.");
-      setAnalytics(result);
-    } catch (caught) {
-      setAnalyticsError(caught instanceof Error ? caught.message : "La synchronisation a échoué.");
-    } finally {
-      setSyncingAnalytics(false);
-    }
-  }
-
   async function setEditorialStatus(page: SitePage, status: EditorialPageStatus) {
     if (savingPageId) return;
     setSavingPageId(page.id);
@@ -268,8 +243,6 @@ export function AiAgents({ project, initialAnalytics, gaPropertyId }: { project:
       </div>
     </header>
 
-    <AnalyticsConnectionStrip data={analytics} gaPropertyId={gaPropertyId} syncing={syncingAnalytics} error={analyticsError} onSync={synchronizeAnalytics} />
-
     <section className="border-t border-black/[0.07]">
       {articles.map((page) => <GeneratedRow key={page.id} title={getTitle(page)} mode={getMode(page)} status={getStatus(page)} date={getRelativeDate(page.editorial?.updatedAt ?? page.editorial?.createdAt)} hero={getHero(page)} performance={performanceByPath.get(page.slug)} loading={savingPageId === page.id} onApprove={() => setEditorialStatus(page, "approved")} onReject={() => setEditorialStatus(page, "rejected")} onReset={() => setEditorialStatus(page, "pending")} onOpen={() => openArticle(page)} />)}
       {!articles.length ? <div className="grid min-h-[300px] place-items-center text-center"><div><FilePenLine size={28} className="mx-auto text-black/15" /><p className="mt-3 text-[12px] text-black/40">Aucune page article générée.</p></div></div> : null}
@@ -300,45 +273,20 @@ function formatAnalyticsDate(value: string | null) {
     : "jamais";
 }
 
-function AnalyticsConnectionStrip({ data, gaPropertyId, syncing, error, onSync }: { data: EditorialPerformanceSnapshot; gaPropertyId?: string; syncing: boolean; error: string; onSync: () => void }) {
-  const totals = [
-    ["Sessions", data.siteTotals.sessions, Activity],
-    ["Vues", data.siteTotals.pageViews, BarChart3],
-    ["Impressions", data.siteTotals.impressions, Search],
-    ["Clics", data.siteTotals.clicks, MousePointerClick],
-  ] as const;
-  return <section className="mx-5 mb-6 rounded-[16px] border border-black/[0.07] bg-[#fafafa] p-4 sm:mx-[clamp(32px,5.75vw,71px)] sm:p-5">
-    <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={`size-2 rounded-full ${data.status === "connected" ? "bg-emerald-500" : data.status === "partial" ? "bg-amber-500" : "bg-black/20"}`} />
-          <p className="text-[12px] font-semibold">{gaPropertyId ? `Google Analytics connecté · propriété ${gaPropertyId}` : "Google Analytics non configuré"}</p>
-          <span className="rounded-full bg-white px-2 py-1 text-[9px] font-medium text-black/40">90 jours</span>
-        </div>
-        <p className="mt-1.5 text-[10px] text-black/40">Dernière synchronisation : {formatAnalyticsDate(data.updatedAt)}</p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-        {totals.map(([label, value, Icon]) => <div key={label} className="flex min-w-[82px] items-center gap-2 rounded-[10px] bg-white px-3 py-2 shadow-sm"><Icon size={14} className="text-black/30" /><div><p className="text-[9px] text-black/35">{label}</p><p className="text-[13px] font-semibold">{formatMetric(value)}</p></div></div>)}
-        <button type="button" onClick={onSync} disabled={syncing || !gaPropertyId} className="flex h-10 items-center gap-2 rounded-[10px] bg-[#222] px-4 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-35">{syncing ? <LoaderCircle size={14} className="animate-spin" /> : <RefreshCw size={14} />}{syncing ? "Synchronisation…" : "Synchroniser"}</button>
-      </div>
-    </div>
-    {error ? <p className="mt-3 rounded-[8px] bg-red-50 px-3 py-2 text-[11px] text-red-700">{error}</p> : null}
-    {!error && !gaPropertyId ? <p className="mt-3 text-[10px] text-amber-700">Ajoute l’identifiant de propriété GA4 dans l’onglet Paramètres de ce projet.</p> : null}
-    {!error && gaPropertyId && data.warnings.length ? <p className="mt-3 text-[10px] leading-4 text-amber-700">{data.warnings.join(" ")}</p> : null}
-  </section>;
-}
-
 function PagePerformance({ performance, compact = false }: { performance?: PagePerformanceMetrics; compact?: boolean }) {
-  const hasData = performance && (performance.googleAnalytics.sessions || performance.googleAnalytics.pageViews || performance.searchConsole.impressions || performance.searchConsole.clicks);
+  const hasData = performance && (performance.internalTracking.pageViews || performance.googleAnalytics.sessions || performance.googleAnalytics.pageViews || performance.searchConsole.impressions || performance.searchConsole.clicks);
   if (!hasData) return <div className={`${compact ? "hidden xl:block" : "rounded-[14px] border border-dashed border-black/10 p-4"} text-[10px] text-black/35`}>Aucune statistique synchronisée pour cette page</div>;
-  const metrics = [
+  const metrics = performance.internalTracking.pageViews ? [
+    ["Vues", performance.internalTracking.pageViews],
+    ["Visiteurs", performance.internalTracking.uniqueVisitors],
+    ["Temps moyen", `${formatMetric(performance.internalTracking.averageEngagementSeconds)} s`],
+  ] as const : [
     ["Sessions", performance.googleAnalytics.sessions],
     ["Vues", performance.googleAnalytics.pageViews],
     ["Impressions", performance.searchConsole.impressions],
-    ["Clics", performance.searchConsole.clicks],
   ] as const;
   return <div className={compact ? "hidden items-center gap-4 xl:flex" : "grid grid-cols-2 gap-3 rounded-[14px] border border-black/[0.06] bg-[#fafafa] p-4 sm:grid-cols-4"}>
-    {metrics.map(([label, value]) => <div key={label} className={compact ? "min-w-[54px]" : "rounded-[10px] bg-white p-3"}><p className="text-[9px] text-black/35">{label}</p><p className={`${compact ? "text-[12px]" : "mt-1 text-[17px]"} font-semibold`}>{formatMetric(value)}</p></div>)}
+    {metrics.map(([label, value]) => <div key={label} className={compact ? "min-w-[54px]" : "rounded-[10px] bg-white p-3"}><p className="text-[9px] text-black/35">{label}</p><p className={`${compact ? "text-[12px]" : "mt-1 text-[17px]"} font-semibold`}>{typeof value === "number" ? formatMetric(value) : value}</p></div>)}
   </div>;
 }
 
@@ -399,25 +347,38 @@ function IdeaDetail({ idea, onSave, onBack, onClose }: { idea: EditorialIdea; on
 
 function ArticleOverlay({ page, performance, onOpen, onClose }: { page: SitePage; performance?: PagePerformanceMetrics; onOpen: (view: OverlayView) => void; onClose: () => void }) {
   const fields = getArticleFields(page);
-  const hasStatistics = Boolean(performance && (performance.googleAnalytics.sessions || performance.googleAnalytics.pageViews || performance.searchConsole.impressions || performance.searchConsole.clicks));
-  return <><OverlayTop title={getTitle(page)} onClose={onClose}><span className="hidden text-[13px] font-medium text-black/45 md:block">{fields?.readingTime || "Production terminée"}</span></OverlayTop><div className="min-h-0 flex-1 overflow-y-auto p-5 sm:px-9 sm:py-8"><div className="grid gap-4"><ArticleFolder icon={<Images size={22} />} title="Images" onClick={() => onOpen("images")} preview={getHero(page)} /><ArticleFolder icon={<BarChart3 size={22} />} title="Statistiques" detail={hasStatistics ? `${formatMetric(performance?.googleAnalytics.pageViews ?? 0)} vues · ${formatMetric(performance?.searchConsole.impressions ?? 0)} impressions` : "Aucune donnée synchronisée"} onClick={() => onOpen("statistics")} /><ArticleFolder icon={<FolderSearch2 size={22} />} title="Dossier de recherche" onClick={() => onOpen("research")} /><ArticleFolder icon={<Bot size={22} />} title="Structure de l’article" onClick={() => onOpen("outline")} /><ArticleFolder icon={<FilePenLine size={22} />} title="Rédaction finale" onClick={() => onOpen("writing")} />{page.editorial?.quiz || fields?.quizzes[0] ? <ArticleFolder icon={<Sparkles size={22} />} title="Quiz interactif" onClick={() => onOpen("quiz")} /> : null}</div></div></>;
+  const hasInternalStatistics = Boolean(performance?.internalTracking.pageViews);
+  const hasStatistics = Boolean(hasInternalStatistics || (performance && (performance.googleAnalytics.sessions || performance.googleAnalytics.pageViews || performance.searchConsole.impressions || performance.searchConsole.clicks)));
+  const statisticsDetail = hasInternalStatistics
+    ? `${formatMetric(performance?.internalTracking.pageViews ?? 0)} vues · ${formatMetric(performance?.internalTracking.uniqueVisitors ?? 0)} visiteurs uniques`
+    : hasStatistics
+      ? `${formatMetric(performance?.googleAnalytics.pageViews ?? 0)} vues GA4 · ${formatMetric(performance?.searchConsole.impressions ?? 0)} impressions`
+      : "Aucune donnée enregistrée";
+  return <><OverlayTop title={getTitle(page)} onClose={onClose}><span className="hidden text-[13px] font-medium text-black/45 md:block">{fields?.readingTime || "Production terminée"}</span></OverlayTop><div className="min-h-0 flex-1 overflow-y-auto p-5 sm:px-9 sm:py-8"><div className="grid gap-4"><ArticleFolder icon={<Images size={22} />} title="Images" onClick={() => onOpen("images")} preview={getHero(page)} /><ArticleFolder icon={<BarChart3 size={22} />} title="Statistiques" detail={statisticsDetail} onClick={() => onOpen("statistics")} /><ArticleFolder icon={<FolderSearch2 size={22} />} title="Dossier de recherche" onClick={() => onOpen("research")} /><ArticleFolder icon={<Bot size={22} />} title="Structure de l’article" onClick={() => onOpen("outline")} /><ArticleFolder icon={<FilePenLine size={22} />} title="Rédaction finale" onClick={() => onOpen("writing")} />{page.editorial?.quiz || fields?.quizzes[0] ? <ArticleFolder icon={<Sparkles size={22} />} title="Quiz interactif" onClick={() => onOpen("quiz")} /> : null}</div></div></>;
 }
 
 function StatisticsOverlay({ page, performance, analytics, onBack, onClose }: { page: SitePage; performance?: PagePerformanceMetrics; analytics: EditorialPerformanceSnapshot; onBack: () => void; onClose: () => void }) {
-  const metrics = performance ? [
+  const internalMetrics = performance ? [
+    ["Pages vues", formatMetric(performance.internalTracking.pageViews), "Toutes les consultations de cette page"],
+    ["Visiteurs uniques", formatMetric(performance.internalTracking.uniqueVisitors), "Visiteurs anonymes distincts"],
+    ["Temps total", `${formatMetric(performance.internalTracking.totalEngagementSeconds)} s`, "Temps actif cumulé sur cette page"],
+    ["Temps moyen", `${formatMetric(performance.internalTracking.averageEngagementSeconds)} s`, "Temps actif moyen par consultation"],
+  ] as const : [];
+  const googleMetrics = performance ? [
     ["Sessions", formatMetric(performance.googleAnalytics.sessions), "Visites enregistrées par GA4"],
-    ["Pages vues", formatMetric(performance.googleAnalytics.pageViews), "Nombre total d’affichages"],
-    ["Utilisateurs", formatMetric(performance.googleAnalytics.totalUsers), "Visiteurs uniques"],
-    ["Durée moyenne", `${formatMetric(performance.googleAnalytics.averageSessionDuration)} s`, "Temps moyen par session"],
-    ["Engagement", `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(performance.googleAnalytics.engagementRate * 100)} %`, "Taux d’engagement GA4"],
-    ["Scrolls", formatMetric(performance.googleAnalytics.scrolledUsers), "Utilisateurs ayant fait défiler la page"],
+    ["Vues GA4", formatMetric(performance.googleAnalytics.pageViews), "Affichages mesurés par Google Analytics"],
     ["Impressions Google", formatMetric(performance.searchConsole.impressions), "Affichages dans les résultats Google"],
     ["Clics Google", formatMetric(performance.searchConsole.clicks), "Clics depuis les résultats Google"],
     ["CTR", `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(performance.searchConsole.ctr * 100)} %`, "Taux de clic Search Console"],
     ["Position moyenne", performance.searchConsole.position ? new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(performance.searchConsole.position) : "—", "Position moyenne dans Google"],
   ] as const : [];
-  const hasData = performance && metrics.some(([, value]) => value !== "0" && value !== "0 %" && value !== "0 s" && value !== "—");
-  return <><OverlayTop title={`Statistiques · ${getTitle(page)}`} onClose={onClose} /><div className="min-h-0 flex-1 overflow-y-auto px-5 py-7 sm:px-9"><div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-black/[0.06] bg-[#fafafa] px-4 py-3"><div><p className="text-[12px] font-semibold">{page.slug}</p><p className="mt-1 text-[10px] text-black/40">Dernière synchronisation : {formatAnalyticsDate(analytics.updatedAt)}</p></div><span className="rounded-full bg-white px-3 py-1.5 text-[10px] text-black/45 shadow-sm">{analytics.periodStart && analytics.periodEnd ? `${analytics.periodStart} → ${analytics.periodEnd}` : "Période non disponible"}</span></div>{hasData ? <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{metrics.map(([label, value, description]) => <article key={label} className="rounded-[14px] border border-black/[0.06] bg-white p-4"><p className="text-[10px] font-medium text-black/40">{label}</p><p className="mt-3 font-serif text-[25px] leading-none">{value}</p><p className="mt-3 text-[9px] leading-4 text-black/35">{description}</p></article>)}</div> : <div className="grid min-h-[260px] place-items-center text-center"><div><BarChart3 size={26} className="mx-auto text-black/15" /><p className="mt-3 text-[13px] text-black/45">Aucune statistique n’est encore disponible pour cette page.</p><p className="mt-1 text-[11px] text-black/30">Lance une synchronisation depuis la liste des pages générées.</p></div></div>}</div><footer className="shrink-0 border-t border-black/[0.07] bg-white p-5 sm:px-9"><button type="button" onClick={onBack} className="flex h-12 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold"><ArrowLeft size={18} />Retour à l’article</button></footer></>;
+  const hasInternalData = Boolean(performance?.internalTracking.pageViews || performance?.internalTracking.uniqueVisitors || performance?.internalTracking.totalEngagementSeconds);
+  const hasGoogleData = Boolean(performance && (performance.googleAnalytics.sessions || performance.googleAnalytics.pageViews || performance.searchConsole.impressions || performance.searchConsole.clicks));
+  return <><OverlayTop title={`Statistiques · ${getTitle(page)}`} onClose={onClose} /><div className="min-h-0 flex-1 overflow-y-auto px-5 py-7 sm:px-9"><div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-black/[0.06] bg-[#fafafa] px-4 py-3"><div><p className="text-[12px] font-semibold">{page.slug}</p><p className="mt-1 text-[10px] text-black/40">Dernière donnée : {formatAnalyticsDate(analytics.updatedAt)}</p></div><span className="rounded-full bg-white px-3 py-1.5 text-[10px] text-black/45 shadow-sm">Depuis l’activation</span></div><section className="mt-6"><h3 className="font-serif text-[20px]">Tracking direct du site</h3><p className="mt-1 text-[10px] text-black/40">Mesure anonyme intégrée au site, sans dépendre de GA4.</p>{hasInternalData ? <StatisticsGrid metrics={internalMetrics} /> : <div className="mt-4 rounded-[14px] border border-dashed border-black/10 p-8 text-center"><BarChart3 size={24} className="mx-auto text-black/15" /><p className="mt-3 text-[12px] text-black/45">Aucune visite enregistrée depuis l’activation du tracking.</p></div>}</section><section className="mt-8"><h3 className="font-serif text-[20px]">Google Analytics et Search Console</h3>{hasGoogleData ? <StatisticsGrid metrics={googleMetrics} /> : <p className="mt-4 rounded-[14px] bg-[#fafafa] p-5 text-[11px] text-black/40">Données Google facultatives : le tracking direct fonctionne même sans GA4.</p>}</section></div><footer className="shrink-0 border-t border-black/[0.07] bg-white p-5 sm:px-9"><button type="button" onClick={onBack} className="flex h-12 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold"><ArrowLeft size={18} />Retour à l’article</button></footer></>;
+}
+
+function StatisticsGrid({ metrics }: { metrics: ReadonlyArray<readonly [string, string, string]> }) {
+  return <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{metrics.map(([label, value, description]) => <article key={label} className="rounded-[14px] border border-black/[0.06] bg-white p-4"><p className="text-[10px] font-medium text-black/40">{label}</p><p className="mt-3 font-serif text-[25px] leading-none">{value}</p><p className="mt-3 text-[9px] leading-4 text-black/35">{description}</p></article>)}</div>;
 }
 
 function QuizOverlay({ page, onBack, onClose }: { page: SitePage; onBack: () => void; onClose: () => void }) {

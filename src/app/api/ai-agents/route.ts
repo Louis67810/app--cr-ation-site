@@ -138,15 +138,18 @@ export async function POST(request: Request) {
 
   try {
     if (payload.phase === "research") {
-      const [performanceResult, summaryResult] = await Promise.all([
+      const [performanceResult, summaryResult, trackingResult] = await Promise.all([
         supabase.from("project_page_performance").select("*").eq("owner_id", projectOwnerId).eq("project_key", projectKey).order("updated_at", { ascending: false }),
         supabase.from("project_analytics_summary").select("*").eq("owner_id", projectOwnerId).eq("project_key", projectKey).maybeSingle(),
+        supabase.from("project_page_traffic_daily").select("page_path, day, page_views, unique_visitors, total_engagement_seconds, updated_at").eq("owner_id", projectOwnerId).eq("project_key", projectKey),
       ]);
       const performance = buildEditorialPerformanceSnapshot({
         pages: projectPages,
         performanceRows: performanceResult.data,
+        trackingRows: trackingResult.data,
         summaryRow: summaryResult.data,
         performanceError: performanceResult.error?.message ?? summaryResult.error?.message,
+        trackingError: trackingResult.error?.message,
       });
       const research = await researchTopic({ mode: payload.mode, topic, projectName, source, performance });
       return NextResponse.json({ phase: "research", research, performance });
