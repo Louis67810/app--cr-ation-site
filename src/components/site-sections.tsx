@@ -27,6 +27,7 @@ import { ContactFormSection } from "@/components/contact-form-section";
 import { FaqAccordion } from "@/components/faq-accordion";
 import { RealisationBeforeAfterShowcase } from "@/components/realisation-before-after-showcase";
 import { ServiceAreasInteractive } from "@/components/service-areas-interactive";
+import { SiteHeaderGlass } from "@/components/site-header-glass";
 import { ServicesHubBento } from "@/components/services-hub-bento";
 import { ServicesHubReviewsCarousel } from "@/components/services-hub-reviews-carousel";
 import { TestimonialsCarousel } from "@/components/testimonials-carousel";
@@ -101,7 +102,12 @@ function TemplateLink({
 
   if (href.startsWith("/")) {
     return (
-      <Link href={href} className={className} style={style} aria-label={ariaLabel}>
+      <Link
+        href={href}
+        className={className}
+        style={style}
+        aria-label={ariaLabel}
+      >
         {children}
       </Link>
     );
@@ -180,7 +186,8 @@ function SiteCta({
   path,
   options,
 }: {
-  variant: "primary" | "secondary" | "explore" | "inverted" | "white" | "white-soft";
+  variant:
+    "primary" | "secondary" | "explore" | "inverted" | "white" | "white-soft";
   href: string;
   value: string;
   path?: EditablePath;
@@ -202,7 +209,11 @@ function SiteCta({
   }[variant];
 
   return (
-    <TemplateLink className={className} href={resolvedHref} disabled={options?.disableLinks}>
+    <TemplateLink
+      className={className}
+      href={resolvedHref}
+      disabled={options?.disableLinks}
+    >
       {variant === "explore" ? (
         <>
           <span>{resolvedValue}</span>
@@ -211,14 +222,22 @@ function SiteCta({
       ) : variant === "white" ? (
         <>
           {path ? (
-            <CtaLabel value={resolvedValue} path={contactCta ? undefined : path} options={options} />
+            <CtaLabel
+              value={resolvedValue}
+              path={contactCta ? undefined : path}
+              options={options}
+            />
           ) : (
             <span>{resolvedValue}</span>
           )}
           <ChevronRight size={24} strokeWidth={2} />
         </>
       ) : path ? (
-        <CtaLabel value={resolvedValue} path={contactCta ? undefined : path} options={options} />
+        <CtaLabel
+          value={resolvedValue}
+          path={contactCta ? undefined : path}
+          options={options}
+        />
       ) : (
         resolvedValue
       )}
@@ -253,11 +272,7 @@ export function renderSection(
       );
     case "services-centered":
       return (
-        <ServicesCardsA
-          fields={section.fields}
-          centered
-          options={options}
-        />
+        <ServicesCardsA fields={section.fields} centered options={options} />
       );
     case "recent-projects":
       return (
@@ -268,7 +283,9 @@ export function renderSection(
         />
       );
     case "work-method":
-      return <WorkMethodAlternatingA fields={section.fields} options={options} />;
+      return (
+        <WorkMethodAlternatingA fields={section.fields} options={options} />
+      );
     case "service-areas":
       return <ServiceAreasSectionA fields={section.fields} options={options} />;
     case "testimonials":
@@ -328,7 +345,9 @@ export function renderSection(
     case "faq":
       return <FaqSectionA fields={section.fields} options={options} />;
     case "site-footer":
-      return <SiteFooterLandscaperA fields={section.fields} options={options} />;
+      return (
+        <SiteFooterLandscaperA fields={section.fields} options={options} />
+      );
     default:
       return null;
   }
@@ -343,6 +362,11 @@ function SiteHeaderGlassA({
   variant?: "glass-a" | "light-a";
   options?: RenderSectionOptions;
 }) {
+  return (
+    <SiteHeaderGlass fields={fields} variant={variant} options={options} />
+  );
+
+  /* Legacy header kept temporarily below while the interactive client header is stabilized. */
   const compact = options?.viewport === "phone";
   const tablet = options?.viewport === "tablet";
   const light = variant === "light-a";
@@ -395,14 +419,34 @@ function SiteHeaderGlassA({
           aria-label="Navigation principale"
           className={`${desktopNavigation} typo-body-small h-20 items-center gap-7 leading-none`}
         >
-          <DesktopMegaMenu label="Prestations" light={light} disabled={options?.disableLinks} kind="services" preview={Boolean(options?.viewport)} />
-          <TemplateLink href="/realisations" className="whitespace-nowrap" disabled={options?.disableLinks}>
+          <DesktopMegaMenu
+            label="Prestations"
+            light={light}
+            disabled={options?.disableLinks}
+            kind="services"
+            preview={Boolean(options?.viewport)}
+          />
+          <TemplateLink
+            href="/realisations"
+            className="whitespace-nowrap"
+            disabled={options?.disableLinks}
+          >
             Réalisations
           </TemplateLink>
-          <TemplateLink href="/a-propos" className="whitespace-nowrap" disabled={options?.disableLinks}>
+          <TemplateLink
+            href="/a-propos"
+            className="whitespace-nowrap"
+            disabled={options?.disableLinks}
+          >
             À propos
           </TemplateLink>
-          <DesktopMegaMenu label="Ressources" light={light} disabled={options?.disableLinks} kind="resources" preview={Boolean(options?.viewport)} />
+          <DesktopMegaMenu
+            label="Ressources"
+            light={light}
+            disabled={options?.disableLinks}
+            kind="resources"
+            preview={Boolean(options?.viewport)}
+          />
         </nav>
         <TemplateLink
           href={phoneHref}
@@ -411,7 +455,11 @@ function SiteHeaderGlassA({
           className={`${desktopNavigation} site-cta site-cta-primary cta-roll rounded-full text-[#00d494]`}
         >
           <Phone size={16} />
-          <CtaLabel value={fields.phoneLabel?.trim() || "Appeler"} path={["phoneLabel"]} options={options} />
+          <CtaLabel
+            value={fields.phoneLabel?.trim() || "Appeler"}
+            path={["phoneLabel"]}
+            options={options}
+          />
         </TemplateLink>
         <details className={`${mobileNavigation} group relative`}>
           <summary
@@ -420,7 +468,12 @@ function SiteHeaderGlassA({
           >
             <Menu size={21} />
           </summary>
-          <MobileNavigation phone={phone} phoneHref={phoneHref} light={light} disabled={options?.disableLinks} />
+          <MobileNavigation
+            phone={phone}
+            phoneHref={phoneHref}
+            light={light}
+            disabled={options?.disableLinks}
+          />
         </details>
       </div>
     </header>
@@ -460,21 +513,27 @@ const serviceMenuGroups: Array<{
 const resourceCards = [
   {
     title: "Conseils & articles",
-    description: "Des réponses concrètes pour mieux comprendre et entretenir votre extérieur.",
+    description:
+      "Des réponses concrètes pour mieux comprendre et entretenir votre extérieur.",
     href: "/blog",
-    image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=900&q=85",
+    image:
+      "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=900&q=85",
   },
   {
     title: "Nos réalisations",
-    description: "Découvrez des jardins et aménagements réalisés pour nos clients.",
+    description:
+      "Découvrez des jardins et aménagements réalisés pour nos clients.",
     href: "/realisations",
-    image: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=900&q=85",
+    image:
+      "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=900&q=85",
   },
   {
     title: "Notre approche",
-    description: "Une méthode simple, humaine et durable pour chaque projet paysager.",
+    description:
+      "Une méthode simple, humaine et durable pour chaque projet paysager.",
     href: "/a-propos",
-    image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=85",
+    image:
+      "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=85",
   },
 ] as const;
 
@@ -500,68 +559,165 @@ function DesktopMegaMenu({
 
   return (
     <div className="site-mega-root group/menu flex h-full items-center">
-      <button type="button" className="flex h-full items-center gap-1.5 whitespace-nowrap" aria-haspopup="true">
+      <button
+        type="button"
+        className="flex h-full items-center gap-1.5 whitespace-nowrap"
+        aria-haspopup="true"
+      >
         {label}
-        <ChevronDown size={14} className="transition-transform duration-200 group-hover/menu:rotate-180 group-focus-within/menu:rotate-180" />
+        <ChevronDown
+          size={14}
+          className="transition-transform duration-200 group-hover/menu:rotate-180 group-focus-within/menu:rotate-180"
+        />
       </button>
-      {!disabled ? <span className="pointer-events-none fixed inset-x-0 bottom-0 top-20 -z-10 hidden bg-black/20 backdrop-blur-[7px] group-hover/menu:block group-focus-within/menu:block" /> : null}
-      <div className={`${panelPosition} ${panelTheme} invisible border-b opacity-0 shadow-[0_30px_70px_rgba(0,0,0,.18)] transition-opacity duration-200 group-hover/menu:visible group-hover/menu:opacity-100 group-focus-within/menu:visible group-focus-within/menu:opacity-100`}>
+      {!disabled ? (
+        <span className="pointer-events-none fixed inset-x-0 bottom-0 top-20 -z-10 hidden bg-black/20 backdrop-blur-[7px] group-hover/menu:block group-focus-within/menu:block" />
+      ) : null}
+      <div
+        className={`${panelPosition} ${panelTheme} invisible border-b opacity-0 shadow-[0_30px_70px_rgba(0,0,0,.18)] transition-opacity duration-200 group-hover/menu:visible group-hover/menu:opacity-100 group-focus-within/menu:visible group-focus-within/menu:opacity-100`}
+      >
         <div className="mx-auto max-w-[1600px] px-5 py-10 md:px-10 xl:px-20">
-        {kind === "services" ? (
-          <div className="grid grid-cols-3 gap-10">
-            {serviceMenuGroups.map((group) => (
-              <div key={group.title}>
-                <TemplateLink href="/prestations" disabled={disabled} className="typo-h5 inline-flex">
-                  {group.title}
-                </TemplateLink>
-                <div className="mt-4 divide-y divide-current/10">
-                  {group.links.map(([title, href]) => (
-                    <TemplateLink key={href} href={href} disabled={disabled} className="typo-body-small flex items-center justify-between py-2 leading-[1.5]">
-                      {title}<ArrowUpRight size={15} className="opacity-40" />
-                    </TemplateLink>
-                  ))}
+          {kind === "services" ? (
+            <div className="grid grid-cols-3 gap-10">
+              {serviceMenuGroups.map((group) => (
+                <div key={group.title}>
+                  <TemplateLink
+                    href="/prestations"
+                    disabled={disabled}
+                    className="typo-h5 inline-flex"
+                  >
+                    {group.title}
+                  </TemplateLink>
+                  <div className="mt-4 divide-y divide-current/10">
+                    {group.links.map(([title, href]) => (
+                      <TemplateLink
+                        key={href}
+                        href={href}
+                        disabled={disabled}
+                        className="typo-body-small flex items-center justify-between py-2 leading-[1.5]"
+                      >
+                        {title}
+                        <ArrowUpRight size={15} className="opacity-40" />
+                      </TemplateLink>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-6">
-            {resourceCards.map((card) => (
-              <TemplateLink key={card.href} href={card.href} disabled={disabled} className="group/card block">
-                <span className="block aspect-[1.9/1] overflow-hidden rounded-[16px] bg-white/10">
-                  <span className="block h-full w-full bg-cover bg-center transition-transform duration-300 group-hover/card:scale-[1.025]" style={{ backgroundImage: `url(${card.image})` }} />
-                </span>
-                <strong className="typo-h5 mt-4 block">{card.title}</strong>
-                <span className="typo-body-small mt-2 block leading-[1.5] opacity-60">{card.description}</span>
-              </TemplateLink>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-6">
+              {resourceCards.map((card) => (
+                <TemplateLink
+                  key={card.href}
+                  href={card.href}
+                  disabled={disabled}
+                  className="group/card block"
+                >
+                  <span className="block aspect-[1.9/1] overflow-hidden rounded-[16px] bg-white/10">
+                    <span
+                      className="block h-full w-full bg-cover bg-center transition-transform duration-300 group-hover/card:scale-[1.025]"
+                      style={{ backgroundImage: `url(${card.image})` }}
+                    />
+                  </span>
+                  <strong className="typo-h5 mt-4 block">{card.title}</strong>
+                  <span className="typo-body-small mt-2 block leading-[1.5] opacity-60">
+                    {card.description}
+                  </span>
+                </TemplateLink>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function MobileNavigation({ phone, phoneHref, light, disabled }: { phone: string; phoneHref: string; light: boolean; disabled?: boolean }) {
+function MobileNavigation({
+  phone,
+  phoneHref,
+  light,
+  disabled,
+}: {
+  phone: string;
+  phoneHref: string;
+  light: boolean;
+  disabled?: boolean;
+}) {
   return (
-    <div className={`absolute right-0 top-[54px] w-[min(360px,calc(100vw-24px))] overflow-y-auto rounded-[20px] border p-4 shadow-2xl backdrop-blur-md ${light ? "border-black/10 bg-white/[0.03] text-black" : "border-white/10 bg-white/[0.03] text-white"}`}>
+    <div
+      className={`absolute right-0 top-[54px] w-[min(360px,calc(100vw-24px))] overflow-y-auto rounded-[20px] border p-4 shadow-2xl backdrop-blur-md ${light ? "border-black/10 bg-white/[0.03] text-black" : "border-white/10 bg-white/[0.03] text-white"}`}
+    >
       <details className="group/sub border-b border-current/10 py-1">
-        <summary className="typo-body-small flex cursor-pointer list-none items-center justify-between py-3 leading-none [&::-webkit-details-marker]:hidden">Prestations<ChevronDown size={16} className="transition group-open/sub:rotate-180" /></summary>
+        <summary className="typo-body-small flex cursor-pointer list-none items-center justify-between py-3 leading-none [&::-webkit-details-marker]:hidden">
+          Prestations
+          <ChevronDown
+            size={16}
+            className="transition group-open/sub:rotate-180"
+          />
+        </summary>
         <div className="grid gap-1 pb-3 pl-2">
-          {serviceMenuGroups.flatMap((group) => group.links).map(([title, href]) => <TemplateLink key={href} href={href} disabled={disabled} className="typo-body-small py-2 leading-none opacity-70">{title}</TemplateLink>)}
+          {serviceMenuGroups
+            .flatMap((group) => group.links)
+            .map(([title, href]) => (
+              <TemplateLink
+                key={href}
+                href={href}
+                disabled={disabled}
+                className="typo-body-small py-2 leading-none opacity-70"
+              >
+                {title}
+              </TemplateLink>
+            ))}
         </div>
       </details>
-      <TemplateLink href="/realisations" disabled={disabled} className="typo-body-small block border-b border-current/10 py-4 leading-none">Réalisations</TemplateLink>
-      <TemplateLink href="/a-propos" disabled={disabled} className="typo-body-small block border-b border-current/10 py-4 leading-none">À propos</TemplateLink>
+      <TemplateLink
+        href="/realisations"
+        disabled={disabled}
+        className="typo-body-small block border-b border-current/10 py-4 leading-none"
+      >
+        Réalisations
+      </TemplateLink>
+      <TemplateLink
+        href="/a-propos"
+        disabled={disabled}
+        className="typo-body-small block border-b border-current/10 py-4 leading-none"
+      >
+        À propos
+      </TemplateLink>
       <details className="group/sub border-b border-current/10 py-1">
-        <summary className="typo-body-small flex cursor-pointer list-none items-center justify-between py-3 leading-none [&::-webkit-details-marker]:hidden">Ressources<ChevronDown size={16} className="transition group-open/sub:rotate-180" /></summary>
+        <summary className="typo-body-small flex cursor-pointer list-none items-center justify-between py-3 leading-none [&::-webkit-details-marker]:hidden">
+          Ressources
+          <ChevronDown
+            size={16}
+            className="transition group-open/sub:rotate-180"
+          />
+        </summary>
         <div className="grid gap-1 pb-3 pl-2">
-          {resourceCards.map((card) => <TemplateLink key={card.href} href={card.href} disabled={disabled} className="typo-body-small py-2 leading-none opacity-70">{card.title}</TemplateLink>)}
+          {resourceCards.map((card) => (
+            <TemplateLink
+              key={card.href}
+              href={card.href}
+              disabled={disabled}
+              className="typo-body-small py-2 leading-none opacity-70"
+            >
+              {card.title}
+            </TemplateLink>
+          ))}
         </div>
       </details>
-      <TemplateLink href="/contact" disabled={disabled} className="typo-body-small block border-b border-current/10 py-4 leading-none">Contact</TemplateLink>
-      <TemplateLink href={phoneHref} disabled={disabled} className="site-cta site-cta-primary cta-roll mt-4 rounded-full text-[#00d494]">
+      <TemplateLink
+        href="/contact"
+        disabled={disabled}
+        className="typo-body-small block border-b border-current/10 py-4 leading-none"
+      >
+        Contact
+      </TemplateLink>
+      <TemplateLink
+        href={phoneHref}
+        disabled={disabled}
+        className="site-cta site-cta-primary cta-roll mt-4 rounded-full text-[#00d494]"
+      >
         <Phone size={16} /> Appeler · {phone}
       </TemplateLink>
     </div>
@@ -736,7 +892,10 @@ function ServicesCardsA({
   const tablet = options?.viewport === "tablet";
 
   return (
-    <section id={centered ? undefined : "prestations"} className="bg-white px-5 pb-20 pt-32 font-[var(--font-inter)] md:px-10 md:pt-[192px] md:pb-28 xl:px-20">
+    <section
+      id={centered ? undefined : "prestations"}
+      className="bg-white px-5 pb-20 pt-32 font-[var(--font-inter)] md:px-10 md:pt-[192px] md:pb-28 xl:px-20"
+    >
       <div className="mx-auto max-w-[1600px]">
         <div
           className={`flex gap-6 pb-14 ${
@@ -844,7 +1003,9 @@ function SocialProofPill({
   const dark = tone === "dark";
 
   return (
-    <div className={`flex ${align === "center" ? "justify-center" : "justify-start"}`}>
+    <div
+      className={`flex ${align === "center" ? "justify-center" : "justify-start"}`}
+    >
       <div
         className={`social-proof-pill inline-flex min-h-[73px] max-w-full items-center gap-3 overflow-hidden rounded-[19px] px-5 py-4 backdrop-blur-[6.3px] max-sm:flex-wrap max-sm:gap-3 ${
           dark
@@ -859,7 +1020,9 @@ function SocialProofPill({
           alt="Google"
           className="h-auto w-[100px] shrink-0"
         />
-        <span className={`h-[18px] w-px shrink-0 ${dark ? "bg-white/14" : "bg-black/14"}`} />
+        <span
+          className={`h-[18px] w-px shrink-0 ${dark ? "bg-white/14" : "bg-black/14"}`}
+        />
         <EditableText
           value={ratingLabel}
           path={ratingPath}
@@ -869,7 +1032,9 @@ function SocialProofPill({
         <span className="review-stars shrink-0 text-[19px] leading-none tracking-[1px] text-[#F6BB06]">
           {"\u2605\u2605\u2605\u2605\u2605"}
         </span>
-        <span className={`h-[18px] w-px shrink-0 ${dark ? "bg-white/14" : "bg-black/14"}`} />
+        <span
+          className={`h-[18px] w-px shrink-0 ${dark ? "bg-white/14" : "bg-black/14"}`}
+        />
         <EditableText
           value={reviewCount}
           path={countPath}
@@ -1052,52 +1217,48 @@ function WorkMethodAlternatingA({
       </div>
 
       <div className="mt-16 grid gap-5">
-          {fields.steps.map((step, index) => {
-            const imageFirst = index % 2 === 0;
-            const stacked = compact || tablet;
+        {fields.steps.map((step, index) => {
+          const imageFirst = index % 2 === 0;
+          const stacked = compact || tablet;
 
-            return (
-              <article
-                key={`${step.title}-${index}`}
-                className={`grid overflow-hidden bg-[#f6f6f4] ${
-                  stacked ? "grid-cols-1" : "grid-cols-[0.78fr_1fr]"
+          return (
+            <article
+              key={`${step.title}-${index}`}
+              className={`grid overflow-hidden bg-[#f6f6f4] ${
+                stacked ? "grid-cols-1" : "grid-cols-[0.78fr_1fr]"
+              }`}
+            >
+              <div
+                className={`min-h-[360px] bg-cover bg-center max-md:order-2 md:min-h-[520px] lg:min-h-[868px] ${
+                  compact ? "order-2" : !imageFirst && !stacked ? "order-2" : ""
+                }`}
+                style={{ backgroundImage: `url(${step.imageUrl})` }}
+                role="img"
+                aria-label={step.title}
+              />
+              <div
+                className={`flex flex-col justify-center gap-8 px-5 py-10 max-md:order-1 md:px-12 lg:px-24 lg:py-24 ${
+                  compact ? "order-1" : ""
                 }`}
               >
-                <div
-                  className={`min-h-[360px] bg-cover bg-center max-md:order-2 md:min-h-[520px] lg:min-h-[868px] ${
-                    compact
-                      ? "order-2"
-                      : !imageFirst && !stacked
-                        ? "order-2"
-                        : ""
-                  }`}
-                  style={{ backgroundImage: `url(${step.imageUrl})` }}
-                  role="img"
-                  aria-label={step.title}
+                <EditableText
+                  as="h3"
+                  value={step.title}
+                  path={["steps", index, "title"]}
+                  options={options}
+                  className="typo-h3 text-black"
                 />
-                <div
-                  className={`flex flex-col justify-center gap-8 px-5 py-10 max-md:order-1 md:px-12 lg:px-24 lg:py-24 ${
-                    compact ? "order-1" : ""
-                  }`}
-                >
-                  <EditableText
-                    as="h3"
-                    value={step.title}
-                    path={["steps", index, "title"]}
-                    options={options}
-                    className="typo-h3 text-black"
-                  />
-                  <EditableText
-                    as="p"
-                    value={step.description}
-                    path={["steps", index, "description"]}
-                    options={options}
-                    className="typo-body-large text-black/68"
-                  />
-                </div>
-              </article>
-            );
-          })}
+                <EditableText
+                  as="p"
+                  value={step.description}
+                  path={["steps", index, "description"]}
+                  options={options}
+                  className="typo-body-large text-black/68"
+                />
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
@@ -1225,7 +1386,12 @@ function BlogAdvicePostsA({
         <div className="mt-12 h-px w-full bg-black/17" />
         {featured ? (
           <article className="mt-24 grid items-center gap-16 lg:grid-cols-[minmax(0,684px)_minmax(0,813px)]">
-            <BlogPostText post={featured} index={0} featured options={options} />
+            <BlogPostText
+              post={featured}
+              index={0}
+              featured
+              options={options}
+            />
             <BlogPostImage post={featured} className="h-[542px]" />
           </article>
         ) : null}
@@ -1283,7 +1449,10 @@ function ContactSectionA({
 }) {
   if (variant === "page-a") {
     return (
-      <section id="contact" className="relative min-h-[1092px] overflow-hidden bg-[#162539] font-[var(--font-inter)] text-white">
+      <section
+        id="contact"
+        className="relative min-h-[1092px] overflow-hidden bg-[#162539] font-[var(--font-inter)] text-white"
+      >
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${fields.backgroundImageUrl})` }}
@@ -1333,7 +1502,10 @@ function ContactSectionA({
             <p className="mt-7 text-center text-[16px] font-semibold text-white">
               Ils nous ont fait confiance
             </p>
-            <div className="mt-3 grid grid-cols-5 gap-3" aria-label="Entreprises clientes">
+            <div
+              className="mt-3 grid grid-cols-5 gap-3"
+              aria-label="Entreprises clientes"
+            >
               {Array.from({ length: 5 }).map((_, index) => (
                 <span
                   key={`contact-proof-${index}`}
@@ -1348,7 +1520,10 @@ function ContactSectionA({
   }
 
   return (
-    <section id="contact" className="bg-white px-5 py-20 font-[var(--font-inter)] md:px-10 md:py-28 xl:px-20">
+    <section
+      id="contact"
+      className="bg-white px-5 py-20 font-[var(--font-inter)] md:px-10 md:py-28 xl:px-20"
+    >
       <div className="relative mx-auto min-h-[890px] max-w-[1600px] overflow-hidden rounded-[48px] border border-black/16 bg-[#162539] max-lg:min-h-0">
         <div
           className="absolute inset-0 bg-cover bg-center"
@@ -1431,7 +1606,11 @@ function ArticleDetailA({
   const headings = fields.blocks
     .map((block, index) =>
       block.kind === "heading"
-        ? { id: slugifyHeading(block.text, index), text: block.text, level: block.level }
+        ? {
+            id: slugifyHeading(block.text, index),
+            text: block.text,
+            level: block.level,
+          }
         : null,
     )
     .filter(Boolean) as Array<{ id: string; text: string; level: "h2" | "h3" }>;
@@ -1444,7 +1623,10 @@ function ArticleDetailA({
             <div className="flex flex-col items-start gap-6">
               <nav className="typo-body-small flex flex-wrap items-center gap-2 text-black/80">
                 {fields.breadcrumbs.map((item, index) => (
-                  <span key={`${item.href}-${index}`} className="inline-flex items-center gap-2">
+                  <span
+                    key={`${item.href}-${index}`}
+                    className="inline-flex items-center gap-2"
+                  >
                     <TemplateLink
                       href={item.href}
                       disabled={options?.disableLinks}
@@ -1574,7 +1756,12 @@ function ArticleDetailA({
           <article id="article" className="grid scroll-mt-28 gap-5">
             {fields.blocks.map((block, index) => {
               if (block.kind === "paragraph") {
-                const sizeClass = block.size === "large" ? "typo-body-large" : block.size === "small" ? "typo-body-small" : "typo-body-medium";
+                const sizeClass =
+                  block.size === "large"
+                    ? "typo-body-large"
+                    : block.size === "small"
+                      ? "typo-body-small"
+                      : "typo-body-medium";
                 return (
                   <EditableText
                     key={index}
@@ -1608,7 +1795,9 @@ function ArticleDetailA({
               }
 
               if (block.kind === "quiz") {
-                const quiz = fields.quizzes.find((item) => item.id === block.quizId);
+                const quiz = fields.quizzes.find(
+                  (item) => item.id === block.quizId,
+                );
 
                 if (!quiz) {
                   return null;
@@ -1649,7 +1838,9 @@ function ArticleDetailA({
                           {block.rows.map((row, rowIndex) => (
                             <tr
                               key={rowIndex}
-                              className={rowIndex % 2 === 1 ? "bg-[#003441]/[0.02]" : ""}
+                              className={
+                                rowIndex % 2 === 1 ? "bg-[#003441]/[0.02]" : ""
+                              }
                             >
                               {row.map((cell, cellIndex) => (
                                 <td
@@ -1676,43 +1867,102 @@ function ArticleDetailA({
                   >
                     <Lightbulb size={32} className="shrink-0 text-[#e2c54a]" />
                     <div>
-                      {block.title ? <EditableText as="h3" value={block.title} path={["blocks", index, "title"]} options={options} className="typo-h5 mb-2 text-[#003441]" /> : null}
-                      <EditableText as="p" value={block.text} path={["blocks", index, "text"]} options={options} className="typo-body-medium text-black/68" />
+                      {block.title ? (
+                        <EditableText
+                          as="h3"
+                          value={block.title}
+                          path={["blocks", index, "title"]}
+                          options={options}
+                          className="typo-h5 mb-2 text-[#003441]"
+                        />
+                      ) : null}
+                      <EditableText
+                        as="p"
+                        value={block.text}
+                        path={["blocks", index, "text"]}
+                        options={options}
+                        className="typo-body-medium text-black/68"
+                      />
                     </div>
                   </div>
                 );
               }
 
               if (block.kind === "image") {
-                const widthClass = block.size === "small" ? "max-w-[520px]" : block.size === "medium" ? "max-w-[760px]" : "w-full";
-                const alignmentClass = block.alignment === "left" ? "mr-auto" : block.alignment === "right" ? "ml-auto" : "mx-auto";
+                const widthClass =
+                  block.size === "small"
+                    ? "max-w-[520px]"
+                    : block.size === "medium"
+                      ? "max-w-[760px]"
+                      : "w-full";
+                const alignmentClass =
+                  block.alignment === "left"
+                    ? "mr-auto"
+                    : block.alignment === "right"
+                      ? "ml-auto"
+                      : "mx-auto";
                 return (
-                  <figure key={index} className={`${widthClass} ${alignmentClass}`}>
-                    <div className="aspect-[16/10] rounded-[28px] bg-cover bg-center" style={{ backgroundImage: `url(${block.imageUrl})` }} role="img" aria-label={block.alt} />
-                    {block.caption ? <figcaption className="typo-body-small mt-3 text-center text-black/45">{block.caption}</figcaption> : null}
+                  <figure
+                    key={index}
+                    className={`${widthClass} ${alignmentClass}`}
+                  >
+                    <div
+                      className="aspect-[16/10] rounded-[28px] bg-cover bg-center"
+                      style={{ backgroundImage: `url(${block.imageUrl})` }}
+                      role="img"
+                      aria-label={block.alt}
+                    />
+                    {block.caption ? (
+                      <figcaption className="typo-body-small mt-3 text-center text-black/45">
+                        {block.caption}
+                      </figcaption>
+                    ) : null}
                   </figure>
                 );
               }
 
               if (block.kind === "cards") {
                 const columns = block.columns ?? 2;
-                const gridClass = columns === 1 ? "md:grid-cols-1" : columns === 2 ? "md:grid-cols-2" : columns === 3 ? "md:grid-cols-3" : "md:grid-cols-2 xl:grid-cols-4";
+                const gridClass =
+                  columns === 1
+                    ? "md:grid-cols-1"
+                    : columns === 2
+                      ? "md:grid-cols-2"
+                      : columns === 3
+                        ? "md:grid-cols-3"
+                        : "md:grid-cols-2 xl:grid-cols-4";
                 return (
                   <div key={index}>
-                    {block.title ? <h2 className="typo-h3 mb-8 text-[#003441]">{block.title}</h2> : null}
+                    {block.title ? (
+                      <h2 className="typo-h3 mb-8 text-[#003441]">
+                        {block.title}
+                      </h2>
+                    ) : null}
                     <div className={`grid gap-4 ${gridClass}`}>
-                    {block.cards.map((card, cardIndex) => (
-                      <div
-                        key={`${card.title}-${cardIndex}`}
-                        className="rounded-[40px] border border-black/10 bg-white p-10 shadow-[0_31px_12px_rgba(0,0,0,0.01),0_17px_10px_rgba(0,0,0,0.03),0_8px_8px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.05)]"
-                      >
-                        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg bg-[#e8f7fb] text-[#003441]">
-                          {card.icon === "leaf" ? <Leaf size={32} /> : card.icon === "shield" ? <ShieldCheck size={32} /> : card.icon === "sprout" ? <Sprout size={32} /> : card.icon === "tree" ? <TreePine size={32} /> : <Lightbulb size={32} strokeWidth={2} />}
+                      {block.cards.map((card, cardIndex) => (
+                        <div
+                          key={`${card.title}-${cardIndex}`}
+                          className="rounded-[40px] border border-black/10 bg-white p-10 shadow-[0_31px_12px_rgba(0,0,0,0.01),0_17px_10px_rgba(0,0,0,0.03),0_8px_8px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.05)]"
+                        >
+                          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg bg-[#e8f7fb] text-[#003441]">
+                            {card.icon === "leaf" ? (
+                              <Leaf size={32} />
+                            ) : card.icon === "shield" ? (
+                              <ShieldCheck size={32} />
+                            ) : card.icon === "sprout" ? (
+                              <Sprout size={32} />
+                            ) : card.icon === "tree" ? (
+                              <TreePine size={32} />
+                            ) : (
+                              <Lightbulb size={32} strokeWidth={2} />
+                            )}
+                          </div>
+                          <h3 className="typo-h4 text-black">{card.title}</h3>
+                          <p className="typo-body-small mt-5 text-black/60">
+                            {card.text}
+                          </p>
                         </div>
-                        <h3 className="typo-h4 text-black">{card.title}</h3>
-                        <p className="typo-body-small mt-5 text-black/60">{card.text}</p>
-                      </div>
-                    ))}
+                      ))}
                     </div>
                   </div>
                 );
@@ -1860,7 +2110,10 @@ function RealisationDetailA({
           <div className="max-w-[1148px]">
             <nav className="typo-body-small flex flex-wrap items-center gap-2 text-white/80">
               {fields.breadcrumbs.map((item, index) => (
-                <span key={`${item.href}-${index}`} className="inline-flex items-center gap-2">
+                <span
+                  key={`${item.href}-${index}`}
+                  className="inline-flex items-center gap-2"
+                >
                   <TemplateLink
                     href={item.href}
                     disabled={options?.disableLinks}
@@ -1985,7 +2238,10 @@ function RealisationDetailA({
 
           <div className="mt-16 grid gap-8 lg:grid-cols-2">
             {fields.relatedProjects.slice(0, 4).map((project, index) => (
-              <article key={`${project.title}-${index}`} className="rounded-[40px] bg-white p-5">
+              <article
+                key={`${project.title}-${index}`}
+                className="rounded-[40px] bg-white p-5"
+              >
                 <div className="relative h-[495px] overflow-hidden rounded-[20px] max-md:h-[340px] max-sm:h-[260px]">
                   <div
                     className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out hover:scale-105"
@@ -2008,10 +2264,7 @@ function RealisationDetailA({
                     style={{ paddingRight: 20 }}
                     ariaLabel={project.title}
                   >
-                    <CtaLabel
-                      value="Nous contacter"
-                      options={options}
-                    />
+                    <CtaLabel value="Nous contacter" options={options} />
                     <span className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/35 bg-black/25 text-white">
                       <ArrowUpRight size={16} strokeWidth={1.33} />
                     </span>
@@ -2201,7 +2454,8 @@ function SectorHeroTickerA({
   fields: SectorHeroFields;
   options?: RenderSectionOptions;
 }) {
-  const tickerImages = fields.tickerImages.length > 0 ? fields.tickerImages : [];
+  const tickerImages =
+    fields.tickerImages.length > 0 ? fields.tickerImages : [];
   const repeatedImages = [...tickerImages, ...tickerImages];
 
   return (
@@ -2413,7 +2667,11 @@ function SectorExtraServicesA({
               href={service.href}
               disabled={options?.disableLinks}
               className="group flex min-h-[560px] items-end rounded-2xl bg-cover bg-center p-6"
-              style={{ backgroundImage: `url(${service.imageUrl})` } as React.CSSProperties}
+              style={
+                {
+                  backgroundImage: `url(${service.imageUrl})`,
+                } as React.CSSProperties
+              }
             >
               <div className="w-full rounded-md bg-white px-6 py-8 transition-transform duration-300 group-hover:-translate-y-1">
                 <EditableText
@@ -2719,7 +2977,13 @@ function RealisationsPageA({
   options?: RenderSectionOptions;
 }) {
   const tickerImages = fields.heroImages.length > 0 ? fields.heroImages : [];
-  const cardHeights = ["h-[548px]", "h-[419px]", "h-[545px]", "h-[687px]", "h-[458px]"];
+  const cardHeights = [
+    "h-[548px]",
+    "h-[419px]",
+    "h-[545px]",
+    "h-[687px]",
+    "h-[458px]",
+  ];
   const tickerColumns = Array.from({ length: 5 }, (_, columnIndex) =>
     tickerImages.filter((_, imageIndex) => imageIndex % 5 === columnIndex),
   ).map((column) => (column.length > 0 ? column : tickerImages));
@@ -2772,7 +3036,9 @@ function RealisationsPageA({
                       <div
                         key={`${image.imageUrl}-${columnIndex}-${imageIndex}`}
                         className={`service-card-shadow w-full shrink-0 overflow-hidden rounded-2xl border border-black/[0.09] bg-white ${
-                          cardHeights[(imageIndex + columnIndex) % cardHeights.length]
+                          cardHeights[
+                            (imageIndex + columnIndex) % cardHeights.length
+                          ]
                         }`}
                       >
                         <div
@@ -2793,7 +3059,10 @@ function RealisationsPageA({
         </div>
       </div>
 
-      <div id="realisations" className="px-5 pb-20 pt-40 md:px-10 md:pb-28 md:pt-48 xl:px-20">
+      <div
+        id="realisations"
+        className="px-5 pb-20 pt-40 md:px-10 md:pb-28 md:pt-48 xl:px-20"
+      >
         <div className="mx-auto max-w-[1600px]">
           <div className="flex items-center justify-between gap-8 max-lg:flex-col max-lg:items-start">
             <EditableText
@@ -2843,7 +3112,9 @@ function RealisationsPageA({
                       <div className="relative h-[495px] overflow-hidden rounded-[20px] max-md:h-[340px] max-sm:h-[260px]">
                         <div
                           className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out hover:scale-105"
-                          style={{ backgroundImage: `url(${project.imageUrl})` }}
+                          style={{
+                            backgroundImage: `url(${project.imageUrl})`,
+                          }}
                           role="img"
                           aria-label={project.alt}
                         />
@@ -2869,10 +3140,7 @@ function RealisationsPageA({
                           style={{ paddingRight: 20 }}
                           ariaLabel={project.title}
                         >
-                          <CtaLabel
-                            value="Nous contacter"
-                            options={options}
-                          />
+                          <CtaLabel value="Nous contacter" options={options} />
                           <span className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/35 bg-black/25 text-white">
                             <ArrowUpRight size={16} strokeWidth={1.33} />
                           </span>
@@ -3022,27 +3290,27 @@ function SiteFooterLandscaperA({
         <div className="absolute inset-0 bg-[radial-gradient(37.3%_36.12%_at_49.97%_0%,rgba(0,52,65,0.28)_0%,rgba(0,52,65,0.74)_100%)]" />
         <div className="relative mx-auto flex min-h-[970px] max-w-[1600px] items-center justify-center px-5 py-24 md:px-10 xl:px-20">
           <div className="mx-auto flex max-w-[760px] flex-col items-center gap-6 text-center">
-          <EditableText
-            as="h2"
-            value={fields.title}
-            path={["title"]}
-            options={options}
-            className="typo-h1 text-white"
-          />
-          <EditableText
-            as="p"
-            value={fields.subtitle}
-            path={["subtitle"]}
-            options={options}
-            className="typo-body-large max-w-[634px] text-white"
-          />
-          <SiteCta
-            variant="inverted"
-            href={fields.cta.href}
-            value={fields.cta.label}
-            path={["cta", "label"]}
-            options={options}
-          />
+            <EditableText
+              as="h2"
+              value={fields.title}
+              path={["title"]}
+              options={options}
+              className="typo-h1 text-white"
+            />
+            <EditableText
+              as="p"
+              value={fields.subtitle}
+              path={["subtitle"]}
+              options={options}
+              className="typo-body-large max-w-[634px] text-white"
+            />
+            <SiteCta
+              variant="inverted"
+              href={fields.cta.href}
+              value={fields.cta.label}
+              path={["cta", "label"]}
+              options={options}
+            />
           </div>
         </div>
       </div>
@@ -3122,7 +3390,13 @@ function SiteFooterLandscaperA({
                     >
                       <EditableText
                         value={link.label}
-                        path={["linkGroups", groupIndex, "links", linkIndex, "label"]}
+                        path={[
+                          "linkGroups",
+                          groupIndex,
+                          "links",
+                          linkIndex,
+                          "label",
+                        ]}
                         options={options}
                       />
                     </TemplateLink>
