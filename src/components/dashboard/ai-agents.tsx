@@ -2227,7 +2227,7 @@ function WritingContent({
                 {block.cards.map((card, cardIndex) => (
                   <div
                     key={`${card.title}-${cardIndex}`}
-                    className={`rounded-[16px] border p-5 ${block.variant === "yellow" ? "border-[#d59e1e]/25 bg-[#fff7cf]" : "border-black/[0.07] bg-[#fafafa]"}`}
+                    className="rounded-[16px] border border-black/[0.07] bg-white p-5 shadow-sm"
                   >
                     <h4 className="text-[15px] font-semibold text-[#003441]">{card.title}</h4>
                     <p className="mt-2 text-[13px] leading-6 text-black/55">{card.text}</p>
@@ -2236,7 +2236,7 @@ function WritingContent({
               </div>
             </section>
           ) : block.kind === "callout" ? (
-            <aside key={index} className="my-7 rounded-[16px] border border-[#d59e1e]/25 bg-[#fff7cf] p-5">
+            <aside key={index} className="my-7 rounded-[16px] border border-[#d59e1e]/25 bg-[linear-gradient(180deg,rgba(255,208,0,0.19)_0%,rgba(255,253,242,0.12)_100%)] px-5 py-7">
               {block.title ? <h3 className="text-[16px] font-semibold text-[#003441]">{block.title}</h3> : null}
               <p className="mt-2 text-[14px] leading-7 text-black/60">{block.text}</p>
             </aside>

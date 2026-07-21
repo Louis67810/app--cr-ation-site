@@ -63,11 +63,7 @@ export function assembleArticleBlocks(input: {
         columns: Math.min(4, Math.max(1, content.cards.length)) as
           1 | 2 | 3 | 4,
         cards: content.cards,
-        variant:
-          section.componentVariant === "yellow" ||
-          section.componentVariant === "outlined"
-            ? section.componentVariant
-            : "default",
+        variant: "default",
       });
     }
     if (section.format === "callout" && content.calloutText.trim()) {
@@ -76,11 +72,7 @@ export function assembleArticleBlocks(input: {
         kind: "callout",
         title: content.calloutTitle.trim(),
         text: content.calloutText.trim(),
-        variant:
-          section.componentVariant === "quote" ||
-          section.componentVariant === "solution"
-            ? section.componentVariant
-            : "highlight",
+        variant: "highlight",
         icon: "lightbulb",
       });
     }

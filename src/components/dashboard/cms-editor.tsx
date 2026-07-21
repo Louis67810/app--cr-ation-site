@@ -380,7 +380,7 @@ export function CmsEditor({
           onOpen={(page) => setActiveArticleId(page.id)}
         />
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto overscroll-contain [scrollbar-gutter:stable]">
+        <div className="min-h-0 flex-1 overflow-auto overscroll-auto [scrollbar-gutter:stable]">
           <table className="w-max min-w-full table-fixed border-collapse text-[10px]">
             <colgroup>
               <col className="w-[34px]" />
@@ -565,7 +565,7 @@ function ArticleCollection({
   onOpen: (page: SitePage) => void;
 }) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-[#fafaf8] p-4 sm:p-7">
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto bg-[#fafaf8] p-4 [scrollbar-gutter:stable] sm:p-7">
       <div className="mx-auto max-w-[1180px]">
         <div className="mb-4 flex items-end justify-between gap-4">
           <div>

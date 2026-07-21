@@ -247,7 +247,7 @@ function normalizeArticleOutline(value: unknown) {
       (section.format === "table"
         ? "comparison"
         : section.format === "cards"
-          ? "yellow"
+          ? "default"
           : section.format === "callout"
             ? "highlight"
             : "default");
@@ -1256,7 +1256,7 @@ export async function structureArticle(input: {
     normalize: normalizeArticleOutline,
     validate: validateArticleOutline,
     system: `${skill}\n\nTu es l’architecte éditorial d’un blog de paysagiste français.`,
-    prompt: `Sujet : ${input.topic}\n\nDossier de recherche validé :\n${JSON.stringify(input.research)}\n\nConstruis un titre clair, un résumé de 140 à 220 caractères et un plan H2/H3 détaillé pour un article de 900 à 1400 mots. Chaque grande partie est un H2 avec le style de section du builder ; les H3 sont réservés aux sous-parties du H2 précédent. Chaque titre est un bloc distinct des paragraphes. Chaque section reçoit un identifiant kebab-case, un objectif, des points précis, un format, une variante et une instruction de composant. Le plan doit contenir au moins deux vrais composants utiles parmi table, cards et callout, placés dans des sections différentes. Pour cards, choisis default, yellow ou outlined. Pour table, choisis default ou comparison. Pour callout, choisis highlight, quote ou solution. Pour prose, utilise default. Demande exactement une image hero et au maximum trois images inline. Une image inline doit référencer un sectionId existant. Le quiz est désactivé par défaut. Active-le uniquement si les réponses permettent une recommandation réellement personnalisée fondée sur au moins trois critères distincts ; ne l'active jamais simplement pour rendre l'article interactif. Sinon retourne enabled=false et des champs vides. Le slug ne contient que des lettres ASCII, chiffres et tirets.`,
+    prompt: `Sujet : ${input.topic}\n\nDossier de recherche validé :\n${JSON.stringify(input.research)}\n\nConstruis un titre clair, un résumé de 140 à 220 caractères et un plan H2/H3 détaillé pour un article de 900 à 1400 mots. Chaque grande partie est un H2 avec le style de section du builder ; les H3 sont réservés aux sous-parties du H2 précédent. Chaque titre est un bloc distinct des paragraphes. Chaque section reçoit un identifiant kebab-case, un objectif, des points précis, un format, une variante et une instruction de composant. Le plan doit contenir au moins deux vrais composants utiles parmi table, cards et callout, placés dans des sections différentes. Pour cards, utilise toujours default : les cartes à icônes doivent rester blanches. Pour table, choisis default ou comparison. Pour callout, utilise toujours highlight : un encadré d'information avec ampoule et dégradé jaune léger. Pour prose, utilise default. Demande exactement une image hero et au maximum trois images inline. Une image inline doit référencer un sectionId existant. Le quiz est désactivé par défaut. Active-le uniquement si les réponses permettent une recommandation réellement personnalisée fondée sur au moins trois critères distincts ; ne l'active jamais simplement pour rendre l'article interactif. Sinon retourne enabled=false et des champs vides. Le slug ne contient que des lettres ASCII, chiffres et tirets.`,
     schema: {
       type: "object",
       additionalProperties: false,

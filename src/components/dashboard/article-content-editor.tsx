@@ -316,7 +316,7 @@ export function ArticleContentEditor({
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto [scrollbar-gutter:stable]">
         <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-8">
           <section className="grid gap-4 rounded-[20px] border border-black/[0.07] bg-white p-5 md:grid-cols-2 xl:grid-cols-4">
             <Field label="Titre">
@@ -777,18 +777,6 @@ function BlockSettings({
   if (block.kind === "callout")
     return (
       <Settings title="Encadré">
-        <Field label="Style">
-          <Select
-            value={block.variant ?? "highlight"}
-            onChange={(value) =>
-              onChange({
-                ...block,
-                variant: value as "highlight" | "quote" | "solution",
-              })
-            }
-            options={["highlight", "quote", "solution"]}
-          />
-        </Field>
         <Field label="Titre facultatif">
           <input
             value={block.title ?? ""}
@@ -1081,29 +1069,15 @@ function CardsSettings({
           className={inputClass}
         />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Colonnes">
-          <Select
-            value={String(block.columns ?? 2)}
-            onChange={(value) =>
-              onChange({ ...block, columns: Number(value) as 1 | 2 | 3 | 4 })
-            }
-            options={["1", "2", "3", "4"]}
-          />
-        </Field>
-        <Field label="Style">
-          <Select
-            value={block.variant ?? "default"}
-            onChange={(value) =>
-              onChange({
-                ...block,
-                variant: value as "default" | "yellow" | "outlined",
-              })
-            }
-            options={["default", "yellow", "outlined"]}
-          />
-        </Field>
-      </div>
+      <Field label="Colonnes">
+        <Select
+          value={String(block.columns ?? 2)}
+          onChange={(value) =>
+            onChange({ ...block, columns: Number(value) as 1 | 2 | 3 | 4 })
+          }
+          options={["1", "2", "3", "4"]}
+        />
+      </Field>
       <div className="flex items-center justify-between">
         <span className={labelClass}>Cases</span>
         <button

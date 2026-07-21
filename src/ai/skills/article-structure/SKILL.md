@@ -16,8 +16,8 @@ Créer le plan sans rédiger les paragraphes.
 - Ne jamais écrire le texte final ni produire les blocs du CMS.
 - Prévoir au moins deux composants éditoriaux réellement utiles parmi `table`, `cards` et `callout`. Ne jamais remplacer ces composants par de simples paragraphes.
 - Pour un tableau de comparaison, utiliser la variante `comparison`.
-- Pour des cartes, choisir `yellow` pour des solutions ou recommandations mises en avant, `outlined` pour une liste sobre, sinon `default`.
-- Pour un encadré, choisir `solution` pour une recommandation concrète, `quote` uniquement pour une citation réelle, sinon `highlight`.
+- Les cartes à icônes utilisent toujours la variante `default` et restent blanches.
+- Les encadrés d'information utilisent toujours la variante `highlight`, avec l'ampoule et le dégradé jaune léger.
 - Imposer exactement une image principale.
 - Demander zéro à trois images secondaires uniquement si elles améliorent la compréhension.
 - Fixer chaque emplacement avec un identifiant de section.

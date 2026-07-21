@@ -1471,7 +1471,7 @@ function ArticleDetailA({
                             {block.columns.map((column, columnIndex) => (
                               <th
                                 key={`${column}-${columnIndex}`}
-                                className="typo-h5 px-12 py-10 text-left text-[#003441]"
+                                className="px-12 py-10 text-left font-serif text-[20px] leading-[1.3] tracking-[-0.04em] text-[#003441]"
                               >
                                 {column}
                               </th>
@@ -1487,7 +1487,7 @@ function ArticleDetailA({
                               {row.map((cell, cellIndex) => (
                                 <td
                                   key={`${cell}-${cellIndex}`}
-                                  className="typo-h5 px-12 py-10 text-[#003441]"
+                                  className="px-12 py-10 font-serif text-[20px] leading-[1.3] tracking-[-0.04em] text-[#003441]"
                                 >
                                   {cell}
                                 </td>
@@ -1502,17 +1502,15 @@ function ArticleDetailA({
               }
 
               if (block.kind === "callout") {
-                const isQuote = block.variant === "quote";
-                const isSolution = block.variant === "solution";
                 return (
                   <div
                     key={index}
-                    className={`flex items-start gap-4 rounded-3xl border px-6 py-6 md:px-12 ${isQuote ? "border-[#003441]/15 bg-[#f1f7f6]" : isSolution ? "border-[#d59e1e]/30 bg-[#fff7cf]" : "border-[#d59e1e]/30 bg-[linear-gradient(180deg,rgba(255,208,0,0.19)_0%,rgba(255,253,242,0.12)_100%)]"}`}
+                    className="flex items-start gap-4 rounded-3xl border border-[#d59e1e]/30 bg-[linear-gradient(180deg,rgba(255,208,0,0.19)_0%,rgba(255,253,242,0.12)_100%)] px-6 py-10 md:px-12"
                   >
-                    <Lightbulb size={32} className={`shrink-0 ${isQuote ? "text-[#003441]" : "text-[#e2c54a]"}`} />
+                    <Lightbulb size={32} className="shrink-0 text-[#e2c54a]" />
                     <div>
                       {block.title ? <EditableText as="h3" value={block.title} path={["blocks", index, "title"]} options={options} className="typo-h5 mb-2 text-[#003441]" /> : null}
-                      <EditableText as="p" value={block.text} path={["blocks", index, "text"]} options={options} className={`${isQuote ? "italic" : ""} typo-body-medium text-black/68`} />
+                      <EditableText as="p" value={block.text} path={["blocks", index, "text"]} options={options} className="typo-body-medium text-black/68" />
                     </div>
                   </div>
                 );
@@ -1539,7 +1537,7 @@ function ArticleDetailA({
                     {block.cards.map((card, cardIndex) => (
                       <div
                         key={`${card.title}-${cardIndex}`}
-                        className={`rounded-[40px] border p-10 ${block.variant === "yellow" ? "border-[#d59e1e]/25 bg-[#fff7cf]" : block.variant === "outlined" ? "border-[#003441]/20 bg-transparent" : "border-black/10 bg-white shadow-[0_31px_12px_rgba(0,0,0,0.01),0_17px_10px_rgba(0,0,0,0.03),0_8px_8px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.05)]"}`}
+                        className="rounded-[40px] border border-black/10 bg-white p-10 shadow-[0_31px_12px_rgba(0,0,0,0.01),0_17px_10px_rgba(0,0,0,0.03),0_8px_8px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.05)]"
                       >
                         <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg bg-[#e8f7fb] text-[#003441]">
                           {card.icon === "leaf" ? <Leaf size={32} /> : card.icon === "shield" ? <ShieldCheck size={32} /> : card.icon === "sprout" ? <Sprout size={32} /> : card.icon === "tree" ? <TreePine size={32} /> : <Lightbulb size={32} strokeWidth={2} />}
