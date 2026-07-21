@@ -14,10 +14,14 @@ Créer le plan sans rédiger les paragraphes.
 - Utiliser H2 pour chaque grande partie de l'article et H3 uniquement pour une sous-partie directement rattachée au H2 précédent.
 - Séparer systématiquement les titres et les paragraphes : aucun titre ne doit être caché dans le texte d'un paragraphe.
 - Ne jamais écrire le texte final ni produire les blocs du CMS.
+- Prévoir au moins deux composants éditoriaux réellement utiles parmi `table`, `cards` et `callout`. Ne jamais remplacer ces composants par de simples paragraphes.
+- Pour un tableau de comparaison, utiliser la variante `comparison`.
+- Pour des cartes, choisir `yellow` pour des solutions ou recommandations mises en avant, `outlined` pour une liste sobre, sinon `default`.
+- Pour un encadré, choisir `solution` pour une recommandation concrète, `quote` uniquement pour une citation réelle, sinon `highlight`.
 - Imposer exactement une image principale.
 - Demander zéro à trois images secondaires uniquement si elles améliorent la compréhension.
 - Fixer chaque emplacement avec un identifiant de section.
-- Décider si un quiz apporte une aide réelle. Ne jamais forcer un quiz décoratif.
+- Désactiver le quiz par défaut. Ne l'activer que si plusieurs réponses permettent réellement de personnaliser une recommandation selon au moins trois critères utiles. Ne jamais forcer un quiz décoratif ou l'utiliser pour rendre artificiellement l'article interactif.
 - Si un quiz est demandé, fixer son objectif, son format, son emplacement, ses catégories de résultat et son CTA.
 - Produire uniquement le contrat JSON demandé.
 

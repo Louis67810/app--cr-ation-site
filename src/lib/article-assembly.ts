@@ -49,7 +49,10 @@ export function assembleArticleBlocks(input: {
         title: content.tableTitle.trim() || section.title,
         columns: content.tableColumns,
         rows: content.tableRows,
-        variant: "default",
+        variant:
+          section.componentVariant === "comparison"
+            ? "comparison"
+            : "default",
       });
     }
     if (section.format === "cards" && content.cards.length > 0) {
@@ -60,7 +63,11 @@ export function assembleArticleBlocks(input: {
         columns: Math.min(4, Math.max(1, content.cards.length)) as
           1 | 2 | 3 | 4,
         cards: content.cards,
-        variant: "default",
+        variant:
+          section.componentVariant === "yellow" ||
+          section.componentVariant === "outlined"
+            ? section.componentVariant
+            : "default",
       });
     }
     if (section.format === "callout" && content.calloutText.trim()) {
@@ -69,7 +76,11 @@ export function assembleArticleBlocks(input: {
         kind: "callout",
         title: content.calloutTitle.trim(),
         text: content.calloutText.trim(),
-        variant: "highlight",
+        variant:
+          section.componentVariant === "quote" ||
+          section.componentVariant === "solution"
+            ? section.componentVariant
+            : "highlight",
         icon: "lightbulb",
       });
     }

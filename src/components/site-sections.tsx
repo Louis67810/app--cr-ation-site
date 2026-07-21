@@ -1404,7 +1404,7 @@ function ArticleDetailA({
             </div>
           </aside>
 
-          <article id="article" className="grid scroll-mt-28 gap-12">
+          <article id="article" className="grid scroll-mt-28 gap-5">
             {fields.blocks.map((block, index) => {
               if (block.kind === "paragraph") {
                 const sizeClass = block.size === "large" ? "typo-body-large" : block.size === "small" ? "typo-body-small" : "typo-body-medium";
@@ -1424,7 +1424,11 @@ function ArticleDetailA({
                 const headingId = slugifyHeading(block.text, index);
 
                 return (
-                  <div key={index} id={headingId} className="scroll-mt-28">
+                  <div
+                    key={index}
+                    id={headingId}
+                    className={`scroll-mt-28 ${index === 0 ? "" : block.level === "h3" ? "pt-3" : "pt-8"}`}
+                  >
                     <EditableText
                       as={block.level}
                       value={block.text}

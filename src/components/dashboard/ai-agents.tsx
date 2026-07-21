@@ -2158,10 +2158,7 @@ function WritingContent({
   article: GeneratedArticle | undefined;
   fields: ArticleDetailFields | null;
 }) {
-  const blocks =
-    fields?.blocks.filter(
-      (block) => block.kind === "heading" || block.kind === "paragraph",
-    ) ?? [];
+  const blocks = fields?.blocks ?? [];
   if (!blocks.length)
     return (
       <EmptyPhase text="Aucune rédaction finale n’a été conservée pour cet article." />
@@ -2192,6 +2189,74 @@ function WritingContent({
           ) : block.kind === "paragraph" ? (
             <p key={index} className="mb-5 text-[15px] leading-8 text-black/65">
               {block.text}
+            </p>
+          ) : block.kind === "table" ? (
+            <section key={index} className="my-7 overflow-hidden rounded-[18px] border border-black/10">
+              <h3 className="bg-[#003441] px-5 py-4 font-serif text-[18px] text-white">
+                {block.title}
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] border-collapse text-left text-[13px] text-black/60">
+                  <thead className="bg-[#003441]/[0.06] text-[#003441]">
+                    <tr>
+                      {block.columns.map((column, columnIndex) => (
+                        <th key={`${column}-${columnIndex}`} className="px-5 py-4 font-semibold">
+                          {column}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.rows.map((row, rowIndex) => (
+                      <tr key={rowIndex} className="border-t border-black/[0.06]">
+                        {row.map((cell, cellIndex) => (
+                          <td key={`${cell}-${cellIndex}`} className="px-5 py-4">
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : block.kind === "cards" ? (
+            <section key={index} className="my-7">
+              {block.title ? <h3 className="mb-4 font-serif text-[20px]">{block.title}</h3> : null}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {block.cards.map((card, cardIndex) => (
+                  <div
+                    key={`${card.title}-${cardIndex}`}
+                    className={`rounded-[16px] border p-5 ${block.variant === "yellow" ? "border-[#d59e1e]/25 bg-[#fff7cf]" : "border-black/[0.07] bg-[#fafafa]"}`}
+                  >
+                    <h4 className="text-[15px] font-semibold text-[#003441]">{card.title}</h4>
+                    <p className="mt-2 text-[13px] leading-6 text-black/55">{card.text}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : block.kind === "callout" ? (
+            <aside key={index} className="my-7 rounded-[16px] border border-[#d59e1e]/25 bg-[#fff7cf] p-5">
+              {block.title ? <h3 className="text-[16px] font-semibold text-[#003441]">{block.title}</h3> : null}
+              <p className="mt-2 text-[14px] leading-7 text-black/60">{block.text}</p>
+            </aside>
+          ) : block.kind === "image" ? (
+            <figure key={index} className="my-7">
+              <div
+                className="aspect-[16/9] rounded-[18px] bg-cover bg-center"
+                style={{ backgroundImage: `url(${block.imageUrl})` }}
+                role="img"
+                aria-label={block.alt}
+              />
+              {block.caption ? <figcaption className="mt-2 text-center text-[12px] text-black/40">{block.caption}</figcaption> : null}
+            </figure>
+          ) : block.kind === "quiz" ? (
+            <div key={index} className="my-7 rounded-[16px] border border-[#003441]/10 bg-[#f1f7f6] p-5 text-[14px] font-semibold text-[#003441]">
+              Quiz interactif intégré à l’article
+            </div>
+          ) : block.kind === "link" ? (
+            <p key={index} className="mb-5 text-[15px] leading-8 text-black/65">
+              {block.text}{" "}<span className="font-semibold text-[#003441]">{block.label}</span>
             </p>
           ) : null,
         )}

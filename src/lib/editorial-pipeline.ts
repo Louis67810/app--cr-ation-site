@@ -30,6 +30,14 @@ export type ResearchBrief = {
 };
 
 export type ArticleSectionFormat = "prose" | "table" | "cards" | "callout";
+export type ArticleComponentVariant =
+  | "default"
+  | "comparison"
+  | "yellow"
+  | "outlined"
+  | "highlight"
+  | "quote"
+  | "solution";
 
 export type ArticleImageRequest = {
   id: string;
@@ -70,6 +78,7 @@ export type ArticleOutline = {
     purpose: string;
     points: string[];
     format: ArticleSectionFormat;
+    componentVariant: ArticleComponentVariant;
     componentInstruction: string;
   }>;
   imageRequests: ArticleImageRequest[];
@@ -96,7 +105,47 @@ export type GeneratedArticle = {
   }>;
 };
 
-function validateResearchBrief(value: unknown) {
+function topicTerms(value: string) {
+  const ignored = new Set([
+    "avec",
+    "dans",
+    "des",
+    "les",
+    "pour",
+    "quel",
+    "quelle",
+    "comment",
+    "votre",
+    "vous",
+    "une",
+    "sur",
+    "son",
+    "ses",
+    "jardin",
+  ]);
+  return new Set(
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((term) => term.length > 2 && !ignored.has(term)),
+  );
+}
+
+function isTopicTooSimilar(candidate: string, existing: string) {
+  const candidateTerms = topicTerms(candidate);
+  const existingTerms = topicTerms(existing);
+  if (!candidateTerms.size || !existingTerms.size) return false;
+  const common = [...candidateTerms].filter((term) => existingTerms.has(term));
+  return (
+    candidate.trim().toLowerCase() === existing.trim().toLowerCase() ||
+    (common.length >= 2 &&
+      common.length / Math.min(candidateTerms.size, existingTerms.size) >= 0.72)
+  );
+}
+
+function validateResearchBrief(value: unknown, excludedTopics: string[] = []) {
   const result = value as Partial<ResearchBrief> | null;
   const errors: string[] = [];
   if (!result?.topic?.trim()) errors.push("topic est vide");
@@ -104,6 +153,13 @@ function validateResearchBrief(value: unknown) {
   if (!Array.isArray(result?.facts)) errors.push("facts doit etre une liste");
   if (!result?.performanceAnalysis)
     errors.push("performanceAnalysis est manquant");
+  if (
+    result?.topic &&
+    excludedTopics.some((topic) => isTopicTooSimilar(result.topic!, topic))
+  )
+    errors.push(
+      `topic est trop proche d'un article existant; choisir un problème et un angle réellement nouveaux parmi les sujets interdits : ${excludedTopics.join(" | ")}`,
+    );
   return errors;
 }
 
@@ -133,6 +189,19 @@ function validateArticleOutline(value: unknown) {
     )
   )
     errors.push("chaque section doit avoir un titre et au moins un point");
+  const componentSections = result.sections.filter(
+    (section) => section.format !== "prose",
+  );
+  if (componentSections.length < 2)
+    errors.push(
+      "le plan doit contenir au moins deux sections avec de vrais composants parmi table, cards et callout",
+    );
+  if (
+    componentSections.some(
+      (section) => !section.componentInstruction?.trim(),
+    )
+  )
+    errors.push("chaque composant doit avoir une instruction détaillée");
 
   const imageRequests = Array.isArray(result.imageRequests)
     ? result.imageRequests
@@ -172,7 +241,16 @@ function normalizeArticleOutline(value: unknown) {
     while (usedIds.has(id)) id = `${originalId}-${suffix++}`;
     usedIds.add(id);
     if (!idMap.has(originalId)) idMap.set(originalId, id);
-    return { ...section, id };
+    const componentVariant: ArticleComponentVariant =
+      section.componentVariant ??
+      (section.format === "table"
+        ? "comparison"
+        : section.format === "cards"
+          ? "yellow"
+          : section.format === "callout"
+            ? "highlight"
+            : "default");
+    return { ...section, id, componentVariant };
   });
   const fallbackSectionId =
     sections.find((section) => section.level === "h2")?.id ?? sections[0].id;
@@ -239,8 +317,17 @@ function normalizeArticleOutline(value: unknown) {
   };
 }
 
-function validateGeneratedArticle(value: unknown, expectedIds: string[]) {
+function countWords(values: string[]) {
+  return values
+    .join(" ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+function validateGeneratedArticle(value: unknown, outline: ArticleOutline) {
   const result = value as Partial<GeneratedArticle> | null;
+  const expectedIds = outline.sections.map((section) => section.id);
   const errors: string[] = [];
   if (!result?.title?.trim()) errors.push("title est vide");
   if (!result?.excerpt?.trim()) errors.push("excerpt est vide");
@@ -261,6 +348,65 @@ function validateGeneratedArticle(value: unknown, expectedIds: string[]) {
     )
   )
     errors.push("chaque section redigee doit contenir paragraphs");
+  if (
+    result.sections.some(
+      (section) =>
+        !Array.isArray(section?.paragraphs) ||
+        countWords(section.paragraphs) < 45,
+    )
+  )
+    errors.push(
+      "chaque section doit contenir au moins 45 mots de paragraphes utiles",
+    );
+
+  const contentBySection = new Map(
+    result.sections.map((section) => [section.sectionId, section]),
+  );
+  for (const section of outline.sections) {
+    const content = contentBySection.get(section.id);
+    if (!content) continue;
+    if (
+      section.format === "table" &&
+      (!Array.isArray(content.tableColumns) ||
+        content.tableColumns.length < 2 ||
+        !Array.isArray(content.tableRows) ||
+        content.tableRows.length < 2 ||
+        content.tableRows.some(
+          (row) => row.length !== content.tableColumns.length,
+        ))
+    )
+      errors.push(
+        `la section ${section.id} doit fournir un tableau complet avec au moins deux colonnes et deux lignes`,
+      );
+    if (
+      section.format === "cards" &&
+      (!Array.isArray(content.cards) || content.cards.length < 2)
+    )
+      errors.push(
+        `la section ${section.id} doit fournir au moins deux cartes complètes`,
+      );
+    if (section.format === "callout" && !content.calloutText?.trim())
+      errors.push(
+        `la section ${section.id} doit fournir le texte de l'encadré`,
+      );
+  }
+
+  const totalWords = countWords(
+    result.sections.flatMap((section) => [
+      ...(section.paragraphs ?? []),
+      section.tableTitle ?? "",
+      ...(section.tableColumns ?? []),
+      ...(section.tableRows?.flat() ?? []),
+      section.cardsTitle ?? "",
+      ...(section.cards?.flatMap((card) => [card.title, card.text]) ?? []),
+      section.calloutTitle ?? "",
+      section.calloutText ?? "",
+    ]),
+  );
+  if (totalWords < 850)
+    errors.push(
+      `l'article est trop court (${totalWords} mots); produire au moins 850 mots utiles`,
+    );
   return errors;
 }
 
@@ -870,6 +1016,16 @@ export async function researchTopic(input: {
   performance: EditorialPerformanceSnapshot;
 }) {
   const skill = await loadRuntimeSkill("article-research");
+  const existingArticles = input.performance.pages.filter((page) =>
+    page.path.startsWith("/blog/"),
+  );
+  const excludedTopics = existingArticles.map((page) => page.title);
+  const existingTopicsContext = existingArticles
+    .map(
+      (page) =>
+        `- ${page.title} (${page.path}) : ${page.searchConsole.impressions} impressions, ${page.searchConsole.clicks} clics, ${page.googleAnalytics.pageViews} vues GA4`,
+    )
+    .join("\n");
   const sourceContext = input.source
     ? `Source imposée par l’utilisateur (URL ou transcription) :\n${input.source.slice(0, 12000)}`
     : input.executionMode === "test" &&
@@ -882,9 +1038,13 @@ export async function researchTopic(input: {
     research: true,
     executionMode: input.executionMode,
     maxTokens: 3000,
-    validate: validateResearchBrief,
+    validate: (value) =>
+      validateResearchBrief(
+        value,
+        input.discoverTopic ? excludedTopics : [],
+      ),
     system: `${skill}\n\nTu es l’agent de recherche d’une rédaction française spécialisée dans le paysage et le jardin.`,
-    prompt: `${modeInstructions[input.mode]}\n\nProjet : ${input.projectName}\n${input.discoverTopic ? "Aucun sujet n'est imposé. Choisis toi-même UN sujet précis, nouveau et utile à partir des performances, opportunités et pages existantes. Ne propose pas un doublon." : `Sujet imposé : ${input.topic}`}\n\n${sourceContext}\n\nDONNÉES HISTORIQUES RÉELLES DU SITE :\n${JSON.stringify(input.performance)}\n\nCommence par comparer les anciennes pages sans inventer de données. Une page récente ou sans données ne doit jamais être déclarée faible. Croise Google Analytics 4 et Google Search Console lorsqu'ils sont présents : trafic et engagement d'un côté, impressions, clics, CTR et position de l'autre. Utilise les pages gagnantes, faibles et les opportunités SEO pour choisir le sujet exact et l'angle du nouveau contenu. Puis complète par des sources web fiables si l'outil de recherche est disponible. Chaque fait externe doit être associé à une URL réellement consultée. Si aucune recherche web n'est disponible, n'invente aucune URL et utilise un tableau facts vide. Prépare aussi les questions auxquelles l’article doit répondre, les mots-clés naturels et les précautions éventuelles.`,
+    prompt: `${modeInstructions[input.mode]}\n\nProjet : ${input.projectName}\n${input.discoverTopic ? "Aucun sujet n'est imposé. Choisis toi-même UN sujet précis, nouveau et utile. Il est interdit de paraphraser, prolonger ou reproduire l'angle d'un article existant. Une page faible ou avec peu d'impressions n'est pas une idée à recréer : elle doit au contraire être exclue des nouveaux sujets. Une page gagnante peut révéler un intérêt général, mais le nouveau sujet doit traiter un autre problème concret, une autre intention et un autre vocabulaire principal." : `Sujet imposé : ${input.topic}`}\n\nARTICLES EXISTANTS INTERDITS COMME SUJETS :\n${existingTopicsContext || "Aucun article existant."}\n\n${sourceContext}\n\nDONNÉES HISTORIQUES RÉELLES DU SITE :\n${JSON.stringify(input.performance)}\n\nCommence par comparer les anciennes pages sans inventer de données. Une page récente ou sans données ne doit jamais être déclarée faible. Croise Google Analytics 4 et Google Search Console lorsqu'ils sont présents : trafic et engagement d'un côté, impressions, clics, CTR et position de l'autre. Utilise les performances uniquement pour identifier des besoins adjacents encore non traités. N'utilise jamais une faible performance pour recréer le même sujet. Puis complète par des sources web fiables si l'outil de recherche est disponible. Chaque fait externe doit être associé à une URL réellement consultée. Si aucune recherche web n'est disponible, n'invente aucune URL et utilise un tableau facts vide. Prépare aussi les questions auxquelles l’article doit répondre, les mots-clés naturels et les précautions éventuelles.`,
     schema: {
       type: "object",
       additionalProperties: false,
@@ -1031,7 +1191,7 @@ export async function structureArticle(input: {
     normalize: normalizeArticleOutline,
     validate: validateArticleOutline,
     system: `${skill}\n\nTu es l’architecte éditorial d’un blog de paysagiste français.`,
-    prompt: `Sujet : ${input.topic}\n\nDossier de recherche validé :\n${JSON.stringify(input.research)}\n\nConstruis un titre clair, un résumé de 140 à 220 caractères et un plan H2/H3 détaillé pour un article de 900 à 1400 mots. Chaque grande partie est un H2 avec le style de section du builder ; les H3 sont réservés aux sous-parties du H2 précédent. Chaque titre est un bloc distinct des paragraphes. Chaque section reçoit un identifiant kebab-case, un objectif, des points précis, un format et une instruction de composant. Demande exactement une image hero et au maximum trois images inline. Une image inline doit référencer un sectionId existant. Décide si un quiz apporte une vraie aide au lecteur ; sinon retourne enabled=false et des champs vides. Le slug ne contient que des lettres ASCII, chiffres et tirets.`,
+    prompt: `Sujet : ${input.topic}\n\nDossier de recherche validé :\n${JSON.stringify(input.research)}\n\nConstruis un titre clair, un résumé de 140 à 220 caractères et un plan H2/H3 détaillé pour un article de 900 à 1400 mots. Chaque grande partie est un H2 avec le style de section du builder ; les H3 sont réservés aux sous-parties du H2 précédent. Chaque titre est un bloc distinct des paragraphes. Chaque section reçoit un identifiant kebab-case, un objectif, des points précis, un format, une variante et une instruction de composant. Le plan doit contenir au moins deux vrais composants utiles parmi table, cards et callout, placés dans des sections différentes. Pour cards, choisis default, yellow ou outlined. Pour table, choisis default ou comparison. Pour callout, choisis highlight, quote ou solution. Pour prose, utilise default. Demande exactement une image hero et au maximum trois images inline. Une image inline doit référencer un sectionId existant. Le quiz est désactivé par défaut. Active-le uniquement si les réponses permettent une recommandation réellement personnalisée fondée sur au moins trois critères distincts ; ne l'active jamais simplement pour rendre l'article interactif. Sinon retourne enabled=false et des champs vides. Le slug ne contient que des lettres ASCII, chiffres et tirets.`,
     schema: {
       type: "object",
       additionalProperties: false,
@@ -1067,6 +1227,7 @@ export async function structureArticle(input: {
               "purpose",
               "points",
               "format",
+              "componentVariant",
               "componentInstruction",
             ],
             properties: {
@@ -1083,6 +1244,18 @@ export async function structureArticle(input: {
               format: {
                 type: "string",
                 enum: ["prose", "table", "cards", "callout"],
+              },
+              componentVariant: {
+                type: "string",
+                enum: [
+                  "default",
+                  "comparison",
+                  "yellow",
+                  "outlined",
+                  "highlight",
+                  "quote",
+                  "solution",
+                ],
               },
               componentInstruction: { type: "string" },
             },
@@ -1196,12 +1369,9 @@ export async function writeArticle(input: {
         input.outline.sections.map((section) => section.id),
       ),
     validate: (value) =>
-      validateGeneratedArticle(
-        value,
-        input.outline.sections.map((section) => section.id),
-      ),
+      validateGeneratedArticle(value, input.outline),
     system: `${skill}\n\nTu es le rédacteur final d’un blog de paysagiste français. Le texte est concret, original, fluide et compréhensible, sans bourrage de mots-clés.`,
-    prompt: `Sujet : ${input.topic}\n\nPlan éditorial verrouillé :\n${JSON.stringify(input.outline)}\n\nImages déjà résolues :\n${JSON.stringify(input.images)}\n\nQuiz déjà résolu :\n${JSON.stringify(input.quizPlan ?? null)}\n\nRédige maintenant l’article complet de 900 à 1400 mots. Retourne exactement une entrée par sectionId, dans le même ordre que le plan. Les titres, images et quiz seront assemblés par le code : ne les répète pas. Pour format=prose, remplis paragraphs et laisse les composants vides. Pour table, cards ou callout, rédige aussi le composant demandé tout en conservant au moins un paragraphe d’introduction.`,
+    prompt: `Sujet : ${input.topic}\n\nPlan éditorial verrouillé :\n${JSON.stringify(input.outline)}\n\nImages déjà résolues :\n${JSON.stringify(input.images)}\n\nQuiz déjà résolu :\n${JSON.stringify(input.quizPlan ?? null)}\n\nRédige maintenant un article réellement complet de 900 à 1400 mots. Le minimum absolu est 850 mots utiles, composants compris. Retourne exactement une entrée par sectionId, dans le même ordre que le plan. Rédige pour chaque section deux à quatre paragraphes naturels totalisant au moins 45 mots. Les titres, images et quiz seront assemblés par le code : ne les répète pas dans paragraphs. Pour format=prose, remplis paragraphs et laisse les composants vides. Pour format=table, fournis un titre, au moins deux colonnes et au moins deux lignes de même largeur. Pour format=cards, fournis un titre et au moins deux cartes avec icône, titre et texte. Pour format=callout, fournis un titre et un texte d'encadré substantiel. Ne remplace jamais un composant demandé par une simple phrase dans paragraphs.`,
     schema: {
       type: "object",
       additionalProperties: false,
