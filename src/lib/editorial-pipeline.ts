@@ -4,6 +4,7 @@ import type { EditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 import { loadRuntimeSkill } from "@/lib/ai-runtime-skills";
 
 const OPENROUTER_TEST_MODEL = "inclusionai/ling-2.6-flash";
+const OPENROUTER_TEST_FALLBACK_MODEL = "qwen/qwen3.5-flash-02-23";
 
 export type EditorialMode = "seo" | "youtube" | "trends" | "editorial";
 export type EditorialExecutionMode = "test" | "classic";
@@ -544,6 +545,7 @@ async function askOpenRouter(input: {
     strictSchema: boolean,
     repairAttempt = 0,
     repairReason = "",
+    previousContent = "",
   ) =>
     fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -589,22 +591,83 @@ async function askOpenRouter(input: {
             role: "user",
             content:
               repairAttempt > 0
-                ? `${input.prompt}\n\nIMPORTANT : une reponse precedente etait invalide. Renvoie le document JSON complet depuis le debut, compact, sans markdown. Ferme obligatoirement toutes les chaines, listes et accolades. N'ajoute aucun texte avant ou apres le JSON. Corrige imperativement ces erreurs : ${repairReason}`
+                ? `${input.prompt}\n\nIMPORTANT : une reponse precedente etait invalide. Corrige le document fourni ci-dessous sans changer inutilement son contenu. Renvoie le document JSON complet depuis le debut, compact, sans markdown. Ferme obligatoirement toutes les chaines, listes et accolades. N'ajoute aucun texte avant ou apres le JSON. Corrige imperativement ces erreurs : ${repairReason}\n\nDOCUMENT PRECEDENT A CORRIGER :\n${previousContent.slice(0, 28000)}`
                 : input.prompt,
           },
         ],
       }),
     });
 
-  let response = await sendRequest(model, true);
   const httpDiagnostics: string[] = [];
+  const wait = (durationMs: number) =>
+    new Promise((resolve) => setTimeout(resolve, durationMs));
+  const sendWithRateLimitRecovery = async (
+    strictSchema: boolean,
+    repairAttempt = 0,
+    repairReason = "",
+    previousContent = "",
+    label = "Requête",
+  ) => {
+    let response = await sendRequest(
+      model,
+      strictSchema,
+      repairAttempt,
+      repairReason,
+      previousContent,
+    );
+    if (response.status !== 429) return response;
+
+    const firstDetail = await response.text();
+    httpDiagnostics.push(
+      `${label} limitée par le fournisseur :\n- modèle : ${model}\n- statut HTTP : 429\n- détails : ${firstDetail.slice(0, 1200) || "aucun"}\n- action : nouvelle tentative automatique`,
+    );
+    await wait(1200);
+    response = await sendRequest(
+      model,
+      strictSchema,
+      repairAttempt,
+      repairReason,
+      previousContent,
+    );
+    if (response.status !== 429 || !testMode) return response;
+
+    const secondDetail = await response.text();
+    const fallbackModel =
+      process.env.OPENROUTER_TEST_FALLBACK_MODEL ??
+      OPENROUTER_TEST_FALLBACK_MODEL;
+    httpDiagnostics.push(
+      `${label} encore limitée :\n- modèle : ${model}\n- statut HTTP : 429\n- détails : ${secondDetail.slice(0, 1200) || "aucun"}\n- action : bascule automatique vers ${fallbackModel}`,
+    );
+    model = fallbackModel;
+    return sendRequest(
+      model,
+      strictSchema,
+      repairAttempt,
+      repairReason,
+      previousContent,
+    );
+  };
+
+  let response = await sendWithRateLimitRecovery(
+    true,
+    0,
+    "",
+    "",
+    "Tentative initiale",
+  );
 
   if (!response.ok && testMode) {
     const strictDetail = await response.text();
     httpDiagnostics.push(
       `Tentative avec schéma strict :\n- statut HTTP : ${response.status}\n- détails : ${strictDetail.slice(0, 2000) || "aucun"}`,
     );
-    response = await sendRequest(model, false);
+    response = await sendWithRateLimitRecovery(
+      false,
+      0,
+      "",
+      "",
+      "Relance initiale sans schéma strict",
+    );
   }
 
   if (!response.ok) {
@@ -625,11 +688,12 @@ async function askOpenRouter(input: {
   ];
   let content = getOpenRouterContent(result);
   if (!content) {
-    response = await sendRequest(
-      model,
+    response = await sendWithRateLimitRecovery(
       false,
       1,
       "choices[0].message.content était vide ou absent",
+      "",
+      "Relance après contenu vide",
     );
     if (!response.ok) {
       const detail = await response.text();
@@ -671,23 +735,24 @@ async function askOpenRouter(input: {
       );
     }
 
-    if (testMode) model = OPENROUTER_TEST_MODEL;
-    response = await sendRequest(
-      model,
+    response = await sendWithRateLimitRecovery(
       parseAttempt === 0,
       parseAttempt + 1,
       repairReason,
+      candidateContent,
+      `Réparation ${parseAttempt + 1}`,
     );
     if (!response.ok && parseAttempt === 0) {
       const strictRepairDetail = await response.text();
       diagnostics.push(
         `Réparation ${parseAttempt + 1} avec schéma strict :\n- statut HTTP : ${response.status}\n- détails : ${strictRepairDetail.slice(0, 2000) || "aucun"}`,
       );
-      response = await sendRequest(
-        model,
+      response = await sendWithRateLimitRecovery(
         false,
         parseAttempt + 1,
         repairReason,
+        candidateContent,
+        `Réparation ${parseAttempt + 1} sans schéma strict`,
       );
     }
     if (!response.ok) {
