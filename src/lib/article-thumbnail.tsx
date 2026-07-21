@@ -1,8 +1,24 @@
 import "server-only";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { ImageResponse } from "next/og";
 
 const THUMBNAIL_WIDTH = 1592;
 const THUMBNAIL_HEIGHT = 1015;
+let titleFontPromise: Promise<ArrayBuffer> | undefined;
+
+function loadTitleFont() {
+  titleFontPromise ??= readFile(
+    path.join(process.cwd(), "public", "fonts", "new-york-regular.ttf"),
+  ).then(
+    (font) =>
+      font.buffer.slice(
+        font.byteOffset,
+        font.byteOffset + font.byteLength,
+      ) as ArrayBuffer,
+  );
+  return titleFontPromise;
+}
 
 function shortenTitle(value: string, maxLength = 72) {
   const title = value.trim().replace(/\s+/g, " ");
@@ -23,6 +39,7 @@ export async function generateArticleThumbnail(input: {
   logoLabel?: string;
   logoImageUrl?: string;
 }) {
+  const titleFont = await loadTitleFont();
   const title = shortenTitle(input.articleTitle);
   const logoLabel = input.logoLabel?.trim();
   const showLogo = Boolean(
@@ -125,7 +142,7 @@ export async function generateArticleThumbnail(input: {
             display: "flex",
             width: 770,
             color: "#ffffff",
-            fontFamily: "serif",
+            fontFamily: "New York",
             fontSize: titleSize(title),
             fontWeight: 400,
             lineHeight: 1.18,
@@ -142,6 +159,14 @@ export async function generateArticleThumbnail(input: {
     {
       width: THUMBNAIL_WIDTH,
       height: THUMBNAIL_HEIGHT,
+      fonts: [
+        {
+          name: "New York",
+          data: titleFont,
+          weight: 400,
+          style: "normal",
+        },
+      ],
     },
   );
 
