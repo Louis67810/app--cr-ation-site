@@ -363,11 +363,11 @@ function SiteHeaderGlassA({
     <header
       className={`${options?.viewport ? "absolute" : "relative md:fixed"} inset-x-0 top-0 z-[90] font-[var(--font-inter)] ${
         light
-          ? "border-b border-black/10 bg-white/95 text-[#102d28] backdrop-blur-xl"
-          : "border-b border-white/10 bg-[#092b25]/95 text-white backdrop-blur-xl"
+          ? "border-b border-black/10 bg-white/[0.03] text-black backdrop-blur-md transition-colors has-[.site-mega-root:hover]:bg-white/80 has-[.site-mega-root:focus-within]:bg-white/80"
+          : "border-b border-white/10 bg-white/[0.03] text-white backdrop-blur-md transition-colors has-[.site-mega-root:hover]:bg-black/60 has-[.site-mega-root:focus-within]:bg-black/60"
       }`}
     >
-      <div className="relative z-20 mx-auto flex min-h-20 max-w-[1440px] items-center justify-between px-5 py-[10px] md:px-8 xl:px-14">
+      <div className="relative z-20 mx-auto flex min-h-20 max-w-[1600px] items-center justify-between px-5 py-[10px] md:px-10 xl:px-20">
         <TemplateLink
           href="/"
           className={`typo-body-small flex h-11 min-w-24 items-center justify-center rounded-lg px-3 ${
@@ -393,25 +393,25 @@ function SiteHeaderGlassA({
         </TemplateLink>
         <nav
           aria-label="Navigation principale"
-          className={`${desktopNavigation} typo-button h-20 items-center gap-7`}
+          className={`${desktopNavigation} typo-body-small h-20 items-center gap-7 leading-none`}
         >
-          <DesktopMegaMenu label="Prestations" light={light} disabled={options?.disableLinks} kind="services" />
+          <DesktopMegaMenu label="Prestations" light={light} disabled={options?.disableLinks} kind="services" preview={Boolean(options?.viewport)} />
           <TemplateLink href="/realisations" className="whitespace-nowrap" disabled={options?.disableLinks}>
             Réalisations
           </TemplateLink>
           <TemplateLink href="/a-propos" className="whitespace-nowrap" disabled={options?.disableLinks}>
             À propos
           </TemplateLink>
-          <DesktopMegaMenu label="Ressources" light={light} disabled={options?.disableLinks} kind="resources" />
+          <DesktopMegaMenu label="Ressources" light={light} disabled={options?.disableLinks} kind="resources" preview={Boolean(options?.viewport)} />
         </nav>
         <TemplateLink
           href={phoneHref}
           ariaLabel={`Appeler le ${phone}`}
           disabled={options?.disableLinks}
-          className={`${desktopNavigation} h-11 items-center gap-2 rounded-full px-5 text-[13px] font-semibold ${light ? "bg-[#103b34] text-white" : "bg-[#d9ff72] text-[#12322c]"}`}
+          className={`${desktopNavigation} site-cta site-cta-primary cta-roll rounded-full text-[#00d494]`}
         >
           <Phone size={16} />
-          <span>{fields.phoneLabel?.trim() || "Appeler"}</span>
+          <CtaLabel value={fields.phoneLabel?.trim() || "Appeler"} path={["phoneLabel"]} options={options} />
         </TemplateLink>
         <details className={`${mobileNavigation} group relative`}>
           <summary
@@ -483,31 +483,41 @@ function DesktopMegaMenu({
   light,
   disabled,
   kind,
+  preview,
 }: {
   label: string;
   light: boolean;
   disabled?: boolean;
   kind: "services" | "resources";
+  preview: boolean;
 }) {
+  const panelPosition = preview
+    ? "absolute left-0 right-0 top-full"
+    : "fixed inset-x-0 top-20";
+  const panelTheme = light
+    ? "border-black/10 bg-white/80 text-black backdrop-blur-md"
+    : "border-white/10 bg-black/60 text-white backdrop-blur-md";
+
   return (
-    <div className="group/menu flex h-full items-center">
+    <div className="site-mega-root group/menu flex h-full items-center">
       <button type="button" className="flex h-full items-center gap-1.5 whitespace-nowrap" aria-haspopup="true">
         {label}
         <ChevronDown size={14} className="transition-transform duration-200 group-hover/menu:rotate-180 group-focus-within/menu:rotate-180" />
       </button>
-      {!disabled ? <span className="pointer-events-none fixed inset-x-0 bottom-0 top-20 -z-10 hidden bg-[#0c2924]/15 backdrop-blur-[7px] group-hover/menu:block group-focus-within/menu:block" /> : null}
-      <div className="invisible absolute left-1/2 top-full w-[min(1120px,calc(100vw-48px))] -translate-x-1/2 translate-y-2 rounded-b-[24px] border border-black/10 bg-[#f8f8f3] p-8 text-[#15342e] opacity-0 shadow-[0_30px_70px_rgba(0,0,0,.18)] transition duration-200 group-hover/menu:visible group-hover/menu:translate-y-0 group-hover/menu:opacity-100 group-focus-within/menu:visible group-focus-within/menu:translate-y-0 group-focus-within/menu:opacity-100">
+      {!disabled ? <span className="pointer-events-none fixed inset-x-0 bottom-0 top-20 -z-10 hidden bg-black/20 backdrop-blur-[7px] group-hover/menu:block group-focus-within/menu:block" /> : null}
+      <div className={`${panelPosition} ${panelTheme} invisible border-b opacity-0 shadow-[0_30px_70px_rgba(0,0,0,.18)] transition-opacity duration-200 group-hover/menu:visible group-hover/menu:opacity-100 group-focus-within/menu:visible group-focus-within/menu:opacity-100`}>
+        <div className="mx-auto max-w-[1600px] px-5 py-10 md:px-10 xl:px-20">
         {kind === "services" ? (
           <div className="grid grid-cols-3 gap-10">
             {serviceMenuGroups.map((group) => (
               <div key={group.title}>
-                <TemplateLink href="/prestations" disabled={disabled} className="inline-flex rounded-[8px] bg-[#d9ff72] px-3 py-2 font-serif text-[18px]">
+                <TemplateLink href="/prestations" disabled={disabled} className="typo-h5 inline-flex">
                   {group.title}
                 </TemplateLink>
-                <div className="mt-4 divide-y divide-black/[0.08]">
+                <div className="mt-4 divide-y divide-current/10">
                   {group.links.map(([title, href]) => (
-                    <TemplateLink key={href} href={href} disabled={disabled} className="flex items-center justify-between py-3 text-[13px] font-medium">
-                      {title}<ArrowUpRight size={15} className="text-black/35" />
+                    <TemplateLink key={href} href={href} disabled={disabled} className="typo-body-small flex items-center justify-between py-2 leading-[1.5]">
+                      {title}<ArrowUpRight size={15} className="opacity-40" />
                     </TemplateLink>
                   ))}
                 </div>
@@ -518,16 +528,16 @@ function DesktopMegaMenu({
           <div className="grid grid-cols-3 gap-6">
             {resourceCards.map((card) => (
               <TemplateLink key={card.href} href={card.href} disabled={disabled} className="group/card block">
-                <span className="block aspect-[1.9/1] overflow-hidden rounded-[12px] bg-[#dfe5df]">
+                <span className="block aspect-[1.9/1] overflow-hidden rounded-[16px] bg-white/10">
                   <span className="block h-full w-full bg-cover bg-center transition-transform duration-300 group-hover/card:scale-[1.025]" style={{ backgroundImage: `url(${card.image})` }} />
                 </span>
-                <strong className="mt-3 block text-[14px]">{card.title}</strong>
-                <span className="mt-1 block text-[12px] leading-5 text-black/45">{card.description}</span>
+                <strong className="typo-h5 mt-4 block">{card.title}</strong>
+                <span className="typo-body-small mt-2 block leading-[1.5] opacity-60">{card.description}</span>
               </TemplateLink>
             ))}
           </div>
         )}
-        <span className={`sr-only ${light ? "text-black" : "text-white"}`}>{label}</span>
+        </div>
       </div>
     </div>
   );
@@ -535,23 +545,23 @@ function DesktopMegaMenu({
 
 function MobileNavigation({ phone, phoneHref, light, disabled }: { phone: string; phoneHref: string; light: boolean; disabled?: boolean }) {
   return (
-    <div className={`absolute right-0 top-[54px] w-[min(360px,calc(100vw-24px))] overflow-y-auto rounded-[20px] border p-4 shadow-2xl ${light ? "border-black/10 bg-white text-[#15342e]" : "border-white/10 bg-[#0b3029] text-white"}`}>
+    <div className={`absolute right-0 top-[54px] w-[min(360px,calc(100vw-24px))] overflow-y-auto rounded-[20px] border p-4 shadow-2xl backdrop-blur-md ${light ? "border-black/10 bg-white/[0.03] text-black" : "border-white/10 bg-white/[0.03] text-white"}`}>
       <details className="group/sub border-b border-current/10 py-1">
-        <summary className="flex cursor-pointer list-none items-center justify-between py-3 text-[15px] font-semibold [&::-webkit-details-marker]:hidden">Prestations<ChevronDown size={16} className="transition group-open/sub:rotate-180" /></summary>
+        <summary className="typo-body-small flex cursor-pointer list-none items-center justify-between py-3 leading-none [&::-webkit-details-marker]:hidden">Prestations<ChevronDown size={16} className="transition group-open/sub:rotate-180" /></summary>
         <div className="grid gap-1 pb-3 pl-2">
-          {serviceMenuGroups.flatMap((group) => group.links).map(([title, href]) => <TemplateLink key={href} href={href} disabled={disabled} className="py-2 text-[13px] opacity-70">{title}</TemplateLink>)}
+          {serviceMenuGroups.flatMap((group) => group.links).map(([title, href]) => <TemplateLink key={href} href={href} disabled={disabled} className="typo-body-small py-2 leading-none opacity-70">{title}</TemplateLink>)}
         </div>
       </details>
-      <TemplateLink href="/realisations" disabled={disabled} className="block border-b border-current/10 py-4 text-[15px] font-semibold">Réalisations</TemplateLink>
-      <TemplateLink href="/a-propos" disabled={disabled} className="block border-b border-current/10 py-4 text-[15px] font-semibold">À propos</TemplateLink>
+      <TemplateLink href="/realisations" disabled={disabled} className="typo-body-small block border-b border-current/10 py-4 leading-none">Réalisations</TemplateLink>
+      <TemplateLink href="/a-propos" disabled={disabled} className="typo-body-small block border-b border-current/10 py-4 leading-none">À propos</TemplateLink>
       <details className="group/sub border-b border-current/10 py-1">
-        <summary className="flex cursor-pointer list-none items-center justify-between py-3 text-[15px] font-semibold [&::-webkit-details-marker]:hidden">Ressources<ChevronDown size={16} className="transition group-open/sub:rotate-180" /></summary>
+        <summary className="typo-body-small flex cursor-pointer list-none items-center justify-between py-3 leading-none [&::-webkit-details-marker]:hidden">Ressources<ChevronDown size={16} className="transition group-open/sub:rotate-180" /></summary>
         <div className="grid gap-1 pb-3 pl-2">
-          {resourceCards.map((card) => <TemplateLink key={card.href} href={card.href} disabled={disabled} className="py-2 text-[13px] opacity-70">{card.title}</TemplateLink>)}
+          {resourceCards.map((card) => <TemplateLink key={card.href} href={card.href} disabled={disabled} className="typo-body-small py-2 leading-none opacity-70">{card.title}</TemplateLink>)}
         </div>
       </details>
-      <TemplateLink href="/contact" disabled={disabled} className="block border-b border-current/10 py-4 text-[15px] font-semibold">Contact</TemplateLink>
-      <TemplateLink href={phoneHref} disabled={disabled} className={`mt-4 flex h-12 items-center justify-center gap-2 rounded-full text-[14px] font-semibold ${light ? "bg-[#103b34] text-white" : "bg-[#d9ff72] text-[#12322c]"}`}>
+      <TemplateLink href="/contact" disabled={disabled} className="typo-body-small block border-b border-current/10 py-4 leading-none">Contact</TemplateLink>
+      <TemplateLink href={phoneHref} disabled={disabled} className="site-cta site-cta-primary cta-roll mt-4 rounded-full text-[#00d494]">
         <Phone size={16} /> Appeler · {phone}
       </TemplateLink>
     </div>
