@@ -10,8 +10,10 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
+  type TouchEvent as ReactTouchEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import type { SiteHeaderGlassFields } from "@/lib/site-template";
@@ -179,7 +181,7 @@ function EditableHeaderText({
 
 function RollingText({ value }: { value: string }) {
   return (
-    <span className="cta-roll-text" data-text={value}>
+    <span aria-hidden className="cta-roll-text" data-text={value}>
       <span>{value}</span>
     </span>
   );
@@ -222,6 +224,7 @@ export function SiteHeaderGlass({
   const [activeMenu, setActiveMenu] = useState<MegaMenuKind | null>(null);
   const [pastHero, setPastHero] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [portalReady, setPortalReady] = useState(false);
   const [drawerOffset, setDrawerOffset] = useState(0);
   const [heroBackground, setHeroBackground] = useState<string>();
   const dragStartX = useRef<number | null>(null);
@@ -233,32 +236,45 @@ export function SiteHeaderGlass({
     ? compact || tablet
       ? "hidden"
       : "flex"
-    : "hidden xl:flex";
+    : "hidden 2xl:flex";
   const mobileNavigation = options?.viewport
     ? compact || tablet
       ? "flex"
       : "hidden"
-    : "flex xl:hidden";
+    : "flex 2xl:hidden";
+  const desktopCta = options?.viewport
+    ? compact || tablet
+      ? "!hidden"
+      : "!inline-flex"
+    : "!hidden 2xl:!inline-flex";
   const phone = fields.phone?.trim() || "06 00 00 00 00";
   const phoneHref = `tel:${phone.replace(/[^+\d]/g, "")}`;
   const homeHref = getPublishedHome(pathname);
-  const menuHeight = activeMenu === "resources" ? 365 : 350;
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setPortalReady(true));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     if (options?.viewport) return;
     const hero = findHeroSection();
     if (!hero) return;
 
-    const updateTheme = () => {
-      setPastHero(hero.getBoundingClientRect().bottom <= 80);
+    let frame = 0;
+    let previousState: boolean | null = null;
+    const watchHeroBoundary = () => {
+      const nextState = hero.getBoundingClientRect().bottom <= 96;
+      if (nextState !== previousState) {
+        previousState = nextState;
+        setPastHero(nextState);
+      }
+      frame = window.requestAnimationFrame(watchHeroBoundary);
     };
 
-    updateTheme();
-    window.addEventListener("scroll", updateTheme, { passive: true });
-    window.addEventListener("resize", updateTheme);
+    frame = window.requestAnimationFrame(watchHeroBoundary);
     return () => {
-      window.removeEventListener("scroll", updateTheme);
-      window.removeEventListener("resize", updateTheme);
+      window.cancelAnimationFrame(frame);
     };
   }, [options?.viewport]);
 
@@ -283,39 +299,81 @@ export function SiteHeaderGlass({
     setMobileOpen(false);
   };
 
-  const onDrawerPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
-    dragStartX.current = event.clientX;
-    event.currentTarget.setPointerCapture(event.pointerId);
+  const beginDrawerDrag = (clientX: number) => {
+    dragStartX.current = clientX;
+    dragOffset.current = 0;
   };
 
-  const onDrawerPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+  const updateDrawerDrag = (clientX: number) => {
     if (dragStartX.current === null) return;
-    const nextOffset = Math.max(0, event.clientX - dragStartX.current);
+    const nextOffset = Math.max(0, clientX - dragStartX.current);
     dragOffset.current = nextOffset;
     setDrawerOffset(nextOffset);
   };
 
-  const onDrawerPointerUp = (event: ReactPointerEvent<HTMLElement>) => {
+  const endDrawerDrag = () => {
     if (dragStartX.current === null) return;
-    event.currentTarget.releasePointerCapture(event.pointerId);
     dragStartX.current = null;
     if (dragOffset.current > 90) closeMobile();
     else setDrawerOffset(0);
     dragOffset.current = 0;
   };
 
+  const onDrawerPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    beginDrawerDrag(event.clientX);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onDrawerPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+    updateDrawerDrag(event.clientX);
+  };
+
+  const onDrawerPointerUp = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    endDrawerDrag();
+  };
+
+  const onDrawerMouseDown = (event: ReactMouseEvent<HTMLElement>) => {
+    beginDrawerDrag(event.clientX);
+  };
+
+  const onDrawerMouseMove = (event: ReactMouseEvent<HTMLElement>) => {
+    updateDrawerDrag(event.clientX);
+  };
+
+  const onDrawerMouseUp = () => {
+    endDrawerDrag();
+  };
+
+  const onDrawerTouchStart = (event: ReactTouchEvent<HTMLElement>) => {
+    const touch = event.touches[0];
+    if (touch) beginDrawerDrag(touch.clientX);
+  };
+
+  const onDrawerTouchMove = (event: ReactTouchEvent<HTMLElement>) => {
+    const touch = event.touches[0];
+    if (touch) updateDrawerDrag(touch.clientX);
+  };
+
+  const onDrawerTouchEnd = () => {
+    endDrawerDrag();
+  };
+
   return (
     <PublishedPathContext.Provider value={homeHref === "/" ? "" : homeHref}>
       <header
         onMouseLeave={() => setActiveMenu(null)}
-        className={`${options?.viewport ? "absolute" : "relative md:fixed"} inset-x-0 top-0 z-[90] overflow-visible font-[var(--font-inter)] transition-[height,background-color,color,border-color] duration-500 ease-in-out xl:overflow-hidden ${
+        className={`${options?.viewport ? "absolute" : "relative md:fixed"} inset-x-0 top-0 z-[90] overflow-visible font-[var(--font-inter)] transition-[background-color,color,border-color] duration-500 ease-in-out ${
           light
-            ? "border-b border-black/10 bg-white/90 text-black backdrop-blur-md"
-            : "border-b border-white/10 bg-white/[0.03] text-white backdrop-blur-md"
+            ? "border-b border-black/10 bg-white/95 text-black backdrop-blur-md"
+            : activeMenu
+              ? "border-b border-white/10 bg-[#080a09]/95 text-white backdrop-blur-xl"
+              : "border-b border-white/10 bg-black/45 text-white backdrop-blur-md"
         }`}
-        style={{ height: activeMenu ? 80 + menuHeight : 80 }}
       >
-        <div className="relative z-20 mx-auto flex min-h-20 max-w-[1600px] items-center justify-between px-5 py-[10px] md:px-10 xl:px-20">
+        <div className="relative z-20 mx-auto flex h-24 max-w-[1600px] items-center justify-between px-5 md:px-10 xl:px-20">
           <HeaderLink
             href={homeHref}
             className={`typo-body-small flex h-11 min-w-24 items-center justify-center rounded-lg px-3 ${
@@ -342,7 +400,7 @@ export function SiteHeaderGlass({
 
           <nav
             aria-label="Navigation principale"
-            className={`${desktopNavigation} typo-body-small h-20 items-center gap-7 leading-none`}
+            className={`${desktopNavigation} typo-body-small h-full items-center gap-7 leading-none`}
           >
             <MegaMenuTrigger
               label="Prestations"
@@ -352,6 +410,7 @@ export function SiteHeaderGlass({
             />
             <HeaderLink
               href="/realisations"
+              ariaLabel="Réalisations"
               className="cta-roll whitespace-nowrap"
               disabled={options?.disableLinks}
             >
@@ -359,6 +418,7 @@ export function SiteHeaderGlass({
             </HeaderLink>
             <HeaderLink
               href="/a-propos"
+              ariaLabel="À propos"
               className="cta-roll whitespace-nowrap"
               disabled={options?.disableLinks}
             >
@@ -376,7 +436,7 @@ export function SiteHeaderGlass({
             href={phoneHref}
             ariaLabel={`Appeler le ${phone}`}
             disabled={options?.disableLinks}
-            className={`${desktopNavigation} site-cta site-cta-primary cta-roll rounded-full text-[#00d494]`}
+            className={`${desktopCta} site-cta site-cta-primary cta-roll rounded-full text-[#00d494]`}
           >
             <Phone size={16} />
             {options?.editable ? (
@@ -396,7 +456,7 @@ export function SiteHeaderGlass({
             aria-expanded={mobileOpen}
             aria-controls="site-mobile-navigation"
             onClick={() => setMobileOpen(true)}
-            className={`${mobileNavigation} size-11 items-center justify-center`}
+            className={`${mobileNavigation} relative z-30 size-11 shrink-0 items-center justify-center`}
           >
             <Menu size={24} />
           </button>
@@ -404,37 +464,48 @@ export function SiteHeaderGlass({
 
         <div
           aria-hidden={!activeMenu}
-          className={`absolute inset-x-0 top-20 transition-opacity duration-300 ease-in-out ${
-            activeMenu ? "opacity-100" : "pointer-events-none opacity-0"
+          className={`grid transition-[grid-template-rows,opacity] duration-500 ease-in-out ${
+            activeMenu
+              ? "grid-rows-[1fr] opacity-100"
+              : "pointer-events-none grid-rows-[0fr] opacity-0"
           }`}
         >
-          <div className="mx-auto max-w-[1600px] px-5 py-10 md:px-10 xl:px-20">
-            {activeMenu === "resources" ? (
-              <ResourcesMenu disabled={options?.disableLinks} />
-            ) : (
-              <ServicesMenu disabled={options?.disableLinks} />
-            )}
+          <div className="min-h-0 overflow-hidden">
+            <div className="mx-auto max-w-[1600px] px-5 pb-14 pt-8 md:px-10 xl:px-20">
+              {activeMenu === "resources" ? (
+                <ResourcesMenu disabled={options?.disableLinks} />
+              ) : (
+                <ServicesMenu disabled={options?.disableLinks} />
+              )}
+            </div>
           </div>
         </div>
 
-        {activeMenu && !options?.disableLinks ? (
-          <span
-            aria-hidden
-            className="pointer-events-none fixed inset-x-0 bottom-0 -z-10 bg-black/20 backdrop-blur-[7px]"
-            style={{ top: 80 + menuHeight }}
-          />
-        ) : null}
+        {portalReady ? (
+          <>
+            <DesktopBackdrop
+              open={Boolean(activeMenu) && !options?.disableLinks}
+              onClose={() => setActiveMenu(null)}
+            />
 
-        <MobileDrawer
-          open={mobileOpen}
-          disabled={options?.disableLinks}
-          heroBackground={heroBackground}
-          offset={drawerOffset}
-          onClose={closeMobile}
-          onPointerDown={onDrawerPointerDown}
-          onPointerMove={onDrawerPointerMove}
-          onPointerUp={onDrawerPointerUp}
-        />
+            <MobileDrawer
+              open={mobileOpen}
+              disabled={options?.disableLinks}
+              heroBackground={heroBackground}
+              offset={drawerOffset}
+              onClose={closeMobile}
+              onPointerDown={onDrawerPointerDown}
+              onPointerMove={onDrawerPointerMove}
+              onPointerUp={onDrawerPointerUp}
+              onMouseDown={onDrawerMouseDown}
+              onMouseMove={onDrawerMouseMove}
+              onMouseUp={onDrawerMouseUp}
+              onTouchStart={onDrawerTouchStart}
+              onTouchMove={onDrawerTouchMove}
+              onTouchEnd={onDrawerTouchEnd}
+            />
+          </>
+        ) : null}
       </header>
     </PublishedPathContext.Provider>
   );
@@ -455,6 +526,7 @@ function MegaMenuTrigger({
     <button
       type="button"
       className="cta-roll flex h-full items-center gap-1.5 whitespace-nowrap"
+      aria-label={label}
       aria-haspopup="true"
       aria-expanded={active}
       onMouseEnter={() => onActivate(kind)}
@@ -483,13 +555,14 @@ function ServicesMenu({ disabled }: { disabled?: boolean }) {
           >
             {group.title}
           </HeaderLink>
-          <div className="mt-4 divide-y divide-current/10">
+          <div className="mt-4 grid">
             {group.links.map(([title, href]) => (
               <HeaderLink
                 key={href}
                 href={href}
+                ariaLabel={title}
                 disabled={disabled}
-                className="cta-roll typo-body-small flex items-center justify-between py-2 leading-[1.5]"
+                className="cta-roll typo-body-small !flex w-full items-center justify-between gap-4 border-b border-current/10 py-2.5 leading-[1.5] last:border-b-0"
               >
                 <RollingText value={title} />
                 <ArrowUpRight size={15} className="opacity-40" />
@@ -528,6 +601,29 @@ function ResourcesMenu({ disabled }: { disabled?: boolean }) {
   );
 }
 
+function DesktopBackdrop({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <button
+      type="button"
+      aria-label="Fermer le menu de navigation"
+      tabIndex={open ? 0 : -1}
+      onClick={onClose}
+      className={`fixed inset-0 z-[80] hidden bg-black/60 backdrop-blur-[10px] transition-opacity duration-500 ease-in-out 2xl:block ${
+        open ? "opacity-100" : "pointer-events-none opacity-0"
+      }`}
+    />,
+    document.body,
+  );
+}
+
 function MobileDrawer({
   open,
   disabled,
@@ -537,6 +633,12 @@ function MobileDrawer({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onMouseDown,
+  onMouseMove,
+  onMouseUp,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
 }: {
   open: boolean;
   disabled?: boolean;
@@ -546,6 +648,12 @@ function MobileDrawer({
   onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
   onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void;
   onPointerUp: (event: ReactPointerEvent<HTMLElement>) => void;
+  onMouseDown: (event: ReactMouseEvent<HTMLElement>) => void;
+  onMouseMove: (event: ReactMouseEvent<HTMLElement>) => void;
+  onMouseUp: () => void;
+  onTouchStart: (event: ReactTouchEvent<HTMLElement>) => void;
+  onTouchMove: (event: ReactTouchEvent<HTMLElement>) => void;
+  onTouchEnd: () => void;
 }) {
   if (typeof document === "undefined") return null;
 
@@ -556,7 +664,7 @@ function MobileDrawer({
         aria-label="Fermer le menu"
         tabIndex={open ? 0 : -1}
         onClick={onClose}
-        className={`fixed inset-0 z-40 bg-black/35 transition-opacity duration-500 ease-in-out xl:hidden ${
+        className={`fixed inset-0 z-[95] bg-black/55 backdrop-blur-sm transition-opacity duration-500 ease-in-out 2xl:hidden ${
           open ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
@@ -567,7 +675,13 @@ function MobileDrawer({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        className="fixed inset-y-0 right-0 z-50 w-[min(88vw,460px)] touch-pan-y overflow-y-auto text-white shadow-2xl transition-transform duration-500 ease-in-out xl:hidden"
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        className="fixed inset-y-0 right-0 z-[100] w-[min(88vw,460px)] touch-pan-y overflow-y-auto text-white shadow-2xl transition-transform duration-500 ease-in-out 2xl:hidden"
         style={{
           backgroundImage: heroBackground,
           backgroundPosition: "center",
