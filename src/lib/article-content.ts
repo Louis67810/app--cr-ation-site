@@ -3,6 +3,7 @@ import type {
   BlogPost,
   SitePage,
 } from "@/lib/site-template";
+import { normalizeArticleCategory } from "@/lib/article-categories";
 
 export function getArticleDetail(page: SitePage) {
   const section = page.sections.find(
@@ -26,7 +27,10 @@ export function touchArticlePage(page: SitePage, now = new Date()) {
     status: next.editorial?.status ?? "pending",
     mode: next.editorial?.mode ?? "editorial",
     executionMode: next.editorial?.executionMode,
-    category: next.editorial?.category ?? "Conseils",
+    category: normalizeArticleCategory(
+      next.editorial?.category,
+      detail?.fields.title ?? next.title,
+    ),
     createdAt: next.editorial?.createdAt ?? iso,
     updatedAt: iso,
     research: next.editorial?.research,
@@ -46,7 +50,7 @@ function toBlogPost(page: SitePage): BlogPost | null {
   return {
     title: fields.title,
     excerpt: fields.subtitle,
-    category: page.editorial?.category ?? "Conseils",
+    category: normalizeArticleCategory(page.editorial?.category, fields.title),
     imageUrl: fields.thumbnailImageUrl || fields.heroImageUrl,
     href: page.slug,
     date: fields.updatedAt,
@@ -55,6 +59,15 @@ function toBlogPost(page: SitePage): BlogPost | null {
 
 export function synchronizeArticleCollections(sourcePages: SitePage[]) {
   const pages = structuredClone(sourcePages);
+  for (const page of pages) {
+    const detail = getArticleDetail(page);
+    if (detail && page.editorial) {
+      page.editorial.category = normalizeArticleCategory(
+        page.editorial.category,
+        detail.fields.title,
+      );
+    }
+  }
   const articles = pages
     .filter((page) => page.slug.startsWith("/blog/") && getArticleDetail(page))
     .sort((left, right) =>
@@ -81,7 +94,10 @@ export function synchronizeArticleCollections(sourcePages: SitePage[]) {
       }
       if (section.type !== "article-detail") return section;
 
-      const currentCategory = page.editorial?.category ?? "Conseils";
+      const currentCategory = normalizeArticleCategory(
+        page.editorial?.category,
+        section.fields.title,
+      );
       const relatedPosts = posts
         .filter((post) => post.href !== page.slug)
         .sort((left, right) => {

@@ -6,7 +6,10 @@ import {
   getArticleDetail,
   synchronizeArticleCollections,
 } from "@/lib/article-content";
-import { generateArticleThumbnail } from "@/lib/article-thumbnail";
+import {
+  ARTICLE_THUMBNAIL_VERSION,
+  generateArticleThumbnail,
+} from "@/lib/article-thumbnail";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -64,6 +67,7 @@ export async function POST(request: Request) {
     const previousDetail = previousPage ? getArticleDetail(previousPage) : null;
     const needsThumbnail =
       !detail.fields.thumbnailImageUrl ||
+      detail.fields.thumbnailVersion !== ARTICLE_THUMBNAIL_VERSION ||
       previousDetail?.fields.title !== detail.fields.title ||
       previousDetail?.fields.heroImageUrl !== detail.fields.heroImageUrl;
     if (!needsThumbnail) continue;
@@ -105,6 +109,7 @@ export async function POST(request: Request) {
         continue;
       }
       detail.fields.thumbnailImageUrl = publicData.publicUrl;
+      detail.fields.thumbnailVersion = ARTICLE_THUMBNAIL_VERSION;
     } catch {
       // A thumbnail failure must never prevent the CMS draft from being saved.
     }

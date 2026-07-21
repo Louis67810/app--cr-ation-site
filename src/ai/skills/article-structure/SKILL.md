@@ -9,6 +9,7 @@ Créer le plan sans rédiger les paragraphes.
 
 ## Règles
 
+- Choisir exactement une catégorie parmi `Conseils`, `Entretien`, `Aménagement`, `Végétaux` et `Inspiration`. Ne jamais créer une autre catégorie.
 - Attribuer un identifiant stable et unique à chaque section.
 - Définir pour chaque section son titre, son niveau, son objectif, ses points et son format.
 - Utiliser H2 pour chaque grande partie de l'article et H3 uniquement pour une sous-partie directement rattachée au H2 précédent.

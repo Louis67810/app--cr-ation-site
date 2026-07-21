@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { generateArticleImage } from "@/lib/article-image-generation";
-import { generateArticleThumbnail } from "@/lib/article-thumbnail";
+import {
+  ARTICLE_THUMBNAIL_VERSION,
+  generateArticleThumbnail,
+} from "@/lib/article-thumbnail";
 import {
   getArticleDetail,
   synchronizeArticleCollections,
@@ -161,10 +164,12 @@ export async function POST(request: Request) {
             .remove([thumbnailPath]);
         } else {
           detail.fields.thumbnailImageUrl = thumbnailPublicData.publicUrl;
+          detail.fields.thumbnailVersion = ARTICLE_THUMBNAIL_VERSION;
         }
       }
     } catch {
       detail.fields.thumbnailImageUrl = publicUrl;
+      detail.fields.thumbnailVersion = undefined;
     }
   } else {
     const block = detail.fields.blocks.find(

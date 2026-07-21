@@ -15,7 +15,11 @@ import {
 } from "@/lib/editorial-pipeline";
 import { assembleArticleBlocks, getHeroImage } from "@/lib/article-assembly";
 import { generateArticleImage } from "@/lib/article-image-generation";
-import { generateArticleThumbnail } from "@/lib/article-thumbnail";
+import {
+  ARTICLE_THUMBNAIL_VERSION,
+  generateArticleThumbnail,
+} from "@/lib/article-thumbnail";
+import { normalizeArticleCategory } from "@/lib/article-categories";
 import { normalizeProjectKey } from "@/lib/project-key";
 import { buildEditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 import { createClient } from "@/lib/supabase/server";
@@ -87,6 +91,7 @@ function addArticleToPages(
   article: GeneratedArticle,
   images: ResolvedArticleImage[],
   thumbnailImageUrl: string,
+  thumbnailGenerated: boolean,
   workflow: {
     mode: EditorialMode;
     executionMode: EditorialExecutionMode;
@@ -115,7 +120,7 @@ function addArticleToPages(
     status: "pending",
     mode: workflow.mode,
     executionMode: workflow.executionMode,
-    category: article.category?.trim() || "Conseils",
+    category: normalizeArticleCategory(article.category, article.title),
     createdAt: now,
     updatedAt: now,
     research: workflow.research,
@@ -156,6 +161,9 @@ function addArticleToPages(
     heroImageUrl: heroImageUrl || previous.heroImageUrl,
     heroImageAlt: article.heroImageAlt?.trim() || article.title.trim(),
     thumbnailImageUrl: thumbnailImageUrl || heroImageUrl || previous.heroImageUrl,
+    thumbnailVersion: thumbnailGenerated
+      ? ARTICLE_THUMBNAIL_VERSION
+      : undefined,
     readingTime: article.readingTime?.trim() || "6 minutes",
     updatedAt: date,
     blocks,
@@ -165,7 +173,7 @@ function addArticleToPages(
   const post: BlogPost = {
     title: article.title.trim(),
     excerpt: article.excerpt.trim(),
-    category: article.category?.trim() || "Conseils",
+    category: normalizeArticleCategory(article.category, article.title),
     imageUrl: thumbnailImageUrl || heroImageUrl || previous.heroImageUrl,
     href,
     date,
@@ -446,6 +454,7 @@ export async function POST(request: Request) {
 
     const heroImageUrl = getHeroImage(images)?.url ?? "";
     let thumbnailImageUrl = heroImageUrl;
+    let thumbnailGenerated = false;
     if (heroImageUrl) {
       try {
         const brand = getProjectBrand(projectPages);
@@ -485,6 +494,7 @@ export async function POST(request: Request) {
             await supabase.storage.from("project-assets").remove([storagePath]);
           } else {
             thumbnailImageUrl = publicData.publicUrl;
+            thumbnailGenerated = true;
           }
         }
       } catch {
@@ -492,7 +502,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const updated = addArticleToPages(pages, article, images, thumbnailImageUrl, {
+    const updated = addArticleToPages(pages, article, images, thumbnailImageUrl, thumbnailGenerated, {
       mode: payload.mode,
       executionMode,
       research,

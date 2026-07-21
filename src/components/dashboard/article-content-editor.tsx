@@ -22,6 +22,10 @@ import {
   X,
 } from "lucide-react";
 import { getArticleDetail, touchArticlePage } from "@/lib/article-content";
+import {
+  ARTICLE_CATEGORIES,
+  normalizeArticleCategory,
+} from "@/lib/article-categories";
 import type {
   ArticleBlock,
   ArticleDetailFields,
@@ -338,8 +342,11 @@ export function ArticleContentEditor({
               />
             </Field>
             <Field label="Catégorie">
-              <input
-                value={page.editorial?.category ?? "Conseils"}
+              <select
+                value={normalizeArticleCategory(
+                  page.editorial?.category,
+                  fields.title,
+                )}
                 onChange={(event) =>
                   updatePage((next) => {
                     if (next.editorial)
@@ -347,7 +354,13 @@ export function ArticleContentEditor({
                   })
                 }
                 className={inputClass}
-              />
+              >
+                {ARTICLE_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
             </Field>
             <Field label="Temps de lecture">
               <input

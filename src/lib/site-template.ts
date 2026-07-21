@@ -259,6 +259,7 @@ export type ArticleDetailFields = {
   heroImageUrl: string;
   heroImageAlt: string;
   thumbnailImageUrl?: string;
+  thumbnailVersion?: number;
   readingTime: string;
   updatedLabel: string;
   updatedAt: string;

@@ -18,6 +18,10 @@ import {
   getArticleDetail,
   synchronizeArticleCollections,
 } from "@/lib/article-content";
+import {
+  ARTICLE_CATEGORY_STYLES,
+  normalizeArticleCategory,
+} from "@/lib/article-categories";
 import type { SitePage } from "@/lib/site-template";
 
 type CmsProject = {
@@ -582,6 +586,10 @@ function ArticleCollection({
           {pages.map((page) => {
             const detail = getArticleDetail(page);
             if (!detail) return null;
+            const category = normalizeArticleCategory(
+              page.editorial?.category,
+              detail.fields.title,
+            );
             return (
               <button
                 key={page.id}
@@ -604,8 +612,11 @@ function ArticleCollection({
                     {page.slug}
                   </p>
                 </div>
-                <span className="hidden rounded-full bg-[#f3f3f3] px-3 py-1.5 text-center text-[10px] text-black/50 sm:block">
-                  {page.editorial?.category ?? "Conseils"}
+                <span
+                  className="hidden rounded-full px-3 py-1.5 text-center text-[10px] sm:block"
+                  style={ARTICLE_CATEGORY_STYLES[category]}
+                >
+                  {category}
                 </span>
                 <div className="text-right">
                   <p className="text-[10px] text-black/45">

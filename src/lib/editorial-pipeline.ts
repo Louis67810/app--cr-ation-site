@@ -2,6 +2,11 @@ import "server-only";
 import type { ReusableQuiz } from "@/lib/site-template";
 import type { EditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 import { loadRuntimeSkill } from "@/lib/ai-runtime-skills";
+import {
+  ARTICLE_CATEGORIES,
+  isArticleCategory,
+  normalizeArticleCategory,
+} from "@/lib/article-categories";
 
 const OPENROUTER_TEST_MODEL = "inclusionai/ling-2.6-flash";
 const OPENROUTER_TEST_FALLBACK_MODEL = "qwen/qwen3.5-flash-02-23";
@@ -169,7 +174,8 @@ function validateArticleOutline(value: unknown) {
   const errors: string[] = [];
   if (!result?.title?.trim()) errors.push("title est vide");
   if (!result?.excerpt?.trim()) errors.push("excerpt est vide");
-  if (!result?.category?.trim()) errors.push("category est vide");
+  if (!isArticleCategory(result?.category))
+    errors.push(`category doit être l'une de : ${ARTICLE_CATEGORIES.join(", ")}`);
   if (!result?.slug?.trim()) errors.push("slug est vide");
   if (!result?.readingTime?.trim()) errors.push("readingTime est vide");
   if (!Array.isArray(result?.sections) || result.sections.length < 4) {
@@ -312,6 +318,7 @@ function normalizeArticleOutline(value: unknown) {
 
   return {
     ...result,
+    category: normalizeArticleCategory(result.category, result.title),
     sections,
     imageRequests: [hero, ...inlineImages],
     quizRequest,
@@ -332,6 +339,10 @@ function validateGeneratedArticle(value: unknown, outline: ArticleOutline) {
   const errors: string[] = [];
   if (!result?.title?.trim()) errors.push("title est vide");
   if (!result?.excerpt?.trim()) errors.push("excerpt est vide");
+  if (!isArticleCategory(result?.category))
+    errors.push(`category doit être l'une de : ${ARTICLE_CATEGORIES.join(", ")}`);
+  if (result?.category !== outline.category)
+    errors.push("category doit être identique à celle du plan verrouillé");
   if (!Array.isArray(result?.sections)) {
     errors.push("sections doit etre une liste");
     return errors;
@@ -424,6 +435,7 @@ function normalizeGeneratedArticle(value: unknown, expectedIds: string[]) {
     return value;
   return {
     ...result,
+    category: normalizeArticleCategory(result.category, result.title),
     sections: expectedIds.map((id) => sectionsById.get(id)),
   };
 }
@@ -1274,7 +1286,7 @@ export async function structureArticle(input: {
       properties: {
         title: { type: "string" },
         excerpt: { type: "string" },
-        category: { type: "string" },
+        category: { type: "string", enum: [...ARTICLE_CATEGORIES] },
         slug: { type: "string" },
         heroImageAlt: { type: "string" },
         readingTime: { type: "string" },
@@ -1452,7 +1464,7 @@ export async function writeArticle(input: {
       properties: {
         title: { type: "string" },
         excerpt: { type: "string" },
-        category: { type: "string" },
+        category: { type: "string", enum: [...ARTICLE_CATEGORIES] },
         slug: { type: "string" },
         heroImageAlt: { type: "string" },
         readingTime: { type: "string" },

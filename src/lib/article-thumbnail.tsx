@@ -5,6 +5,7 @@ import { ImageResponse } from "next/og";
 
 const THUMBNAIL_WIDTH = 1592;
 const THUMBNAIL_HEIGHT = 1015;
+export const ARTICLE_THUMBNAIL_VERSION = 2;
 let titleFontPromise: Promise<ArrayBuffer> | undefined;
 
 function loadTitleFont() {

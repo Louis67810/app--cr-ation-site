@@ -40,6 +40,11 @@ import type {
   EditorialPageStatus,
   SitePage,
 } from "@/lib/site-template";
+import {
+  ARTICLE_CATEGORY_STYLES,
+  normalizeArticleCategory,
+  type ArticleCategory,
+} from "@/lib/article-categories";
 
 type IdeaMode = "seo" | "youtube" | "trends";
 type EditorialIdea = {
@@ -643,6 +648,10 @@ export function AiAgents({
             key={page.id}
             title={getTitle(page)}
             mode={getMode(page)}
+            category={normalizeArticleCategory(
+              page.editorial?.category,
+              getTitle(page),
+            )}
             status={getStatus(page)}
             date={getRelativeDate(
               page.editorial?.updatedAt ?? page.editorial?.createdAt,
@@ -883,6 +892,7 @@ function PagePerformance({
 function GeneratedRow({
   title,
   mode,
+  category,
   status,
   date,
   hero,
@@ -895,6 +905,7 @@ function GeneratedRow({
 }: {
   title: string;
   mode: IdeaMode;
+  category: ArticleCategory;
   status: EditorialPageStatus;
   date: string;
   hero: string;
@@ -936,7 +947,7 @@ function GeneratedRow({
               {title}
             </p>
             <div className="mt-1 flex items-center gap-2">
-              <ModePill mode={mode} />
+              <CategoryPill category={category} />
               <span className="text-[12px] leading-5 text-black/55">
                 {date}
               </span>
@@ -1011,6 +1022,17 @@ function ModePill({ mode }: { mode: IdeaMode }) {
       className={`rounded-full px-2 py-[5px] text-[11px] leading-4 ${styles}`}
     >
       {modeLabel(mode)}
+    </span>
+  );
+}
+
+function CategoryPill({ category }: { category: ArticleCategory }) {
+  return (
+    <span
+      className="rounded-full px-2 py-[5px] text-[11px] leading-4"
+      style={ARTICLE_CATEGORY_STYLES[category]}
+    >
+      {category}
     </span>
   );
 }

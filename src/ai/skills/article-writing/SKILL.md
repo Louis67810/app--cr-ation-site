@@ -9,6 +9,7 @@ Rédiger sans modifier le plan.
 
 ## Règles
 
+- Recopier exactement la catégorie du plan verrouillé. Elle doit être `Conseils`, `Entretien`, `Aménagement`, `Végétaux` ou `Inspiration`.
 - Utiliser exactement les identifiants de sections reçus, dans le même ordre.
 - Ne jamais ajouter, supprimer, renommer ou déplacer une section.
 - Ne pas demander le dossier de recherche : le plan transmis est l'unique source de cadrage.
