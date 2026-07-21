@@ -5,12 +5,15 @@ import {
   BadgePercent,
   Building2,
   CalendarDays,
+  ChevronDown,
   ChevronRight,
   Clock3,
   Home,
   Landmark,
   Leaf,
   Lightbulb,
+  Menu,
+  Phone,
   Scissors,
   ShieldCheck,
   Sprout,
@@ -343,20 +346,32 @@ function SiteHeaderGlassA({
   const compact = options?.viewport === "phone";
   const tablet = options?.viewport === "tablet";
   const light = variant === "light-a";
+  const desktopNavigation = options?.viewport
+    ? compact || tablet
+      ? "hidden"
+      : "flex"
+    : "hidden xl:flex";
+  const mobileNavigation = options?.viewport
+    ? compact || tablet
+      ? "block"
+      : "hidden"
+    : "block xl:hidden";
+  const phone = fields.phone?.trim() || "06 00 00 00 00";
+  const phoneHref = `tel:${phone.replace(/[^+\d]/g, "")}`;
 
   return (
     <header
-      className={`absolute inset-x-0 top-0 z-20 font-[var(--font-inter)] backdrop-blur-md ${
+      className={`${options?.viewport ? "absolute" : "relative md:fixed"} inset-x-0 top-0 z-[90] font-[var(--font-inter)] ${
         light
-          ? "border-b border-black/10 bg-white/[0.03]"
-          : "border-b border-white/10 bg-white/[0.03]"
+          ? "border-b border-black/10 bg-white/95 text-[#102d28] backdrop-blur-xl"
+          : "border-b border-white/10 bg-[#092b25]/95 text-white backdrop-blur-xl"
       }`}
     >
-      <div className="mx-auto flex min-h-20 max-w-[1600px] items-center justify-between px-5 py-[10px] md:px-10 xl:px-20">
+      <div className="relative z-20 mx-auto flex min-h-20 max-w-[1440px] items-center justify-between px-5 py-[10px] md:px-8 xl:px-14">
         <TemplateLink
           href="/"
-          className={`typo-body-small flex h-11 w-24 items-center justify-center rounded-lg ${
-            light ? "bg-black/10 text-black/70" : "bg-white/10 text-white/70"
+          className={`typo-body-small flex h-11 min-w-24 items-center justify-center rounded-lg px-3 ${
+            light ? "bg-black/[0.06] text-[#102d28]" : "bg-white/10 text-white"
           }`}
           ariaLabel="Accueil"
           disabled={options?.disableLinks}
@@ -377,36 +392,169 @@ function SiteHeaderGlassA({
           )}
         </TemplateLink>
         <nav
-          className={`typo-button items-center ${
-            light ? "text-black" : "text-white"
-          } ${
-            compact ? "hidden" : "flex"
-          } ${tablet ? "gap-4" : "gap-7"}`}
+          aria-label="Navigation principale"
+          className={`${desktopNavigation} typo-button h-20 items-center gap-7`}
         >
-          {fields.navigation.map((item, index) => (
-            <TemplateLink
-              key={`${item.href}-${index}`}
-              href={item.href}
-              className={`transition ${light ? "hover:text-black/55" : "hover:text-white/70"}`}
-              disabled={options?.disableLinks}
-            >
-              <EditableText
-                value={item.label}
-                path={["navigation", index, "label"]}
-                options={options}
-              />
-            </TemplateLink>
-          ))}
+          <DesktopMegaMenu label="Prestations" light={light} disabled={options?.disableLinks} kind="services" />
+          <TemplateLink href="/realisations" className="whitespace-nowrap" disabled={options?.disableLinks}>
+            Réalisations
+          </TemplateLink>
+          <TemplateLink href="/a-propos" className="whitespace-nowrap" disabled={options?.disableLinks}>
+            À propos
+          </TemplateLink>
+          <DesktopMegaMenu label="Ressources" light={light} disabled={options?.disableLinks} kind="resources" />
         </nav>
-        <SiteCta
-          variant="primary"
-          href={fields.cta.href}
-          value={fields.cta.label}
-          path={["cta", "label"]}
-          options={options}
-        />
+        <TemplateLink
+          href={phoneHref}
+          ariaLabel={`Appeler le ${phone}`}
+          disabled={options?.disableLinks}
+          className={`${desktopNavigation} h-11 items-center gap-2 rounded-full px-5 text-[13px] font-semibold ${light ? "bg-[#103b34] text-white" : "bg-[#d9ff72] text-[#12322c]"}`}
+        >
+          <Phone size={16} />
+          <span>{fields.phoneLabel?.trim() || "Appeler"}</span>
+        </TemplateLink>
+        <details className={`${mobileNavigation} group relative`}>
+          <summary
+            aria-label="Ouvrir le menu"
+            className={`grid size-11 cursor-pointer list-none place-items-center rounded-full [&::-webkit-details-marker]:hidden ${light ? "bg-black/[0.06]" : "bg-white/10"}`}
+          >
+            <Menu size={21} />
+          </summary>
+          <MobileNavigation phone={phone} phoneHref={phoneHref} light={light} disabled={options?.disableLinks} />
+        </details>
       </div>
     </header>
+  );
+}
+
+const serviceMenuGroups: Array<{
+  title: string;
+  links: Array<readonly [string, string]>;
+}> = [
+  {
+    title: "Créer",
+    links: [
+      ["Création de jardin", "/prestations/creation-jardin"],
+      ["Plantations", "/prestations/plantations"],
+      ["Création de pelouse", "/prestations/creation-pelouse"],
+    ],
+  },
+  {
+    title: "Entretenir",
+    links: [
+      ["Entretien paysager", "/prestations/entretien-paysager"],
+      ["Taille et élagage", "/prestations/taille-elagage"],
+      ["Conseil paysager", "/prestations/conseil-paysager"],
+    ],
+  },
+  {
+    title: "Aménager",
+    links: [
+      ["Aménagement extérieur", "/prestations/amenagement-exterieur"],
+      ["Terrasses et allées", "/prestations/terrasses-allees"],
+      ["Toutes les prestations", "/prestations"],
+    ],
+  },
+];
+
+const resourceCards = [
+  {
+    title: "Conseils & articles",
+    description: "Des réponses concrètes pour mieux comprendre et entretenir votre extérieur.",
+    href: "/blog",
+    image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=900&q=85",
+  },
+  {
+    title: "Nos réalisations",
+    description: "Découvrez des jardins et aménagements réalisés pour nos clients.",
+    href: "/realisations",
+    image: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=900&q=85",
+  },
+  {
+    title: "Notre approche",
+    description: "Une méthode simple, humaine et durable pour chaque projet paysager.",
+    href: "/a-propos",
+    image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=85",
+  },
+] as const;
+
+function DesktopMegaMenu({
+  label,
+  light,
+  disabled,
+  kind,
+}: {
+  label: string;
+  light: boolean;
+  disabled?: boolean;
+  kind: "services" | "resources";
+}) {
+  return (
+    <div className="group/menu flex h-full items-center">
+      <button type="button" className="flex h-full items-center gap-1.5 whitespace-nowrap" aria-haspopup="true">
+        {label}
+        <ChevronDown size={14} className="transition-transform duration-200 group-hover/menu:rotate-180 group-focus-within/menu:rotate-180" />
+      </button>
+      {!disabled ? <span className="pointer-events-none fixed inset-x-0 bottom-0 top-20 -z-10 hidden bg-[#0c2924]/15 backdrop-blur-[7px] group-hover/menu:block group-focus-within/menu:block" /> : null}
+      <div className="invisible absolute left-1/2 top-full w-[min(1120px,calc(100vw-48px))] -translate-x-1/2 translate-y-2 rounded-b-[24px] border border-black/10 bg-[#f8f8f3] p-8 text-[#15342e] opacity-0 shadow-[0_30px_70px_rgba(0,0,0,.18)] transition duration-200 group-hover/menu:visible group-hover/menu:translate-y-0 group-hover/menu:opacity-100 group-focus-within/menu:visible group-focus-within/menu:translate-y-0 group-focus-within/menu:opacity-100">
+        {kind === "services" ? (
+          <div className="grid grid-cols-3 gap-10">
+            {serviceMenuGroups.map((group) => (
+              <div key={group.title}>
+                <TemplateLink href="/prestations" disabled={disabled} className="inline-flex rounded-[8px] bg-[#d9ff72] px-3 py-2 font-serif text-[18px]">
+                  {group.title}
+                </TemplateLink>
+                <div className="mt-4 divide-y divide-black/[0.08]">
+                  {group.links.map(([title, href]) => (
+                    <TemplateLink key={href} href={href} disabled={disabled} className="flex items-center justify-between py-3 text-[13px] font-medium">
+                      {title}<ArrowUpRight size={15} className="text-black/35" />
+                    </TemplateLink>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-6">
+            {resourceCards.map((card) => (
+              <TemplateLink key={card.href} href={card.href} disabled={disabled} className="group/card block">
+                <span className="block aspect-[1.9/1] overflow-hidden rounded-[12px] bg-[#dfe5df]">
+                  <span className="block h-full w-full bg-cover bg-center transition-transform duration-300 group-hover/card:scale-[1.025]" style={{ backgroundImage: `url(${card.image})` }} />
+                </span>
+                <strong className="mt-3 block text-[14px]">{card.title}</strong>
+                <span className="mt-1 block text-[12px] leading-5 text-black/45">{card.description}</span>
+              </TemplateLink>
+            ))}
+          </div>
+        )}
+        <span className={`sr-only ${light ? "text-black" : "text-white"}`}>{label}</span>
+      </div>
+    </div>
+  );
+}
+
+function MobileNavigation({ phone, phoneHref, light, disabled }: { phone: string; phoneHref: string; light: boolean; disabled?: boolean }) {
+  return (
+    <div className={`absolute right-0 top-[54px] w-[min(360px,calc(100vw-24px))] overflow-y-auto rounded-[20px] border p-4 shadow-2xl ${light ? "border-black/10 bg-white text-[#15342e]" : "border-white/10 bg-[#0b3029] text-white"}`}>
+      <details className="group/sub border-b border-current/10 py-1">
+        <summary className="flex cursor-pointer list-none items-center justify-between py-3 text-[15px] font-semibold [&::-webkit-details-marker]:hidden">Prestations<ChevronDown size={16} className="transition group-open/sub:rotate-180" /></summary>
+        <div className="grid gap-1 pb-3 pl-2">
+          {serviceMenuGroups.flatMap((group) => group.links).map(([title, href]) => <TemplateLink key={href} href={href} disabled={disabled} className="py-2 text-[13px] opacity-70">{title}</TemplateLink>)}
+        </div>
+      </details>
+      <TemplateLink href="/realisations" disabled={disabled} className="block border-b border-current/10 py-4 text-[15px] font-semibold">Réalisations</TemplateLink>
+      <TemplateLink href="/a-propos" disabled={disabled} className="block border-b border-current/10 py-4 text-[15px] font-semibold">À propos</TemplateLink>
+      <details className="group/sub border-b border-current/10 py-1">
+        <summary className="flex cursor-pointer list-none items-center justify-between py-3 text-[15px] font-semibold [&::-webkit-details-marker]:hidden">Ressources<ChevronDown size={16} className="transition group-open/sub:rotate-180" /></summary>
+        <div className="grid gap-1 pb-3 pl-2">
+          {resourceCards.map((card) => <TemplateLink key={card.href} href={card.href} disabled={disabled} className="py-2 text-[13px] opacity-70">{card.title}</TemplateLink>)}
+        </div>
+      </details>
+      <TemplateLink href="/contact" disabled={disabled} className="block border-b border-current/10 py-4 text-[15px] font-semibold">Contact</TemplateLink>
+      <TemplateLink href={phoneHref} disabled={disabled} className={`mt-4 flex h-12 items-center justify-center gap-2 rounded-full text-[14px] font-semibold ${light ? "bg-[#103b34] text-white" : "bg-[#d9ff72] text-[#12322c]"}`}>
+        <Phone size={16} /> Appeler · {phone}
+      </TemplateLink>
+    </div>
   );
 }
 

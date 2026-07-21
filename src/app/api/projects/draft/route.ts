@@ -10,6 +10,7 @@ import {
   ARTICLE_THUMBNAIL_VERSION,
   generateArticleThumbnail,
 } from "@/lib/article-thumbnail";
+import { ensureSiteHeaderDefaults } from "@/lib/site-header-defaults";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -55,7 +56,9 @@ export async function POST(request: Request) {
 
   const { data: previousProject } = await supabase.from("site_projects").select("pages").eq("owner_id", projectOwnerId).eq("project_key", projectKey).maybeSingle();
   const previousPages = Array.isArray(previousProject?.pages) ? previousProject.pages as SitePage[] : null;
-  let normalizedPages = synchronizeArticleCollections(payload.pages);
+  let normalizedPages = synchronizeArticleCollections(
+    ensureSiteHeaderDefaults(payload.pages),
+  );
   const brand = projectBrand(normalizedPages);
   for (const page of normalizedPages) {
     if (!page.slug.startsWith("/blog/")) continue;

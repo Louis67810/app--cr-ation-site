@@ -28,6 +28,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { renderSection } from "@/components/site-sections";
 import type { ArticleBlock, SectionInstance, SitePage } from "@/lib/site-template";
+import { ensureSiteHeaderDefaults } from "@/lib/site-header-defaults";
 
 type Path = Array<string | number>;
 type LeftTab = "pages" | "sections";
@@ -122,11 +123,15 @@ function createSection(type: SectionInstance["type"]): SectionInstance {
         logoLabel: "Logo",
         logoImageUrl: "",
         navigation: [
-          { label: "Accueil", href: "/" },
           { label: "Prestations", href: "/prestations" },
+          { label: "Realisations", href: "/realisations" },
+          { label: "A propos", href: "/a-propos" },
+          { label: "Ressources", href: "/blog" },
           { label: "Contact", href: "/contact" },
         ],
         cta: { label: "Demander un devis", href: "/contact" },
+        phone: "06 00 00 00 00",
+        phoneLabel: "Appeler",
       },
     };
   }
@@ -999,6 +1004,7 @@ function pathLabel(path: Path) {
     address: "Adresse",
     contactLabel: "Libelle contact",
     phone: "Telephone",
+    phoneLabel: "Libelle du bouton d'appel",
     email: "Email",
     credit: "Credit",
     socialLinks: "Reseau",
@@ -1122,7 +1128,9 @@ export function SiteBuilderShell({
   initialProjectName?: string;
   projectKey?: string;
 }) {
-  const [pages, setPages] = useState(initialPages);
+  const [pages, setPages] = useState<SitePage[]>(() =>
+    ensureSiteHeaderDefaults(initialPages),
+  );
   const [activePageId, setActivePageId] = useState(initialPages[0]?.id ?? "");
   const page =
     pages.find((currentPage) => currentPage.id === activePageId) ??
@@ -3469,8 +3477,8 @@ const variantOptions: Partial<
     { value: "page-a", label: "Page contact" },
   ],
   "site-header": [
-    { value: "glass-a", label: "Navigation transparente" },
-    { value: "light-a", label: "Navigation claire" },
+    { value: "glass-a", label: "Navigation sombre" },
+    { value: "light-a", label: "Navigation blanche" },
   ],
 };
 

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { isGlobalEditableSection, SECTION_LABELS } from "@/lib/content-sections";
 import { prepareImageForUpload } from "@/lib/client-images";
 import type { SectionInstance, SitePage } from "@/lib/site-template";
+import { ensureSiteHeaderDefaults } from "@/lib/site-header-defaults";
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 type Path = Array<string | number>;
@@ -129,7 +130,7 @@ function buildGroups(pages: SitePage[]): SectionGroup[] {
 export function GlobalSectionsEditor({ project, initialAssets }: { project: SectionsProject; initialAssets: SectionAsset[] }) {
   const router = useRouter();
   const [initialDistribution] = useState(() => distributeBackgroundAssets(
-    project.pages,
+    ensureSiteHeaderDefaults(project.pages),
     initialAssets,
     `${project.key}:${initialAssets.map((asset) => asset.id).join(":")}`,
     false,

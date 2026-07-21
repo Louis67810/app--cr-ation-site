@@ -18,6 +18,8 @@ export type SiteHeaderGlassFields = {
   logoImageUrl?: string;
   navigation: NavigationItem[];
   cta: Cta;
+  phone?: string;
+  phoneLabel?: string;
 };
 
 export type HeroFullImageFields = {
