@@ -15,6 +15,7 @@ import {
 } from "@/lib/editorial-pipeline";
 import { assembleArticleBlocks, getHeroImage } from "@/lib/article-assembly";
 import { generateArticleImage } from "@/lib/article-image-generation";
+import { generateArticleThumbnail } from "@/lib/article-thumbnail";
 import { normalizeProjectKey } from "@/lib/project-key";
 import { buildEditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 import { createClient } from "@/lib/supabase/server";
@@ -67,10 +68,25 @@ function slugify(value: string) {
   );
 }
 
+function getProjectBrand(pages: SitePage[]) {
+  for (const page of pages) {
+    const header = page.sections.find(
+      (section) => section.type === "site-header",
+    );
+    if (header?.type === "site-header")
+      return {
+        logoLabel: header.fields.logoLabel.trim(),
+        logoImageUrl: header.fields.logoImageUrl?.trim() || undefined,
+      };
+  }
+  return { logoLabel: "", logoImageUrl: undefined };
+}
+
 function addArticleToPages(
   pages: SitePage[],
   article: GeneratedArticle,
   images: ResolvedArticleImage[],
+  thumbnailImageUrl: string,
   workflow: {
     mode: EditorialMode;
     executionMode: EditorialExecutionMode;
@@ -139,6 +155,7 @@ function addArticleToPages(
     subtitle: article.excerpt.trim(),
     heroImageUrl: heroImageUrl || previous.heroImageUrl,
     heroImageAlt: article.heroImageAlt?.trim() || article.title.trim(),
+    thumbnailImageUrl: thumbnailImageUrl || heroImageUrl || previous.heroImageUrl,
     readingTime: article.readingTime?.trim() || "6 minutes",
     updatedAt: date,
     blocks,
@@ -149,7 +166,7 @@ function addArticleToPages(
     title: article.title.trim(),
     excerpt: article.excerpt.trim(),
     category: article.category?.trim() || "Conseils",
-    imageUrl: heroImageUrl || previous.heroImageUrl,
+    imageUrl: thumbnailImageUrl || heroImageUrl || previous.heroImageUrl,
     href,
     date,
   };
@@ -427,7 +444,55 @@ export async function POST(request: Request) {
     });
     const pages = projectPages;
 
-    const updated = addArticleToPages(pages, article, images, {
+    const heroImageUrl = getHeroImage(images)?.url ?? "";
+    let thumbnailImageUrl = heroImageUrl;
+    if (heroImageUrl) {
+      try {
+        const brand = getProjectBrand(projectPages);
+        const thumbnail = await generateArticleThumbnail({
+          backgroundImageUrl: heroImageUrl,
+          articleTitle: article.title,
+          ...brand,
+        });
+        const storagePath = `${projectOwnerId}/${projectKey}/article-thumbnail-${crypto.randomUUID()}.png`;
+        const { error: uploadError } = await supabase.storage
+          .from("project-assets")
+          .upload(storagePath, thumbnail.bytes, {
+            contentType: thumbnail.mediaType,
+            upsert: false,
+          });
+        if (!uploadError) {
+          const { data: publicData } = supabase.storage
+            .from("project-assets")
+            .getPublicUrl(storagePath);
+          const { error: assetError } = await supabase
+            .from("project_assets")
+            .insert({
+              owner_id: projectOwnerId,
+              project_key: projectKey,
+              storage_path: storagePath,
+              public_url: publicData.publicUrl,
+              original_name: `miniature-${slugify(article.title)}.png`,
+              title: `Miniature · ${article.title}`.slice(0, 100),
+              alt_text: `Miniature de l'article : ${article.title}`.slice(
+                0,
+                240,
+              ),
+              ai_generated: true,
+              created_by: userId,
+            });
+          if (assetError) {
+            await supabase.storage.from("project-assets").remove([storagePath]);
+          } else {
+            thumbnailImageUrl = publicData.publicUrl;
+          }
+        }
+      } catch {
+        // The article remains publishable with its original hero image.
+      }
+    }
+
+    const updated = addArticleToPages(pages, article, images, thumbnailImageUrl, {
       mode: payload.mode,
       executionMode,
       research,

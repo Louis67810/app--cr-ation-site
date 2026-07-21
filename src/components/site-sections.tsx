@@ -361,11 +361,20 @@ function SiteHeaderGlassA({
           ariaLabel="Accueil"
           disabled={options?.disableLinks}
         >
-          <EditableText
-            value={fields.logoLabel}
-            path={["logoLabel"]}
-            options={options}
-          />
+          {fields.logoImageUrl ? (
+            <span
+              className="h-8 w-20 bg-contain bg-center bg-no-repeat"
+              style={{ backgroundImage: `url(${fields.logoImageUrl})` }}
+              role="img"
+              aria-label={fields.logoLabel || "Logo"}
+            />
+          ) : (
+            <EditableText
+              value={fields.logoLabel}
+              path={["logoLabel"]}
+              options={options}
+            />
+          )}
         </TemplateLink>
         <nav
           className={`typo-button items-center ${

@@ -15,6 +15,7 @@ export type NavigationItem = {
 
 export type SiteHeaderGlassFields = {
   logoLabel: string;
+  logoImageUrl?: string;
   navigation: NavigationItem[];
   cta: Cta;
 };
@@ -257,6 +258,7 @@ export type ArticleDetailFields = {
   secondaryCta: Cta;
   heroImageUrl: string;
   heroImageAlt: string;
+  thumbnailImageUrl?: string;
   readingTime: string;
   updatedLabel: string;
   updatedAt: string;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateArticleImage } from "@/lib/article-image-generation";
+import { generateArticleThumbnail } from "@/lib/article-thumbnail";
 import {
   getArticleDetail,
   synchronizeArticleCollections,
@@ -111,6 +112,60 @@ export async function POST(request: Request) {
   if (imageRequest.kind === "hero") {
     detail.fields.heroImageUrl = publicUrl;
     detail.fields.heroImageAlt = imageRequest.alt;
+    try {
+      const header = pages
+        .flatMap((candidate) => candidate.sections)
+        .find((section) => section.type === "site-header");
+      const logoLabel =
+        header?.type === "site-header" ? header.fields.logoLabel : "";
+      const logoImageUrl =
+        header?.type === "site-header"
+          ? header.fields.logoImageUrl
+          : undefined;
+      const thumbnail = await generateArticleThumbnail({
+        backgroundImageUrl: publicUrl,
+        articleTitle: detail.fields.title,
+        logoLabel,
+        logoImageUrl,
+      });
+      const thumbnailPath = `${projectOwnerId}/${projectKey}/article-thumbnail-${crypto.randomUUID()}.png`;
+      const { error: thumbnailUploadError } = await supabase.storage
+        .from("project-assets")
+        .upload(thumbnailPath, thumbnail.bytes, {
+          contentType: thumbnail.mediaType,
+          upsert: false,
+        });
+      if (!thumbnailUploadError) {
+        const { data: thumbnailPublicData } = supabase.storage
+          .from("project-assets")
+          .getPublicUrl(thumbnailPath);
+        const { error: thumbnailAssetError } = await supabase
+          .from("project_assets")
+          .insert({
+            owner_id: projectOwnerId,
+            project_key: projectKey,
+            storage_path: thumbnailPath,
+            public_url: thumbnailPublicData.publicUrl,
+            original_name: `miniature-${page.id}.png`,
+            title: `Miniature · ${detail.fields.title}`.slice(0, 100),
+            alt_text: `Miniature de l'article : ${detail.fields.title}`.slice(
+              0,
+              240,
+            ),
+            ai_generated: true,
+            created_by: userId,
+          });
+        if (thumbnailAssetError) {
+          await supabase.storage
+            .from("project-assets")
+            .remove([thumbnailPath]);
+        } else {
+          detail.fields.thumbnailImageUrl = thumbnailPublicData.publicUrl;
+        }
+      }
+    } catch {
+      detail.fields.thumbnailImageUrl = publicUrl;
+    }
   } else {
     const block = detail.fields.blocks.find(
       (candidate) =>

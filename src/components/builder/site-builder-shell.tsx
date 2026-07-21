@@ -120,6 +120,7 @@ function createSection(type: SectionInstance["type"]): SectionInstance {
       variant: "glass-a",
       fields: {
         logoLabel: "Logo",
+        logoImageUrl: "",
         navigation: [
           { label: "Accueil", href: "/" },
           { label: "Prestations", href: "/prestations" },
@@ -943,6 +944,7 @@ function getEditableStringPaths(value: unknown, basePath: Path = []): Path[] {
 function pathLabel(path: Path) {
   const labels: Record<string, string> = {
     logoLabel: "Logo",
+    logoImageUrl: "Image du logo",
     navigation: "Menu",
     label: "Libelle",
     href: "Lien",

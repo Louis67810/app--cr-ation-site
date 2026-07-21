@@ -593,7 +593,7 @@ function ArticleCollection({
                 <div
                   className="h-[52px] w-[72px] rounded-[8px] bg-[#deded9] bg-cover bg-center"
                   style={{
-                    backgroundImage: `url(${detail.fields.heroImageUrl})`,
+                    backgroundImage: `url(${detail.fields.thumbnailImageUrl || detail.fields.heroImageUrl})`,
                   }}
                 />
                 <div className="min-w-0">

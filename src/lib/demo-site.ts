@@ -131,6 +131,7 @@ export const demoHomePage: SitePage = {
       variant: "glass-a",
       fields: {
         logoLabel: "Logo",
+        logoImageUrl: "",
         navigation: [
           { label: "Accueil", href: "/" },
           { label: "Prestations", href: "/prestations" },
@@ -816,6 +817,7 @@ export const demoArticlePage: SitePage = {
       variant: "light-a",
       fields: {
         logoLabel: "Logo",
+        logoImageUrl: "",
         navigation: [
           { label: "Accueil", href: "/" },
           { label: "Prestations", href: "/prestations" },
@@ -1124,6 +1126,7 @@ function buildSectorPage({
         variant: "light-a",
         fields: {
           logoLabel: "Logo",
+          logoImageUrl: "",
           navigation: [
             { label: "Accueil", href: "/" },
             { label: "Particuliers", href: "/secteurs/particuliers" },

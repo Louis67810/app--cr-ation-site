@@ -47,7 +47,7 @@ function toBlogPost(page: SitePage): BlogPost | null {
     title: fields.title,
     excerpt: fields.subtitle,
     category: page.editorial?.category ?? "Conseils",
-    imageUrl: fields.heroImageUrl,
+    imageUrl: fields.thumbnailImageUrl || fields.heroImageUrl,
     href: page.slug,
     date: fields.updatedAt,
   };
