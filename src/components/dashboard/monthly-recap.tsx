@@ -25,6 +25,11 @@ export function MonthlyRecap({ project, data }: { project: DashboardProject; dat
     total: project.pages.length,
   }), [project.pages]);
   const monthLabel = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(new Date());
+  const homePage = project.pages.find((page) => page.slug === "/") ?? project.pages[0];
+  const previewPath = homePage?.slug === "/" ? "" : homePage?.slug.startsWith("/") ? homePage.slug : `/${homePage?.slug ?? ""}`;
+  const previewUrl = project.publishedSlug && homePage
+    ? `/published/${project.publishedSlug}${previewPath}?preview=dashboard`
+    : undefined;
 
   async function saveSettings(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,7 +67,7 @@ export function MonthlyRecap({ project, data }: { project: DashboardProject; dat
       <section className="rounded-[14px] border border-[#e8ecee] bg-[#f9f9f9] p-4 sm:p-5"><div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-[9px] bg-white shadow-sm"><Mail size={16} /></span><div><h2 className="text-[14px] font-semibold">Envoi automatique</h2><p className="mt-1 text-[11px] leading-5 text-black/45">Le bilan du mois précédent est envoyé au début de chaque nouveau mois.</p></div></div><form onSubmit={saveSettings} className="mt-5"><label htmlFor="recap-email" className="text-[10px] font-semibold text-black/55">Adresse destinataire</label><input id="recap-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="client@exemple.fr" className="mt-2 h-11 w-full rounded-[9px] border border-black/10 bg-white px-3 text-[12px] outline-none focus:border-black/30" /><label className="mt-4 flex cursor-pointer items-center justify-between gap-3 rounded-[9px] border border-black/[0.07] bg-white px-3 py-3"><span><strong className="block text-[11px] font-semibold">Envoyer chaque mois</strong><span className="mt-0.5 block text-[9px] text-black/35">Un seul email par projet et par période.</span></span><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} className="size-4 accent-black" /></label><button type="submit" disabled={!ready || saving || !email.trim()} className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-[9px] bg-[#222] text-[12px] font-semibold text-white disabled:opacity-40">{saving ? <LoaderCircle size={14} className="animate-spin" /> : <Send size={14} />}{saving ? "Enregistrement…" : "Enregistrer"}</button></form>{message ? <p aria-live="polite" className="mt-3 text-[10px] leading-4 text-black/45">{message}</p> : null}</section>
     </div>
 
-    <section className="mt-7"><div className="mb-4 px-1"><div className="flex items-center gap-2"><MonitorPlay size={17} className="text-black/35" /><h2 className="font-serif text-[22px]">Vidéo du mois</h2></div><p className="mt-1 text-[10px] text-black/40">Un récap animé construit avec les données réelles du projet.</p></div><MonthlyRecapVideo data={data} counts={counts} monthLabel={monthLabel} /></section>
+    <section className="mt-7"><div className="mb-4 px-1"><div className="flex items-center gap-2"><MonitorPlay size={17} className="text-black/35" /><h2 className="font-serif text-[22px]">Vidéo du mois</h2></div><p className="mt-1 text-[10px] text-black/40">Un récap animé construit avec les données réelles du projet.</p></div><MonthlyRecapVideo data={data} counts={counts} monthLabel={monthLabel} previewUrl={previewUrl} /></section>
 
     {initialDeliveries.length ? <section className="mt-7"><h2 className="font-serif text-[21px]">Derniers envois</h2><div className="mt-3 flex flex-wrap gap-2">{initialDeliveries.map((delivery) => <span key={delivery.id} className="rounded-full border border-black/[0.08] bg-white px-3 py-1.5 text-[9px] text-black/45">{new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(new Date(`${delivery.period_start}T12:00:00Z`))} · {delivery.status === "sent" ? "Envoyé" : delivery.status === "processing" ? "En cours" : "Échec"}</span>)}</div></section> : null}
   </div>;

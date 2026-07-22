@@ -24,15 +24,23 @@ function clamp(value: number) {
   return Math.min(1, Math.max(0, value));
 }
 
+function easeInOutCubic(value: number) {
+  const progress = clamp(value);
+  return progress < 0.5
+    ? 4 * progress * progress * progress
+    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+}
+
 function formatTime(milliseconds: number) {
   const seconds = Math.floor(milliseconds / 1000);
   return `0:${String(seconds).padStart(2, "0")}`;
 }
 
-export function MonthlyRecapVideo({ data, counts, monthLabel }: {
+export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
   data: MonthlyRecapData;
   counts: { pages: number; articles: number; realisations: number; total: number };
   monthLabel: string;
+  previewUrl?: string;
 }) {
   const [playing, setPlaying] = useState(true);
   const [elapsed, setElapsed] = useState(0);
@@ -106,11 +114,11 @@ export function MonthlyRecapVideo({ data, counts, monthLabel }: {
     <div className="overflow-hidden rounded-[14px] border border-[#e8ecee] bg-[#fafafa]">
       <div className="relative aspect-video min-h-[310px] w-full overflow-hidden bg-[#fafafa] sm:min-h-0">
         {timedScenes.map(({ scene, start, end }, index) => {
-          const enter = clamp((elapsed - start) / 280);
-          const exit = clamp((end - elapsed) / 240);
+          const enter = easeInOutCubic((elapsed - start) / 320);
+          const exit = easeInOutCubic((end - elapsed) / 280);
           const visibility = Math.min(enter, exit);
           const translateY = enter < 1 ? (1 - enter) * 110 : exit < 1 ? -(1 - exit) * 24 : 0;
-          const localProgress = clamp((elapsed - start) / scene.duration);
+          const localProgress = easeInOutCubic((elapsed - start) / scene.duration);
           const visible = elapsed >= start - 300 && elapsed <= end + 300;
           if (!visible) return null;
 
@@ -118,15 +126,30 @@ export function MonthlyRecapVideo({ data, counts, monthLabel }: {
             <div key={scene.id} className="absolute inset-0 z-10 will-change-transform" style={{ opacity: visibility, transform: `translate3d(0, ${translateY}px, 0)` }} aria-hidden={visibility < 0.5}>
               {scene.kind === "intro" ? (
                 <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-                  <p className="font-serif text-[clamp(36px,6.8vw,92px)] leading-[.95] tracking-[-0.055em] text-[#036e89]">Votre récap</p>
-                  <p className="mt-5 font-serif text-[clamp(20px,3vw,42px)] capitalize leading-none text-[#797979]">{monthLabel}</p>
+                  <p className="font-serif text-[clamp(36px,6.8vw,92px)] leading-[.95] tracking-[-0.055em] text-[#1c1c1c]">Votre récap</p>
+                  <p className="mt-5 font-serif text-[clamp(20px,3vw,42px)] capitalize leading-none text-[#1c1c1c]">{monthLabel}</p>
                 </div>
               ) : null}
 
               {scene.kind === "preview" ? (
                 <div className="absolute inset-0 overflow-hidden">
                   <div className="absolute left-[4%] top-[14%] z-20 h-[43%] w-[12%] bg-gradient-to-r from-[#fafafa] to-transparent" />
-                  <div className="absolute left-[24%] top-[9%] h-[610%] w-[66%] origin-top-left overflow-hidden rounded-[12px] bg-white bg-[url('/dashboard-site-preview.png')] bg-[length:100%_auto] bg-top bg-no-repeat shadow-[-40px_160px_80px_rgba(0,0,0,.10)] will-change-transform" style={{ transform: `translate3d(0, ${-82 * localProgress}%, 0) skewX(-13.5deg)` }}>
+                  <div
+                    className="absolute left-[20%] top-[9%] z-30 aspect-[1800/3466] w-[66%] origin-top-left overflow-hidden rounded-[12px] bg-white shadow-[-40px_160px_80px_rgba(0,0,0,.10)] will-change-transform"
+                    style={{ transform: `translate3d(${16 * localProgress}%, ${-58 * localProgress}%, 0) skewX(-13.5deg)` }}
+                  >
+                    {previewUrl ? (
+                      <div className="h-[272.73%] w-[272.73%] origin-top-left [transform:scale(.36667)]">
+                        <iframe
+                          src={previewUrl}
+                          title="Aperçu complet du site"
+                          tabIndex={-1}
+                          className="pointer-events-none h-full w-full border-0 bg-white"
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-full w-full bg-[url('/dashboard-site-preview.png')] bg-[length:100%_auto] bg-top bg-no-repeat" />
+                    )}
                   </div>
                 </div>
               ) : null}
@@ -134,7 +157,7 @@ export function MonthlyRecapVideo({ data, counts, monthLabel }: {
               {scene.kind === "stat" ? (
                 <div className="grid h-full grid-cols-[minmax(0,.9fr)_minmax(120px,1.1fr)] items-center px-[7%] sm:grid-cols-[minmax(300px,.9fr)_minmax(360px,1.1fr)] sm:px-[9%]">
                   <div className="min-w-0">
-                    <p className="font-serif text-[clamp(52px,10vw,136px)] leading-none tracking-[-0.065em] text-[#797979]">{scene.accent ? <span className="text-[#036e89]">{scene.accent}</span> : null}{scene.value}</p>
+                    <p className="font-serif text-[clamp(52px,10vw,136px)] leading-none tracking-[-0.065em] text-[#1c1c1c]">{scene.accent ? <span className="text-[#036e89]">{scene.accent}</span> : null}{scene.value}</p>
                     <p className="mt-[clamp(14px,3vw,42px)] max-w-[560px] font-serif text-[clamp(20px,3.2vw,43px)] leading-[1.05] tracking-[-0.035em] text-[#797979]">{scene.label}</p>
                   </div>
                   <div className="relative h-[78%] w-full">
@@ -146,7 +169,7 @@ export function MonthlyRecapVideo({ data, counts, monthLabel }: {
           );
         })}
 
-        {elapsed < scenes[0].duration + scenes[1].duration ? <div className="recap-aurora pointer-events-none absolute inset-0 z-20 opacity-50" /> : null}
+        <div className="recap-aurora pointer-events-none absolute inset-0 z-0 opacity-50" />
       </div>
 
       <div className="flex items-center gap-3 border-t border-black/[0.06] bg-white px-4 py-3 sm:px-5">
