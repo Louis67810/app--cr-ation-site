@@ -735,3 +735,27 @@ body {
 .builder-canvas::-webkit-scrollbar {
   display: none;
 }
+@keyframes recap-scene-enter {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes recap-site-scroll {
+  0%, 8% { transform: skewX(13.5deg) translateX(-9%) translateY(0); }
+  92%, 100% { transform: skewX(13.5deg) translateX(-9%) translateY(-72%); }
+}
+
+.recap-scene { animation: recap-scene-enter .62s ease-in-out both; }
+.recap-site-scroll { animation: recap-site-scroll 5s ease-in-out both; }
+.recap-aurora {
+  background:
+    radial-gradient(circle at 82% -8%, rgba(242, 48, 48, .14) 0 13%, transparent 38%),
+    radial-gradient(circle at 73% 25%, rgba(242, 161, 48, .58) 0 15%, transparent 42%),
+    radial-gradient(ellipse at 92% 34%, rgba(239, 195, 51, .24) 0 21%, transparent 48%),
+    radial-gradient(circle at 22% 108%, rgba(242, 161, 48, .52) 0 17%, transparent 43%);
+  filter: blur(18px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recap-scene, .recap-site-scroll { animation: none; }
+}

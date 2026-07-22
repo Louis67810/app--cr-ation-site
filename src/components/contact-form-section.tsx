@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getAnonymousVisitorId } from "@/components/site-tracker";
 
 function FieldVisualLabel({
   label,
@@ -34,12 +35,29 @@ export function ContactFormSection({
 }) {
   const [submitted, setSubmitted] = useState(false);
 
+  function trackContact() {
+    const match = window.location.pathname.match(/^\/published\/([^/]+)(\/.*)?$/);
+    if (!match) return;
+    void fetch("/api/site-contact", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        publishedSlug: decodeURIComponent(match[1]),
+        pagePath: match[2] || "/",
+        visitorId: getAnonymousVisitorId(),
+        sessionId: crypto.randomUUID(),
+      }),
+      keepalive: true,
+    }).catch(() => undefined);
+  }
+
   return (
     <form
       className="grid gap-3"
       onSubmit={(event) => {
         event.preventDefault();
         setSubmitted(true);
+        trackContact();
       }}
     >
       {fields.map((field, index) => {

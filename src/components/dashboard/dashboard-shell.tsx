@@ -41,7 +41,19 @@ export type DashboardTab = "overview" | "traffic" | "pages" | "cms" | "assets" |
 export type MonthlyRecapEvent = { id: string; event_type: "page_created" | "article_created" | "realisation_created" | "project_published"; entity_title: string; created_at: string };
 export type MonthlyRecapSettings = { recipient_email: string; enabled: boolean; send_day: number };
 export type MonthlyRecapDelivery = { id: string; period_start: string; status: "processing" | "sent" | "failed"; created_at: string };
-export type MonthlyRecapData = { settings: MonthlyRecapSettings | null; events: MonthlyRecapEvent[]; deliveries: MonthlyRecapDelivery[]; visitors: number; pageViews: number; ready: boolean; defaultEmail: string };
+export type MonthlyRecapData = {
+  settings: MonthlyRecapSettings | null;
+  events: MonthlyRecapEvent[];
+  deliveries: MonthlyRecapDelivery[];
+  visitors: number;
+  previousVisitors: number;
+  contacts: number;
+  previousContacts: number;
+  pageViews: number;
+  articleImpressions: number;
+  ready: boolean;
+  defaultEmail: string;
+};
 export type ProjectAnalyticsConnection = { ga_property_id: string; ga_measurement_id: string; gsc_site_url: string; updated_at: string };
 
 export type DashboardProject = {
@@ -314,7 +326,7 @@ export function DashboardShell({
       </aside>
 
       <section className={activeTab === "cms" ? "min-h-0 min-w-0 flex-1 overflow-hidden lg:col-start-2 lg:row-start-1 lg:h-full" : "min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:row-start-1 lg:px-10 lg:py-11 xl:px-12"}>
-        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents key={`${project.ownerId}:${project.key}`} project={project} initialAnalytics={analytics} /> : activeTab === "recap" ? <MonthlyRecap project={project} initialSettings={recap.settings} initialEvents={recap.events} initialDeliveries={recap.deliveries} visitors={recap.visitors} pageViews={recap.pageViews} ready={recap.ready} defaultEmail={recap.defaultEmail} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
+        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents key={`${project.ownerId}:${project.key}`} project={project} initialAnalytics={analytics} /> : activeTab === "recap" ? <MonthlyRecap project={project} data={recap} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
         <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-serif text-[27px] leading-tight tracking-[-0.05em] sm:text-[30px]">{activeTab === "pages" ? "Pages du site" : activeTab === "traffic" ? "Statistiques et trafic" : "Bonjour, voici votre site"}</h1>

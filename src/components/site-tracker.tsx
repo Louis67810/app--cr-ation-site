@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 const visitorStorageKey = "site-builder-anonymous-visitor-v1";
 
-function anonymousVisitorId() {
+export function getAnonymousVisitorId() {
   const created = crypto.randomUUID();
   try {
     const stored = window.localStorage.getItem(visitorStorageKey);
@@ -20,7 +20,7 @@ export function SiteTracker({ publishedSlug, pagePath }: { publishedSlug: string
   const sessionId = useRef<string>(crypto.randomUUID());
 
   useEffect(() => {
-    const visitorId = anonymousVisitorId();
+    const visitorId = getAnonymousVisitorId();
     const startedAt = performance.now();
     let visibleSince = document.visibilityState === "visible" ? performance.now() : null;
     let visibleMilliseconds = 0;

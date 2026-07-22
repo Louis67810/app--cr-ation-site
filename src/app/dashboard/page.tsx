@@ -93,23 +93,49 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     trackingError: internalTrackingResult.error?.message,
   });
 
-  const recap: MonthlyRecapData = { settings: null, events: [], deliveries: [], visitors: 0, pageViews: 0, ready: false, defaultEmail: typeof authData?.claims?.email === "string" ? authData.claims.email : "" };
+  const recap: MonthlyRecapData = {
+    settings: null,
+    events: [],
+    deliveries: [],
+    visitors: 0,
+    previousVisitors: 0,
+    contacts: 0,
+    previousContacts: 0,
+    pageViews: 0,
+    articleImpressions: analytics.pages.filter((page) => page.path.startsWith("/blog/")).reduce((total, page) => total + page.searchConsole.impressions, 0),
+    ready: false,
+    defaultEmail: typeof authData?.claims?.email === "string" ? authData.claims.email : "",
+  };
   if (selected.role === "admin") {
     const now = new Date();
-    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+    const monthStartDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const nextMonthStartDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    const previousMonthStartDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const monthStart = monthStartDate.toISOString();
+    const nextMonthStart = nextMonthStartDate.toISOString();
+    const previousMonthStart = previousMonthStartDate.toISOString();
     const dayStart = monthStart.slice(0, 10);
-    const [settingsResult, eventsResult, deliveriesResult, trafficResult] = await Promise.all([
+    const nextDayStart = nextMonthStart.slice(0, 10);
+    const previousDayStart = previousMonthStart.slice(0, 10);
+    const [settingsResult, eventsResult, deliveriesResult, trafficResult, currentVisitorsResult, previousVisitorsResult, currentContactsResult, previousContactsResult] = await Promise.all([
       supabase.from("monthly_recap_settings").select("recipient_email, enabled, send_day").eq("owner_id", selected.ownerId).eq("project_key", selected.key).maybeSingle(),
       supabase.from("project_activity_events").select("id, event_type, entity_title, created_at").eq("owner_id", selected.ownerId).eq("project_key", selected.key).gte("created_at", monthStart).order("created_at", { ascending: false }).limit(100),
       supabase.from("monthly_recap_deliveries").select("id, period_start, status, created_at").eq("owner_id", selected.ownerId).eq("project_key", selected.key).order("period_start", { ascending: false }).limit(6),
       supabase.from("project_traffic_daily").select("visitors, page_views").eq("owner_id", selected.ownerId).eq("project_key", selected.key).gte("day", dayStart),
+      supabase.from("project_site_tracking_visitors").select("visitor_id").eq("owner_id", selected.ownerId).eq("project_key", selected.key).gte("day", dayStart).lt("day", nextDayStart),
+      supabase.from("project_site_tracking_visitors").select("visitor_id").eq("owner_id", selected.ownerId).eq("project_key", selected.key).gte("day", previousDayStart).lt("day", dayStart),
+      supabase.from("project_contact_events").select("visitor_id").eq("owner_id", selected.ownerId).eq("project_key", selected.key).gte("created_at", monthStart).lt("created_at", nextMonthStart),
+      supabase.from("project_contact_events").select("visitor_id").eq("owner_id", selected.ownerId).eq("project_key", selected.key).gte("created_at", previousMonthStart).lt("created_at", monthStart),
     ]);
     recap.settings = settingsResult.data as MonthlyRecapData["settings"];
     recap.events = (eventsResult.data ?? []) as MonthlyRecapData["events"];
     recap.deliveries = (deliveriesResult.data ?? []) as MonthlyRecapData["deliveries"];
-    recap.visitors = (trafficResult.data ?? []).reduce((total, row) => total + Number(row.visitors ?? 0), 0);
+    recap.visitors = new Set((currentVisitorsResult.data ?? []).map((row) => row.visitor_id)).size;
+    recap.previousVisitors = new Set((previousVisitorsResult.data ?? []).map((row) => row.visitor_id)).size;
+    recap.contacts = new Set((currentContactsResult.data ?? []).map((row) => row.visitor_id)).size;
+    recap.previousContacts = new Set((previousContactsResult.data ?? []).map((row) => row.visitor_id)).size;
     recap.pageViews = (trafficResult.data ?? []).reduce((total, row) => total + Number(row.page_views ?? 0), 0);
-    recap.ready = !settingsResult.error && !eventsResult.error && !deliveriesResult.error && !trafficResult.error;
+    recap.ready = !settingsResult.error && !eventsResult.error && !deliveriesResult.error && !trafficResult.error && !currentVisitorsResult.error && !previousVisitorsResult.error && !currentContactsResult.error && !previousContactsResult.error;
   }
 
   return <DashboardShell projects={projects} selectedKey={selected.key} activeTab={activeTab} invitations={invitations} assets={assets} recap={recap} analytics={analytics} analyticsConnection={analyticsConnectionResult.data as ProjectAnalyticsConnection | null} />;
