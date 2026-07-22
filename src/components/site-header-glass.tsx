@@ -304,6 +304,12 @@ export function SiteHeaderGlass({
   };
 
   const onDrawerPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if (
+      event.target instanceof HTMLElement &&
+      event.target.closest("a, button, summary, input, select, textarea")
+    ) {
+      return;
+    }
     beginDrawerDrag(event.clientX);
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -320,6 +326,12 @@ export function SiteHeaderGlass({
   };
 
   const onDrawerMouseDown = (event: ReactMouseEvent<HTMLElement>) => {
+    if (
+      event.target instanceof HTMLElement &&
+      event.target.closest("a, button, summary, input, select, textarea")
+    ) {
+      return;
+    }
     beginDrawerDrag(event.clientX);
   };
 
@@ -332,6 +344,12 @@ export function SiteHeaderGlass({
   };
 
   const onDrawerTouchStart = (event: ReactTouchEvent<HTMLElement>) => {
+    if (
+      event.target instanceof HTMLElement &&
+      event.target.closest("a, button, summary, input, select, textarea")
+    ) {
+      return;
+    }
     const touch = event.touches[0];
     if (touch) beginDrawerDrag(touch.clientX);
   };
@@ -712,14 +730,14 @@ function MobileDrawer({
             className="mt-10 flex flex-1 flex-col"
           >
             <details className="group/sub border-b border-black/10 py-1">
-              <summary className="typo-body-small flex cursor-pointer list-none items-center justify-between py-4 leading-none [&::-webkit-details-marker]:hidden">
+              <summary className="typo-body-small flex w-full cursor-pointer list-none items-center justify-between py-4 text-left leading-none [&::-webkit-details-marker]:hidden">
                 Prestations
                 <ChevronDown
                   size={16}
                   className="transition-transform duration-300 group-open/sub:rotate-180"
                 />
               </summary>
-              <div className="grid gap-1 pb-4 pl-2">
+              <div className="grid gap-1 pb-4">
                 {serviceMenuGroups
                   .flatMap((group) => group.links)
                   .map(([title, href]) => (
@@ -727,7 +745,7 @@ function MobileDrawer({
                       key={href}
                       href={href}
                       disabled={disabled}
-                      className="typo-body-small flex items-center justify-between py-2 leading-[1.4] text-black/70"
+                      className="typo-body-small flex items-center justify-between py-2 text-left leading-[1.4] text-black/70"
                     >
                       {title}
                       <ArrowUpRight size={15} />
@@ -750,20 +768,20 @@ function MobileDrawer({
               À propos
             </HeaderLink>
             <details className="group/sub border-b border-black/10 py-1">
-              <summary className="typo-body-small flex cursor-pointer list-none items-center justify-between py-4 leading-none [&::-webkit-details-marker]:hidden">
+              <summary className="typo-body-small flex w-full cursor-pointer list-none items-center justify-between py-4 text-left leading-none [&::-webkit-details-marker]:hidden">
                 Ressources
                 <ChevronDown
                   size={16}
                   className="transition-transform duration-300 group-open/sub:rotate-180"
                 />
               </summary>
-              <div className="grid gap-1 pb-4 pl-2">
+              <div className="grid gap-1 pb-4">
                 {resourceCards.map((card) => (
                   <HeaderLink
                     key={card.href}
                     href={card.href}
                     disabled={disabled}
-                    className="typo-body-small flex items-center justify-between py-2 leading-[1.4] text-black/70"
+                    className="typo-body-small flex items-center justify-between py-2 text-left leading-[1.4] text-black/70"
                   >
                     {card.title}
                     <ArrowUpRight size={15} />
