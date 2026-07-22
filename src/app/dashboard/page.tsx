@@ -130,11 +130,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     recap.settings = settingsResult.data as MonthlyRecapData["settings"];
     recap.events = (eventsResult.data ?? []) as MonthlyRecapData["events"];
     recap.deliveries = (deliveriesResult.data ?? []) as MonthlyRecapData["deliveries"];
-    recap.visitors = new Set((currentVisitorsResult.data ?? []).map((row) => row.visitor_id)).size;
+    const trackedVisitors = new Set((currentVisitorsResult.data ?? []).map((row) => row.visitor_id)).size;
+    const dailyVisitors = (trafficResult.data ?? []).reduce((total, row) => total + Number(row.visitors ?? 0), 0);
+    recap.visitors = trackedVisitors || analytics.siteTotals.totalUsers || dailyVisitors;
     recap.previousVisitors = new Set((previousVisitorsResult.data ?? []).map((row) => row.visitor_id)).size;
     recap.contacts = new Set((currentContactsResult.data ?? []).map((row) => row.visitor_id)).size;
     recap.previousContacts = new Set((previousContactsResult.data ?? []).map((row) => row.visitor_id)).size;
-    recap.pageViews = (trafficResult.data ?? []).reduce((total, row) => total + Number(row.page_views ?? 0), 0);
+    const trackedPageViews = (trafficResult.data ?? []).reduce((total, row) => total + Number(row.page_views ?? 0), 0);
+    recap.pageViews = trackedPageViews || analytics.siteTotals.pageViews;
     recap.ready = !settingsResult.error && !eventsResult.error && !deliveriesResult.error && !trafficResult.error && !currentVisitorsResult.error && !previousVisitorsResult.error && !currentContactsResult.error && !previousContactsResult.error;
   }
 

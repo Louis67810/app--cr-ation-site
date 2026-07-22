@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Pause, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { DashboardProject, MonthlyRecapData } from "@/components/dashboard/dashboard-shell";
+import type { MonthlyRecapData } from "@/components/dashboard/dashboard-shell";
 
 type RecapScene = {
   id: string;
@@ -29,8 +29,7 @@ function formatTime(milliseconds: number) {
   return `0:${String(seconds).padStart(2, "0")}`;
 }
 
-export function MonthlyRecapVideo({ project, data, counts, monthLabel }: {
-  project: DashboardProject;
+export function MonthlyRecapVideo({ data, counts, monthLabel }: {
   data: MonthlyRecapData;
   counts: { pages: number; articles: number; realisations: number; total: number };
   monthLabel: string;
@@ -41,8 +40,6 @@ export function MonthlyRecapVideo({ project, data, counts, monthLabel }: {
   const previousFrameRef = useRef<number | null>(null);
   const conversionRate = data.visitors ? (data.contacts / data.visitors) * 100 : 0;
   const growth = data.previousVisitors ? ((data.visitors - data.previousVisitors) / data.previousVisitors) * 100 : data.visitors ? 100 : 0;
-  const homePage = project.pages.find((page) => page.slug === "/") ?? project.pages[0];
-  const previewUrl = project.publishedSlug && homePage ? `/published/${project.publishedSlug}?preview=dashboard` : null;
 
   const scenes = useMemo<RecapScene[]>(() => [
     { id: "intro", kind: "intro", duration: 1250 },
@@ -121,18 +118,15 @@ export function MonthlyRecapVideo({ project, data, counts, monthLabel }: {
             <div key={scene.id} className="absolute inset-0 z-10 will-change-transform" style={{ opacity: visibility, transform: `translate3d(0, ${translateY}px, 0)` }} aria-hidden={visibility < 0.5}>
               {scene.kind === "intro" ? (
                 <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-                  <p className="font-serif text-[clamp(36px,6.8vw,92px)] leading-[.95] tracking-[-0.055em] text-[#797979]">Votre récap</p>
-                  <p className="mt-5 font-serif text-[clamp(20px,3vw,42px)] capitalize leading-none text-[#036e89]">{monthLabel}</p>
+                  <p className="font-serif text-[clamp(36px,6.8vw,92px)] leading-[.95] tracking-[-0.055em] text-[#036e89]">Votre récap</p>
+                  <p className="mt-5 font-serif text-[clamp(20px,3vw,42px)] capitalize leading-none text-[#797979]">{monthLabel}</p>
                 </div>
               ) : null}
 
               {scene.kind === "preview" ? (
                 <div className="absolute inset-0 overflow-hidden">
                   <div className="absolute left-[4%] top-[14%] z-20 h-[43%] w-[12%] bg-gradient-to-r from-[#fafafa] to-transparent" />
-                  <div className="absolute left-[24%] top-[9%] h-[610%] w-[66%] origin-top-left overflow-hidden rounded-[12px] bg-white shadow-[-40px_160px_80px_rgba(0,0,0,.10)] will-change-transform" style={{ transform: `translate3d(0, ${-82 * localProgress}%, 0) skewX(-13.5deg)` }}>
-                    <div className="h-full w-[122%] origin-top-left [transform:skewX(13.5deg)_translateX(-9%)]">
-                      {previewUrl ? <iframe src={previewUrl} title={`Aperçu de ${project.name}`} tabIndex={-1} className="pointer-events-none h-full w-full border-0 bg-white" /> : <div className="h-full w-full bg-[url('/dashboard-site-preview.png')] bg-[length:100%_auto] bg-top bg-no-repeat" />}
-                    </div>
+                  <div className="absolute left-[24%] top-[9%] h-[610%] w-[66%] origin-top-left overflow-hidden rounded-[12px] bg-white bg-[url('/dashboard-site-preview.png')] bg-[length:100%_auto] bg-top bg-no-repeat shadow-[-40px_160px_80px_rgba(0,0,0,.10)] will-change-transform" style={{ transform: `translate3d(0, ${-82 * localProgress}%, 0) skewX(-13.5deg)` }}>
                   </div>
                 </div>
               ) : null}
@@ -152,7 +146,7 @@ export function MonthlyRecapVideo({ project, data, counts, monthLabel }: {
           );
         })}
 
-        <div className="recap-aurora pointer-events-none absolute inset-0 z-20 opacity-50" />
+        {elapsed < scenes[0].duration + scenes[1].duration ? <div className="recap-aurora pointer-events-none absolute inset-0 z-20 opacity-50" /> : null}
       </div>
 
       <div className="flex items-center gap-3 border-t border-black/[0.06] bg-white px-4 py-3 sm:px-5">
