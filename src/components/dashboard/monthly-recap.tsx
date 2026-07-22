@@ -44,7 +44,7 @@ export function MonthlyRecap({ project, data }: { project: DashboardProject; dat
   }
 
   const cards = [
-    { label: "Contenus créés", value: counts.total, Icon: FileText },
+    { label: "Pages créées", value: counts.total, Icon: FileText },
     { label: "Articles ajoutés", value: counts.articles, Icon: Sparkles },
     { label: "Réalisations ajoutées", value: counts.realisations, Icon: ImageIcon },
     { label: "Visiteurs", value: visitors, Icon: BarChart3 },
