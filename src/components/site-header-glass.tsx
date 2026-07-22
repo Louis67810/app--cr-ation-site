@@ -192,14 +192,6 @@ function getPublishedHome(pathname: string) {
   return match ? `/published/${match[1]}` : "/";
 }
 
-function findHeroBackground() {
-  const candidates = Array.from(
-    document.querySelectorAll<HTMLElement>('main [style*="background-image"]'),
-  );
-  return candidates.find((element) => element.style.backgroundImage)?.style
-    .backgroundImage;
-}
-
 function findHeroSection() {
   const sections = Array.from(
     document.querySelectorAll<HTMLElement>("main section"),
@@ -226,7 +218,6 @@ export function SiteHeaderGlass({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
   const [drawerOffset, setDrawerOffset] = useState(0);
-  const [heroBackground, setHeroBackground] = useState<string>();
   const dragStartX = useRef<number | null>(null);
   const dragOffset = useRef(0);
   const light = variant === "light-a" || pastHero;
@@ -277,13 +268,6 @@ export function SiteHeaderGlass({
       window.cancelAnimationFrame(frame);
     };
   }, [options?.viewport]);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setHeroBackground(findHeroBackground());
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [pathname]);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -365,7 +349,7 @@ export function SiteHeaderGlass({
     <PublishedPathContext.Provider value={homeHref === "/" ? "" : homeHref}>
       <header
         onMouseLeave={() => setActiveMenu(null)}
-        className={`${options?.viewport ? "absolute" : "relative md:fixed"} inset-x-0 top-0 z-[90] overflow-visible font-[var(--font-inter)] transition-[background-color,color,border-color] duration-500 ease-in-out ${
+        className={`${options?.viewport ? "absolute" : "absolute md:fixed"} inset-x-0 top-0 z-[90] overflow-visible font-[var(--font-inter)] transition-[background-color,color,border-color] duration-500 ease-in-out ${
           light
             ? "border-b border-black/10 bg-white/95 text-black backdrop-blur-md"
             : activeMenu
@@ -491,7 +475,8 @@ export function SiteHeaderGlass({
             <MobileDrawer
               open={mobileOpen}
               disabled={options?.disableLinks}
-              heroBackground={heroBackground}
+              fields={fields}
+              homeHref={homeHref}
               offset={drawerOffset}
               onClose={closeMobile}
               onPointerDown={onDrawerPointerDown}
@@ -627,7 +612,8 @@ function DesktopBackdrop({
 function MobileDrawer({
   open,
   disabled,
-  heroBackground,
+  fields,
+  homeHref,
   offset,
   onClose,
   onPointerDown,
@@ -642,7 +628,8 @@ function MobileDrawer({
 }: {
   open: boolean;
   disabled?: boolean;
-  heroBackground?: string;
+  fields: SiteHeaderGlassFields;
+  homeHref: string;
   offset: number;
   onClose: () => void;
   onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
@@ -681,23 +668,41 @@ function MobileDrawer({
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        className="fixed inset-y-0 right-0 z-[100] w-[min(88vw,460px)] touch-pan-y overflow-y-auto text-white shadow-2xl transition-transform duration-500 ease-in-out 2xl:hidden"
+        className="fixed inset-y-0 right-0 z-[100] w-full touch-pan-y overflow-y-auto bg-[#f6f6f4] text-[#0f1112] transition-transform duration-500 ease-in-out 2xl:hidden"
         style={{
-          backgroundImage: heroBackground,
-          backgroundPosition: "center",
-          backgroundSize: "cover",
           transform: open ? `translateX(${offset}px)` : "translateX(100%)",
         }}
       >
-        <div className="absolute inset-0 bg-black/80" />
         <div className="relative flex min-h-full flex-col px-6 py-6 md:px-10 md:py-8">
           <div className="flex items-center justify-between">
-            <span className="typo-body-small opacity-60">Navigation</span>
+            <HeaderLink
+              href={homeHref}
+              ariaLabel="Accueil"
+              disabled={disabled}
+              className="typo-body-small flex h-11 min-w-24 items-center justify-center rounded-lg bg-black/[0.06] px-3 text-black"
+            >
+              {fields.logoImageUrl ? (
+                <span
+                  className="h-8 w-20 bg-contain bg-center bg-no-repeat"
+                  style={{ backgroundImage: `url(${fields.logoImageUrl})` }}
+                  role="img"
+                  aria-label={fields.logoLabel || "Logo"}
+                />
+              ) : (
+                fields.logoLabel
+              )}
+            </HeaderLink>
             <button
               type="button"
               aria-label="Fermer le menu"
-              onClick={onClose}
-              className="grid size-11 place-items-center"
+              onPointerDown={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onClose();
+              }}
+              className="relative z-10 grid size-11 place-items-center"
             >
               <X size={24} />
             </button>
@@ -706,7 +711,7 @@ function MobileDrawer({
             aria-label="Navigation mobile"
             className="mt-10 flex flex-1 flex-col"
           >
-            <details className="group/sub border-b border-white/15 py-1">
+            <details className="group/sub border-b border-black/10 py-1">
               <summary className="typo-body-small flex cursor-pointer list-none items-center justify-between py-4 leading-none [&::-webkit-details-marker]:hidden">
                 Prestations
                 <ChevronDown
@@ -722,7 +727,7 @@ function MobileDrawer({
                       key={href}
                       href={href}
                       disabled={disabled}
-                      className="typo-body-small flex items-center justify-between py-2 leading-[1.4] opacity-70"
+                      className="typo-body-small flex items-center justify-between py-2 leading-[1.4] text-black/70"
                     >
                       {title}
                       <ArrowUpRight size={15} />
@@ -733,18 +738,18 @@ function MobileDrawer({
             <HeaderLink
               href="/realisations"
               disabled={disabled}
-              className="typo-body-small block border-b border-white/15 py-5 leading-none"
+              className="typo-body-small block border-b border-black/10 py-5 leading-none"
             >
               Réalisations
             </HeaderLink>
             <HeaderLink
               href="/a-propos"
               disabled={disabled}
-              className="typo-body-small block border-b border-white/15 py-5 leading-none"
+              className="typo-body-small block border-b border-black/10 py-5 leading-none"
             >
               À propos
             </HeaderLink>
-            <details className="group/sub border-b border-white/15 py-1">
+            <details className="group/sub border-b border-black/10 py-1">
               <summary className="typo-body-small flex cursor-pointer list-none items-center justify-between py-4 leading-none [&::-webkit-details-marker]:hidden">
                 Ressources
                 <ChevronDown
@@ -758,7 +763,7 @@ function MobileDrawer({
                     key={card.href}
                     href={card.href}
                     disabled={disabled}
-                    className="typo-body-small flex items-center justify-between py-2 leading-[1.4] opacity-70"
+                    className="typo-body-small flex items-center justify-between py-2 leading-[1.4] text-black/70"
                   >
                     {card.title}
                     <ArrowUpRight size={15} />
@@ -769,14 +774,11 @@ function MobileDrawer({
             <HeaderLink
               href="/contact"
               disabled={disabled}
-              className="typo-body-small block border-b border-white/15 py-5 leading-none"
+              className="typo-body-small block border-b border-black/10 py-5 leading-none"
             >
               Contact
             </HeaderLink>
           </nav>
-          <p className="typo-body-small mt-10 leading-[1.5] text-white/50">
-            Glissez le panneau vers la droite pour le fermer.
-          </p>
         </div>
       </aside>
     </>,
