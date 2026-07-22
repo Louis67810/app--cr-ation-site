@@ -565,7 +565,7 @@ function ServicesMenu({ disabled }: { disabled?: boolean }) {
                 href={href}
                 ariaLabel={title}
                 disabled={disabled}
-                className="cta-roll typo-body-small !flex w-full items-center justify-between gap-4 border-b border-current/10 py-2.5 leading-[1.5] last:border-b-0"
+                className="cta-roll typo-body-small !flex w-full !justify-between gap-4 border-b border-current/10 py-2.5 text-left leading-[1.5] last:border-b-0"
               >
                 <RollingText value={title} />
                 <ArrowUpRight size={15} className="opacity-40" />
@@ -619,6 +619,7 @@ function DesktopBackdrop({
       aria-label="Fermer le menu de navigation"
       tabIndex={open ? 0 : -1}
       onClick={onClose}
+      onMouseEnter={onClose}
       className={`fixed inset-0 z-[80] hidden bg-black/60 backdrop-blur-[10px] transition-opacity duration-500 ease-in-out 2xl:block ${
         open ? "opacity-100" : "pointer-events-none opacity-0"
       }`}
