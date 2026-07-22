@@ -743,7 +743,15 @@ function HeroFullImageA({
           backgroundPosition: "top center",
         }}
       />
-      <div className="absolute inset-0 bg-[radial-gradient(40.85%_40.85%_at_50%_50%,rgba(0,0,0,0.2232)_0%,rgba(0,0,0,0.93)_100%)]" />
+      <div
+        className={`absolute inset-0 ${
+          compact
+            ? "bg-[radial-gradient(40.85%_40.85%_at_50%_34%,rgba(0,0,0,0.2232)_0%,rgba(0,0,0,0.93)_100%)]"
+            : tablet
+              ? "bg-[radial-gradient(40.85%_40.85%_at_50%_50%,rgba(0,0,0,0.2232)_0%,rgba(0,0,0,0.93)_100%)]"
+              : "bg-[radial-gradient(40.85%_40.85%_at_50%_34%,rgba(0,0,0,0.2232)_0%,rgba(0,0,0,0.93)_100%)] md:bg-[radial-gradient(40.85%_40.85%_at_50%_50%,rgba(0,0,0,0.2232)_0%,rgba(0,0,0,0.93)_100%)]"
+        }`}
+      />
       <div
         className={`relative z-10 mx-auto flex min-h-[var(--site-hero-height,95vh)] max-w-[1600px] items-end px-5 pb-12 md:px-10 md:pb-20 xl:px-20 ${
           compact ? "pt-44" : "pt-44 md:pt-28"
