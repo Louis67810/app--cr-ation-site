@@ -407,8 +407,10 @@ export function SiteHeaderGlass({
             <MegaMenuTrigger
               label="Prestations"
               kind="services"
+              href="/prestations"
               active={activeMenu === "services"}
               onActivate={setActiveMenu}
+              disabled={options?.disableLinks}
             />
             <HeaderLink
               href="/realisations"
@@ -429,8 +431,10 @@ export function SiteHeaderGlass({
             <MegaMenuTrigger
               label="Ressources"
               kind="resources"
+              href="/blog"
               active={activeMenu === "resources"}
               onActivate={setActiveMenu}
+              disabled={options?.disableLinks}
             />
           </nav>
 
@@ -517,32 +521,39 @@ export function SiteHeaderGlass({
 function MegaMenuTrigger({
   label,
   kind,
+  href,
   active,
   onActivate,
+  disabled,
 }: {
   label: string;
   kind: MegaMenuKind;
+  href: string;
   active: boolean;
   onActivate: (kind: MegaMenuKind) => void;
+  disabled?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      className="cta-roll flex h-full items-center gap-1.5 whitespace-nowrap"
-      aria-label={label}
-      aria-haspopup="true"
-      aria-expanded={active}
+    <div
+      className="flex h-full items-center"
       onMouseEnter={() => onActivate(kind)}
       onFocus={() => onActivate(kind)}
     >
-      <RollingText value={label} />
-      <ChevronDown
-        size={14}
-        className={`transition-transform duration-300 ease-in-out ${
-          active ? "rotate-180" : ""
-        }`}
-      />
-    </button>
+      <HeaderLink
+        href={href}
+        disabled={disabled}
+        ariaLabel={label}
+        className="cta-roll flex h-full items-center gap-1.5 whitespace-nowrap"
+      >
+        <RollingText value={label} />
+        <ChevronDown
+          size={14}
+          className={`transition-transform duration-300 ease-in-out ${
+            active ? "rotate-180" : ""
+          }`}
+        />
+      </HeaderLink>
+    </div>
   );
 }
 

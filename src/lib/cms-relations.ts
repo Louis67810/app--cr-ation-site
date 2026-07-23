@@ -264,8 +264,22 @@ export function synchronizeCmsRelations(
   let pages = ensureRealisationDetailPages(sourcePages);
   const services = serviceEntries(pages);
   const projects = realisationDetailEntries(pages);
+  const configuredZoneCities = pages
+    .filter((page) => page.slug.startsWith("/zones/"))
+    .map((page) => {
+      const hero = page.sections.find((section) => section.type === "hero");
+      const title = hero?.type === "hero" ? hero.fields.title : page.title;
+      return title
+        .replace(/^paysagiste\s+[àa]\s+/i, "")
+        .replace(/^zone d['’]intervention\s*[:\-]?\s*/i, "")
+        .trim();
+    })
+    .filter(Boolean);
   const cities = uniqueBy(
-    projects.map((project) => project.city.trim()).filter(Boolean),
+    [
+      ...projects.map((project) => project.city.trim()).filter(Boolean),
+      ...configuredZoneCities,
+    ],
     (city) => city.toLocaleLowerCase("fr"),
   );
   const cleanAssetUrls = visibleProjectImageAssets(sourceAssets)
@@ -291,10 +305,18 @@ export function synchronizeCmsRelations(
     const cityProjects = projects.filter(
       (project) => project.city.toLowerCase() === city.toLowerCase(),
     );
+    const zonePage = pages.find(
+      (page) => page.slug === `/zones/${slugify(city)}`,
+    );
+    const zoneHero = zonePage?.sections.find(
+      (section) => section.type === "hero",
+    );
     return {
       name: city,
       href: `/zones/${slugify(city)}`,
-      imageUrl: cityProjects[0]?.imageUrl ?? "",
+      imageUrl:
+        cityProjects[0]?.imageUrl ??
+        (zoneHero?.type === "hero" ? zoneHero.fields.backgroundImageUrl : ""),
     };
   });
   pages = pages.map((page) => ({

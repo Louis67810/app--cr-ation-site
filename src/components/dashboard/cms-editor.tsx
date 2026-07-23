@@ -7,8 +7,11 @@ import {
   GripVertical,
   ImageIcon,
   LoaderCircle,
+  MapPin,
   Play,
+  Plus,
   Search,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -165,6 +168,72 @@ function cellWidth(column: ContentColumn) {
       : "190px";
 }
 
+function slugifyEntry(value: string) {
+  return (
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 72) || "nouvelle-zone"
+  );
+}
+
+function entryPresentation(page: SitePage, collectionId: string) {
+  const detail = page.sections.find(
+    (section) => section.type === "realisation-detail",
+  );
+  if (detail?.type === "realisation-detail") {
+    return {
+      title: detail.fields.title,
+      subtitle: detail.fields.subtitle,
+      image: detail.fields.heroImageUrl,
+      meta: detail.fields.breadcrumbs.at(-1)?.label || "Ville non renseignée",
+    };
+  }
+  const service = page.sections.find(
+    (section) => section.type === "services-hub-hero",
+  );
+  if (service?.type === "services-hub-hero") {
+    return {
+      title: service.fields.title,
+      subtitle: service.fields.subtitle,
+      image: service.fields.backgroundImageUrl,
+      meta: "Prestation",
+    };
+  }
+  const sector = page.sections.find(
+    (section) => section.type === "sector-hero",
+  );
+  if (sector?.type === "sector-hero") {
+    return {
+      title: sector.fields.title,
+      subtitle: sector.fields.subtitle,
+      image: sector.fields.tickerImages[0]?.imageUrl ?? "",
+      meta: "Secteur",
+    };
+  }
+  const hero = page.sections.find((section) => section.type === "hero");
+  if (hero?.type === "hero") {
+    return {
+      title: hero.fields.title,
+      subtitle: hero.fields.subtitle,
+      image: hero.fields.backgroundImageUrl,
+      meta:
+        collectionId === "zones"
+          ? "Zone d’intervention"
+          : "Page du site",
+    };
+  }
+  return {
+    title: page.title,
+    subtitle: page.slug,
+    image: "",
+    meta: collectionId,
+  };
+}
+
 function isEditableSection(
   section: SitePage["sections"][number],
   collectionId: string,
@@ -199,6 +268,7 @@ export function CmsEditor({
   );
   const [message, setMessage] = useState("");
   const [activeArticleId, setActiveArticleId] = useState<string | null>(null);
+  const [activeEntryId, setActiveEntryId] = useState<string | null>(null);
   const collection =
     collections.find((item) => item.id === collectionId) ?? collections[0];
   const rows = useMemo(
@@ -245,6 +315,7 @@ export function CmsEditor({
   );
   const activeArticle =
     pages.find((page) => page.id === activeArticleId) ?? null;
+  const activeEntry = pages.find((page) => page.id === activeEntryId) ?? null;
 
   function updateCell(pageId: string, path: Path, value: JsonValue) {
     setPages((current) =>
@@ -253,6 +324,45 @@ export function CmsEditor({
       ),
     );
     setMessage("Modifications non enregistrées");
+  }
+
+  function addZone(cityName: string) {
+    const city = cityName.trim();
+    if (!city) return;
+    const slug = `/zones/${slugifyEntry(city)}`;
+    const existing = pages.find((page) => page.slug === slug);
+    if (existing) {
+      setActiveEntryId(existing.id);
+      return;
+    }
+    const template =
+      pages.find((page) => page.slug.startsWith("/zones/")) ??
+      pages.find((page) => page.slug === "/");
+    if (!template) return;
+    const id = `zone-${slugifyEntry(city)}-${Date.now()}`;
+    const page = structuredClone(template);
+    page.id = id;
+    page.slug = slug;
+    page.title = `Paysagiste à ${city}`;
+    delete page.editorial;
+    page.sections = page.sections.map((section, index) => {
+      const next = structuredClone(section);
+      next.id = `${id}-${index + 1}`;
+      if (next.type === "hero") {
+        next.fields = {
+          ...next.fields,
+          title: `Paysagiste à ${city}`,
+          subtitle: `Découvrez nos prestations paysagères autour de ${city}.`,
+        };
+      }
+      if (next.type === "recent-projects") {
+        next.fields = { ...next.fields, cities: [city], projects: [] };
+      }
+      return next;
+    });
+    setPages((current) => [...current, page]);
+    setActiveEntryId(id);
+    setMessage("Nouvelle ville non enregistrée");
   }
 
   async function save(nextStatus: "saving" | "publishing" = "saving") {
@@ -353,6 +463,8 @@ export function CmsEditor({
                   type="button"
                   onClick={() => {
                     setCollectionId(item.id);
+                    setActiveEntryId(null);
+                    setActiveArticleId(null);
                     setCollectionOpen(false);
                   }}
                   className={`${item.id === collectionId ? "bg-black/[0.05]" : "hover:bg-black/[0.03]"} flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-[11px]`}
@@ -422,7 +534,15 @@ export function CmsEditor({
           onOpen={(page) => setActiveArticleId(page.id)}
         />
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto overscroll-auto [scrollbar-gutter:stable]">
+        <>
+          <EntryCollection
+            pages={rows}
+            collectionId={collectionId}
+            collectionLabel={collection.label}
+            onOpen={(page) => setActiveEntryId(page.id)}
+            onAddZone={addZone}
+          />
+          <div className="hidden">
           <table className="w-max min-w-full table-fixed border-collapse text-[10px]">
             <colgroup>
               <col className="w-[34px]" />
@@ -579,7 +699,8 @@ export function CmsEditor({
               Aucune entrée dans cette collection.
             </div>
           ) : null}
-        </div>
+          </div>
+        </>
       )}
       {activeArticle ? (
         <ArticleContentEditor
@@ -595,7 +716,436 @@ export function CmsEditor({
           onClose={() => setActiveArticleId(null)}
         />
       ) : null}
+      {activeEntry ? (
+        <EntryDetailEditor
+          page={activeEntry}
+          collectionId={collectionId}
+          allPages={pages}
+          onChange={(path, value) => updateCell(activeEntry.id, path, value)}
+          onClose={() => setActiveEntryId(null)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function EntryCollection({
+  pages,
+  collectionId,
+  collectionLabel,
+  onOpen,
+  onAddZone,
+}: {
+  pages: SitePage[];
+  collectionId: string;
+  collectionLabel: string;
+  onOpen: (page: SitePage) => void;
+  onAddZone: (city: string) => void;
+}) {
+  const [addingZone, setAddingZone] = useState(false);
+  const [city, setCity] = useState("");
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto bg-[#fafaf8] p-4 [scrollbar-gutter:stable] sm:p-7">
+      <div className="mx-auto max-w-[1180px]">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-[24px]">{collectionLabel}</h2>
+            <p className="mt-1 text-[10px] text-black/40">
+              Ouvre une fiche pour modifier ses informations et son contenu.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-white px-3 py-1.5 text-[10px] text-black/40 shadow-sm">
+              {pages.length} entrée{pages.length > 1 ? "s" : ""}
+            </span>
+            {collectionId === "zones" ? (
+              <button
+                type="button"
+                onClick={() => setAddingZone((current) => !current)}
+                className="flex h-8 items-center gap-1.5 rounded-[9px] bg-[#222] px-3 text-[10px] font-semibold text-white"
+              >
+                <Plus size={13} />
+                Ajouter une ville
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {addingZone ? (
+          <form
+            className="mb-4 flex gap-2 rounded-[14px] border border-black/[0.07] bg-white p-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!city.trim()) return;
+              onAddZone(city);
+              setCity("");
+              setAddingZone(false);
+            }}
+          >
+            <label className="flex min-w-0 flex-1 items-center gap-2 rounded-[9px] bg-[#f5f5f3] px-3">
+              <MapPin size={14} className="text-black/35" />
+              <input
+                autoFocus
+                value={city}
+                onChange={(event) => setCity(event.target.value)}
+                placeholder="Nom de la ville"
+                className="h-10 min-w-0 flex-1 bg-transparent text-[12px] outline-none"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded-[9px] bg-[#222] px-4 text-[11px] font-semibold text-white"
+            >
+              Créer
+            </button>
+          </form>
+        ) : null}
+
+        <div className="overflow-hidden rounded-[16px] border border-black/[0.07] bg-white">
+          {pages.map((page) => {
+            const presentation = entryPresentation(page, collectionId);
+            return (
+              <button
+                key={page.id}
+                type="button"
+                onClick={() => onOpen(page)}
+                className="grid min-h-[92px] w-full grid-cols-[82px_minmax(0,1fr)_auto] items-center gap-4 border-b border-black/[0.06] px-4 text-left transition last:border-0 hover:bg-[#fcfcfa] sm:grid-cols-[96px_minmax(0,1fr)_180px]"
+              >
+                {presentation.image ? (
+                  <img
+                    src={presentation.image}
+                    alt=""
+                    className="h-[62px] w-[82px] rounded-[9px] object-cover sm:w-[96px]"
+                  />
+                ) : (
+                  <span className="grid h-[62px] w-[82px] place-items-center rounded-[9px] bg-[#e8e8e3] text-black/20 sm:w-[96px]">
+                    <ImageIcon size={18} />
+                  </span>
+                )}
+                <span className="min-w-0">
+                  <strong className="block truncate text-[13px]">
+                    {presentation.title}
+                  </strong>
+                  <span className="mt-1 block truncate text-[10px] leading-4 text-black/40">
+                    {presentation.subtitle}
+                  </span>
+                </span>
+                <span className="hidden items-center justify-end gap-2 text-[10px] text-black/40 sm:flex">
+                  {collectionId === "zones" ||
+                  collectionId === "realisations" ? (
+                    <MapPin size={13} />
+                  ) : null}
+                  {presentation.meta}
+                </span>
+              </button>
+            );
+          })}
+          {!pages.length ? (
+            <div className="p-16 text-center text-[11px] text-black/35">
+              Aucune entrée dans cette collection.
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EntryDetailEditor({
+  page,
+  collectionId,
+  allPages,
+  onChange,
+  onClose,
+}: {
+  page: SitePage;
+  collectionId: string;
+  allPages: SitePage[];
+  onChange: (path: Path, value: JsonValue) => void;
+  onClose: () => void;
+}) {
+  const presentation = entryPresentation(page, collectionId);
+  const detailSectionIndex = page.sections.findIndex(
+    (section) => section.type === "realisation-detail",
+  );
+  const detail =
+    detailSectionIndex >= 0 ? page.sections[detailSectionIndex] : undefined;
+  const currentCity =
+    detail?.type === "realisation-detail"
+      ? detail.fields.breadcrumbs.at(-1)?.label ?? ""
+      : "";
+  const cityBreadcrumbIndex =
+    detail?.type === "realisation-detail"
+      ? detail.fields.breadcrumbs.length - 1
+      : -1;
+  const zoneHeroIndex = page.sections.findIndex(
+    (section) => section.type === "hero",
+  );
+  const zoneHero =
+    zoneHeroIndex >= 0 ? page.sections[zoneHeroIndex] : undefined;
+  const zoneCity =
+    collectionId === "zones"
+      ? (zoneHero?.type === "hero" ? zoneHero.fields.title : page.title)
+          .replace(/^paysagiste\s+[àa]\s+/i, "")
+          .trim()
+      : "";
+  const knownCities = Array.from(
+    new Set(
+      allPages
+        .map((candidate) => {
+          const candidateDetail = candidate.sections.find(
+            (section) => section.type === "realisation-detail",
+          );
+          return candidateDetail?.type === "realisation-detail"
+            ? candidateDetail.fields.breadcrumbs.at(-1)?.label
+            : undefined;
+        })
+        .filter((city): city is string => Boolean(city)),
+    ),
+  );
+
+  const editableSections = page.sections
+    .map((section, index) => ({ section, index }))
+    .filter(({ section }) => isEditableSection(section, collectionId));
+
+  return (
+    <div className="absolute inset-0 z-50 flex min-h-0 flex-col bg-[#fafaf8]">
+      <header className="flex min-h-[74px] shrink-0 items-center justify-between gap-4 border-b border-black/[0.07] bg-white px-4 sm:px-7">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-9 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-3 text-[11px] font-semibold"
+        >
+          <ArrowLeft size={14} />
+          Retour
+        </button>
+        <div className="min-w-0 text-center">
+          <p className="truncate font-serif text-[17px]">
+            {presentation.title}
+          </p>
+          <p className="mt-1 truncate text-[9px] text-black/35">{page.slug}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fermer"
+          className="grid size-9 place-items-center rounded-[9px] bg-[#f3f3f3]"
+        >
+          <X size={15} />
+        </button>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-7">
+        <div className="mx-auto grid max-w-[1120px] gap-5">
+          <section className="rounded-[18px] border border-black/[0.07] bg-white p-5 sm:p-7">
+            <h3 className="font-serif text-[21px]">Informations générales</h3>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <CmsTextField
+                label="Nom dans le CMS"
+                value={page.title}
+                onChange={(value) => onChange(["title"], value)}
+              />
+              <CmsTextField
+                label="Slug"
+                value={page.slug}
+                onChange={(value) => onChange(["slug"], value)}
+              />
+              {collectionId === "zones" && zoneHero?.type === "hero" ? (
+                <CmsTextField
+                  label="Ville"
+                  value={zoneCity}
+                  onChange={(value) => {
+                    onChange(["title"], `Paysagiste à ${value}`);
+                    onChange(["slug"], `/zones/${slugifyEntry(value)}`);
+                    onChange(
+                      ["sections", zoneHeroIndex, "fields", "title"],
+                      `Paysagiste à ${value}`,
+                    );
+                  }}
+                />
+              ) : null}
+              {detail?.type === "realisation-detail" &&
+              cityBreadcrumbIndex >= 0 ? (
+                <label className="grid gap-2">
+                  <span className="text-[10px] font-semibold text-black/50">
+                    Ville
+                  </span>
+                  <input
+                    list="cms-known-cities"
+                    value={currentCity}
+                    onChange={(event) =>
+                      onChange(
+                        [
+                          "sections",
+                          detailSectionIndex,
+                          "fields",
+                          "breadcrumbs",
+                          cityBreadcrumbIndex,
+                          "label",
+                        ],
+                        event.target.value,
+                      )
+                    }
+                    className="h-11 rounded-[10px] border border-black/10 bg-[#f7f7f5] px-3 text-[12px] outline-none focus:border-black/25"
+                  />
+                  <datalist id="cms-known-cities">
+                    {knownCities.map((city) => (
+                      <option key={city} value={city} />
+                    ))}
+                  </datalist>
+                </label>
+              ) : null}
+            </div>
+          </section>
+
+          {editableSections.map(({ section, index }) => {
+            const fields = collectColumns(
+              section.fields as unknown as JsonValue,
+              ["sections", index, "fields"],
+              [humanize(section.type)],
+              section.type,
+            ).filter(
+              (field) =>
+                !(
+                  section.type === "realisation-detail" &&
+                  field.key.includes(".breadcrumbs.")
+                ),
+            );
+            if (!fields.length) return null;
+            return (
+              <section
+                key={section.id}
+                className="rounded-[18px] border border-black/[0.07] bg-white p-5 sm:p-7"
+              >
+                <div>
+                  <h3 className="font-serif text-[21px]">
+                    {humanize(section.type)}
+                  </h3>
+                  <p className="mt-1 text-[9px] text-black/35">
+                    Texte, images et contenu propres à cette fiche.
+                  </p>
+                </div>
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  {fields.map((field) => {
+                    const value = getAtPath(page, field.path);
+                    if (value === undefined) return null;
+                    if (field.image) {
+                      return (
+                        <label
+                          key={field.key}
+                          className="grid cursor-pointer gap-2"
+                        >
+                          <span className="text-[10px] font-semibold text-black/50">
+                            {field.label}
+                          </span>
+                          <span className="relative grid min-h-[170px] place-items-center overflow-hidden rounded-[12px] bg-[#e8e8e3]">
+                            {value ? (
+                              <img
+                                src={String(value)}
+                                alt=""
+                                className="absolute inset-0 size-full object-cover"
+                              />
+                            ) : (
+                              <ImageIcon size={20} className="text-black/20" />
+                            )}
+                            <span className="relative z-10 rounded-full bg-black/70 px-3 py-1.5 text-[9px] font-semibold text-white">
+                              Remplacer l’image
+                            </span>
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(event) => {
+                              const file = event.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = () =>
+                                onChange(field.path, String(reader.result));
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                      );
+                    }
+                    if (typeof value === "boolean") {
+                      return (
+                        <label
+                          key={field.key}
+                          className="flex h-11 items-center justify-between rounded-[10px] bg-[#f7f7f5] px-3 text-[10px] font-semibold text-black/50"
+                        >
+                          {field.label}
+                          <input
+                            type="checkbox"
+                            checked={value}
+                            onChange={(event) =>
+                              onChange(field.path, event.target.checked)
+                            }
+                            className="size-4 accent-black"
+                          />
+                        </label>
+                      );
+                    }
+                    return (
+                      <CmsTextField
+                        key={field.key}
+                        label={field.label}
+                        value={value == null ? "" : String(value)}
+                        multiline={
+                          String(value ?? "").length > 90 ||
+                          /description|subtitle|text|message/i.test(field.key)
+                        }
+                        onChange={(nextValue) =>
+                          onChange(
+                            field.path,
+                            typeof value === "number"
+                              ? Number(nextValue)
+                              : nextValue,
+                          )
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CmsTextField({
+  label,
+  value,
+  multiline = false,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-2">
+      <span className="text-[10px] font-semibold text-black/50">{label}</span>
+      {multiline ? (
+        <textarea
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          rows={4}
+          className="resize-y rounded-[10px] border border-black/10 bg-[#f7f7f5] px-3 py-3 text-[12px] leading-5 outline-none focus:border-black/25"
+        />
+      ) : (
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-11 rounded-[10px] border border-black/10 bg-[#f7f7f5] px-3 text-[12px] outline-none focus:border-black/25"
+        />
+      )}
+    </label>
   );
 }
 
