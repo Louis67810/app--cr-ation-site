@@ -14,6 +14,8 @@ import type {
   SitePage,
   TestimonialsFields,
 } from "@/lib/site-template";
+import { visibleProjectImageAssets } from "@/lib/asset-visibility";
+import { synchronizeCmsRelations } from "@/lib/cms-relations";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -268,6 +270,19 @@ export async function POST(request: Request) {
       template,
     });
     const generated = applyGeneratedCopy({ pages, source, copy });
+    const { data: assetRows } = await supabase
+      .from("project_assets")
+      .select("public_url, original_name, title, storage_path")
+      .eq("owner_id", projectOwnerId)
+      .eq("project_key", projectKey)
+      .order("created_at", { ascending: false });
+    generated.pages = synchronizeCmsRelations(
+      generated.pages,
+      visibleProjectImageAssets(assetRows ?? []),
+    );
+    const generatedPage =
+      generated.pages.find((page) => page.id === generated.page.id) ??
+      generated.page;
     const values = {
       project_name: projectName,
       pages: generated.pages,
@@ -294,7 +309,7 @@ export async function POST(request: Request) {
       actor_user_id: userId,
       event_type: "page_created",
       entity_id: generated.page.id,
-      entity_title: generated.page.title,
+      entity_title: generatedPage.title,
       metadata: {
         slug: generated.href,
         pageType: "prestation",
@@ -306,7 +321,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       {
-        page: generated.page,
+        page: generatedPage,
         pages: generated.pages,
         copy,
         warning:

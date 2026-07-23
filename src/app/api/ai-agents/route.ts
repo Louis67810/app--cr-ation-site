@@ -29,6 +29,8 @@ import type {
   SitePage,
 } from "@/lib/site-template";
 import { synchronizeArticleCollections } from "@/lib/article-content";
+import { visibleProjectImageAssets } from "@/lib/asset-visibility";
+import { synchronizeCmsRelations } from "@/lib/cms-relations";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -334,12 +336,12 @@ export async function POST(request: Request) {
     if (payload.phase === "images") {
       const { data: assetRows } = await supabase
         .from("project_assets")
-        .select("public_url")
+        .select("public_url, original_name, title, storage_path")
         .eq("owner_id", projectOwnerId)
         .eq("project_key", projectKey)
         .order("created_at", { ascending: false })
         .limit(12);
-      const fallbackAssets = (assetRows ?? []) as Array<{ public_url: string }>;
+      const fallbackAssets = visibleProjectImageAssets(assetRows ?? []);
       const demoDetail = demoArticlePage.sections.find(
         (section) => section.type === "article-detail",
       );
@@ -509,6 +511,16 @@ export async function POST(request: Request) {
       outline,
       quizPlan,
     });
+    const { data: relationAssetRows } = await supabase
+      .from("project_assets")
+      .select("public_url, original_name, title, storage_path")
+      .eq("owner_id", projectOwnerId)
+      .eq("project_key", projectKey)
+      .order("created_at", { ascending: false });
+    updated.pages = synchronizeCmsRelations(
+      updated.pages,
+      visibleProjectImageAssets(relationAssetRows ?? []),
+    );
     const values = {
       project_name: projectName,
       pages: updated.pages,

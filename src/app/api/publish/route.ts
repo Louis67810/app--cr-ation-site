@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { SitePage } from "@/lib/site-template";
 import { normalizeProjectKey } from "@/lib/project-key";
 import { synchronizeArticleCollections } from "@/lib/article-content";
+import { visibleProjectImageAssets } from "@/lib/asset-visibility";
+import { synchronizeCmsRelations } from "@/lib/cms-relations";
 
 export async function POST(request: Request) {
   try {
@@ -42,7 +44,16 @@ export async function POST(request: Request) {
       if (!membership) return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
     }
     const publishedSlug = `${slugifyProjectName(payload.projectName)}-${projectOwnerId.slice(0, 8)}${projectKey === "default" ? "" : `-${projectKey}`}`;
-    const normalizedPages = synchronizeArticleCollections(payload.pages);
+    const { data: assetRows } = await supabase
+      .from("project_assets")
+      .select("public_url, original_name, title, storage_path")
+      .eq("owner_id", projectOwnerId)
+      .eq("project_key", projectKey)
+      .order("created_at", { ascending: false });
+    const normalizedPages = synchronizeCmsRelations(
+      synchronizeArticleCollections(payload.pages),
+      visibleProjectImageAssets(assetRows ?? []),
+    );
     const values = { project_name: payload.projectName.trim(), pages: normalizedPages, published_slug: publishedSlug, published_at: publishedAt, updated_at: publishedAt };
     const { error } = projectOwnerId === ownerId
       ? await supabase.from("site_projects").upsert({ owner_id: ownerId, project_key: projectKey, ...values }, { onConflict: "owner_id,project_key" })

@@ -59,10 +59,15 @@ const collections = [
     match: (page: SitePage) => page.slug.includes("secteur"),
   },
   {
+    id: "zones",
+    label: "Zones d’intervention",
+    match: (page: SitePage) => page.slug.startsWith("/zones/"),
+  },
+  {
     id: "pages",
     label: "Pages",
     match: (page: SitePage) =>
-      !["realisation", "blog", "prestation", "secteur"].some((part) =>
+      !["realisation", "blog", "prestation", "secteur", "/zones/"].some((part) =>
         page.slug.includes(part),
       ),
   },
@@ -144,6 +149,7 @@ function isEditableSection(
     return false;
   if (section.type === "blog-advice" || section.type === "blog-index")
     return false;
+  if (collectionId === "zones") return true;
   if (section.type === "article-detail" && collectionId !== "articles")
     return false;
   const owner = CMS_SECTION_OWNERS[section.type];

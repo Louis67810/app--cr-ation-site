@@ -5,6 +5,8 @@ import { buildEditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 import { normalizeProjectKey } from "@/lib/project-key";
 import type { SitePage } from "@/lib/site-template";
 import { createClient } from "@/lib/supabase/server";
+import { visibleProjectImageAssets } from "@/lib/asset-visibility";
+import { synchronizeCmsRelations } from "@/lib/cms-relations";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +78,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   }
 
   const { data: assetRows } = await supabase.from("project_assets").select("id, public_url, original_name, title, alt_text, ai_generated, created_at").eq("owner_id", selected.ownerId).eq("project_key", selected.key).order("created_at", { ascending: false });
-  const assets = (assetRows ?? []) as DashboardAsset[];
+  const assets = visibleProjectImageAssets(
+    (assetRows ?? []) as DashboardAsset[],
+  );
+  selected.pages = synchronizeCmsRelations(selected.pages, assets);
 
   const [performanceResult, analyticsSummaryResult, analyticsConnectionResult, internalTrackingResult] = await Promise.all([
     supabase.from("project_page_performance").select("*").eq("owner_id", selected.ownerId).eq("project_key", selected.key).order("ga_page_views", { ascending: false }),

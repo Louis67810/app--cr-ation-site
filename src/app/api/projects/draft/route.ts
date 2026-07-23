@@ -11,6 +11,8 @@ import {
   generateArticleThumbnail,
 } from "@/lib/article-thumbnail";
 import { ensureSiteHeaderDefaults } from "@/lib/site-header-defaults";
+import { visibleProjectImageAssets } from "@/lib/asset-visibility";
+import { synchronizeCmsRelations } from "@/lib/cms-relations";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -56,8 +58,16 @@ export async function POST(request: Request) {
 
   const { data: previousProject } = await supabase.from("site_projects").select("pages").eq("owner_id", projectOwnerId).eq("project_key", projectKey).maybeSingle();
   const previousPages = Array.isArray(previousProject?.pages) ? previousProject.pages as SitePage[] : null;
-  let normalizedPages = synchronizeArticleCollections(
-    ensureSiteHeaderDefaults(payload.pages),
+  const { data: assetRows } = await supabase
+    .from("project_assets")
+    .select("public_url, original_name, title, storage_path")
+    .eq("owner_id", projectOwnerId)
+    .eq("project_key", projectKey)
+    .order("created_at", { ascending: false });
+  const visibleAssets = visibleProjectImageAssets(assetRows ?? []);
+  let normalizedPages = synchronizeCmsRelations(
+    synchronizeArticleCollections(ensureSiteHeaderDefaults(payload.pages)),
+    visibleAssets,
   );
   const brand = projectBrand(normalizedPages);
   for (const page of normalizedPages) {
@@ -117,7 +127,10 @@ export async function POST(request: Request) {
       // A thumbnail failure must never prevent the CMS draft from being saved.
     }
   }
-  normalizedPages = synchronizeArticleCollections(normalizedPages);
+  normalizedPages = synchronizeCmsRelations(
+    synchronizeArticleCollections(normalizedPages),
+    visibleAssets,
+  );
   const previousSlugs = new Set(previousPages?.map((page) => page.slug) ?? []);
   const createdPages = previousPages ? normalizedPages.filter((page) => !previousSlugs.has(page.slug)) : [];
 

@@ -4,6 +4,7 @@ export const CMS_SECTION_OWNERS: Partial<Record<SectionInstance["type"], string>
   "recent-projects": "realisations",
   "realisations-page": "realisations",
   "realisation-detail": "realisations",
+  "service-areas": "zones",
   "blog-advice": "articles",
   "blog-index": "articles",
   "article-detail": "articles",
