@@ -54,3 +54,35 @@ export function isCmsOwnedSection(type: SectionInstance["type"]) {
 export function isGlobalEditableSection(type: SectionInstance["type"]) {
   return type !== "site-header" && type !== "site-footer" && !isCmsOwnedSection(type);
 }
+
+const DERIVED_COLLECTION_FIELDS: Partial<
+  Record<SectionInstance["type"], ReadonlySet<string>>
+> = {
+  services: new Set(["services"]),
+  "services-hub-hero": new Set(["services"]),
+  "services-hub-bento": new Set(["services"]),
+  "recent-projects": new Set(["cities", "projects"]),
+  "realisations-page": new Set(["heroImages", "filters", "projects"]),
+  "realisation-detail": new Set(["relatedFilters", "relatedProjects"]),
+  "service-areas": new Set(["areas"]),
+  testimonials: new Set(["images"]),
+  "blog-advice": new Set(["posts"]),
+  "blog-index": new Set(["posts"]),
+};
+
+export function isDerivedCollectionField(
+  type: SectionInstance["type"],
+  path: Array<string | number>,
+) {
+  const root = String(path[0] ?? "");
+  return DERIVED_COLLECTION_FIELDS[type]?.has(root) ?? false;
+}
+
+export function isDerivedCollectionSection(type: SectionInstance["type"]) {
+  return (
+    type === "services" ||
+    type === "recent-projects" ||
+    type === "realisations-page" ||
+    type === "service-areas"
+  );
+}

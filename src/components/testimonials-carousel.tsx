@@ -21,7 +21,14 @@ function PhotoTile({
 }) {
   return (
     <div className={`relative hidden overflow-hidden rounded-[5px] lg:block ${className}`}>
-      <Image src={src} alt="" fill className="object-cover" sizes={sizes} />
+      <Image
+        src={src}
+        alt=""
+        fill
+        unoptimized
+        className="object-cover"
+        sizes={sizes}
+      />
     </div>
   );
 }

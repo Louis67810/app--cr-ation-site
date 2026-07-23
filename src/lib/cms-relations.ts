@@ -55,20 +55,7 @@ function serviceEntries(pages: SitePage[]) {
     .filter((entry): entry is HubService => Boolean(entry));
 }
 
-function realisationEntries(pages: SitePage[]) {
-  const index = pages
-    .flatMap((page) => page.sections)
-    .find((section) => section.type === "realisations-page");
-  if (index?.type === "realisations-page" && index.fields.projects.length)
-    return uniqueBy(index.fields.projects, (project) =>
-      [
-        project.href,
-        project.city,
-        project.title,
-        project.imageUrl,
-      ].join("|"),
-    );
-
+function realisationDetailEntries(pages: SitePage[]) {
   return pages
     .filter(
       (page) =>
@@ -92,6 +79,110 @@ function realisationEntries(pages: SitePage[]) {
       };
     })
     .filter((entry): entry is RealisationCard => Boolean(entry));
+}
+
+function createRealisationPage(
+  template: SitePage,
+  project: RealisationCard,
+  slug: string,
+) {
+  const page = structuredClone(template);
+  page.id = `realisation-${slug}`;
+  page.slug = `/realisations/${slug}`;
+  page.title = `Réalisation – ${project.title}`;
+  delete page.editorial;
+  page.sections = page.sections.map((section, index) => {
+    const next = structuredClone(section);
+    next.id = `realisation-${slug}-${index + 1}`;
+    if (next.type !== "realisation-detail") return next;
+    const breadcrumbs = next.fields.breadcrumbs.length
+      ? next.fields.breadcrumbs.map((item, itemIndex) =>
+          itemIndex === next.fields.breadcrumbs.length - 1
+            ? { ...item, label: project.city, href: "#" }
+            : item,
+        )
+      : [
+          { label: "Accueil", href: "/" },
+          { label: "Réalisations", href: "/realisations" },
+          { label: project.city, href: "#" },
+        ];
+    return {
+      ...next,
+      fields: {
+        ...next.fields,
+        breadcrumbs,
+        title: project.title,
+        subtitle: `Découvrez cet aménagement paysager réalisé à ${project.city}.`,
+        heroImageUrl: project.imageUrl,
+        heroImageAlt: project.alt,
+        relatedFilters: [],
+        relatedProjects: [],
+      },
+    };
+  });
+  return page;
+}
+
+function ensureRealisationDetailPages(sourcePages: SitePage[]) {
+  const pages = structuredClone(sourcePages);
+  const index = pages
+    .flatMap((page) => page.sections)
+    .find((section) => section.type === "realisations-page");
+  const template = pages.find(
+    (page) =>
+      page.slug.startsWith("/realisations/") &&
+      page.slug !== "/realisations" &&
+      page.sections.some((section) => section.type === "realisation-detail"),
+  );
+  if (
+    index?.type !== "realisations-page" ||
+    !index.fields.projects.length ||
+    !template
+  )
+    return pages;
+
+  const sourceProjects = uniqueBy(index.fields.projects, (project) =>
+    [project.city, project.title, project.imageUrl].join("|"),
+  );
+  const existingPages = pages.filter(
+    (page) =>
+      page.slug.startsWith("/realisations/") &&
+      page.slug !== "/realisations",
+  );
+  const claimedPageIds = new Set<string>();
+  const usedSlugs = new Set(pages.map((page) => page.slug));
+
+  for (const project of sourceProjects) {
+    const existing = existingPages.find((page) => {
+      if (claimedPageIds.has(page.id)) return false;
+      const detail = page.sections.find(
+        (section) => section.type === "realisation-detail",
+      );
+      if (detail?.type !== "realisation-detail") return false;
+      return (
+        page.slug === project.href ||
+        (detail.fields.title === project.title &&
+          detail.fields.heroImageUrl === project.imageUrl)
+      );
+    });
+    if (existing) {
+      claimedPageIds.add(existing.id);
+      continue;
+    }
+
+    const baseSlug =
+      slugify(project.title) || `${slugify(project.city)}-realisation`;
+    let slug = baseSlug;
+    let suffix = 2;
+    while (usedSlugs.has(`/realisations/${slug}`)) {
+      slug = `${baseSlug}-${suffix}`;
+      suffix += 1;
+    }
+    usedSlugs.add(`/realisations/${slug}`);
+    pages.push(createRealisationPage(template, project, slug));
+  }
+
+  return pages;
 }
 
 function recentProjects(
@@ -170,9 +261,9 @@ export function synchronizeCmsRelations(
   sourcePages: SitePage[],
   sourceAssets: ProjectImageAsset[] = [],
 ) {
-  let pages = structuredClone(sourcePages);
+  let pages = ensureRealisationDetailPages(sourcePages);
   const services = serviceEntries(pages);
-  const projects = realisationEntries(pages);
+  const projects = realisationDetailEntries(pages);
   const cities = uniqueBy(
     projects.map((project) => project.city.trim()).filter(Boolean),
     (city) => city.toLocaleLowerCase("fr"),
@@ -206,10 +297,6 @@ export function synchronizeCmsRelations(
       imageUrl: cityProjects[0]?.imageUrl ?? "",
     };
   });
-  const projectCities = new Set(
-    cities.map((city) => city.toLocaleLowerCase("fr")),
-  );
-
   pages = pages.map((page) => ({
     ...page,
     sections: page.sections.map((section) => {
@@ -231,6 +318,35 @@ export function synchronizeCmsRelations(
           ...section,
           fields: { ...section.fields, services },
         } as typeof section;
+      }
+      if (section.type === "realisations-page" && projects.length) {
+        const zoneCity = cities.find(
+          (candidate) => `/zones/${slugify(candidate)}` === page.slug,
+        );
+        const scoped = zoneCity
+          ? projects.filter(
+              (project) =>
+                project.city.toLowerCase() === zoneCity.toLowerCase(),
+            )
+          : projects;
+        return {
+          ...section,
+          fields: {
+            ...section.fields,
+            ...(zoneCity
+              ? { title: `Nos réalisations à ${zoneCity}` }
+              : {}),
+            filters: uniqueBy(
+              scoped.map((project) => project.city),
+              (city) => city.toLocaleLowerCase("fr"),
+            ),
+            heroImages: scoped.map((project) => ({
+              imageUrl: project.imageUrl,
+              alt: project.alt,
+            })),
+            projects: scoped,
+          },
+        };
       }
       if (section.type === "recent-projects" && projects.length) {
         const scoped =
@@ -304,33 +420,6 @@ export function synchronizeCmsRelations(
                   }
                 : group,
             ),
-          },
-        };
-      }
-      if (
-        page.slug.startsWith("/zones/") &&
-        section.type === "realisations-page"
-      ) {
-        const city = cities.find(
-          (candidate) =>
-            `/zones/${slugify(candidate)}` === page.slug &&
-            projectCities.has(candidate.toLocaleLowerCase("fr")),
-        );
-        if (!city) return section;
-        const scoped = projects.filter(
-          (project) => project.city.toLowerCase() === city.toLowerCase(),
-        );
-        return {
-          ...section,
-          fields: {
-            ...section.fields,
-            title: `Nos réalisations à ${city}`,
-            filters: [city],
-            heroImages: scoped.map((project) => ({
-              imageUrl: project.imageUrl,
-              alt: project.alt,
-            })),
-            projects: scoped,
           },
         };
       }

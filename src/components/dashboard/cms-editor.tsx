@@ -12,7 +12,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CMS_SECTION_OWNERS } from "@/lib/content-sections";
+import {
+  CMS_SECTION_OWNERS,
+  isDerivedCollectionField,
+  isDerivedCollectionSection,
+} from "@/lib/content-sections";
 import { ArticleContentEditor } from "@/components/dashboard/article-content-editor";
 import {
   getArticleDetail,
@@ -109,17 +113,37 @@ function collectColumns(
   value: JsonValue,
   path: Path = [],
   labels: string[] = [],
+  sectionType?: SitePage["sections"][number]["type"],
+  sectionFieldPath: Path = [],
 ): ContentColumn[] {
+  if (
+    sectionType &&
+    sectionFieldPath.length > 0 &&
+    isDerivedCollectionField(sectionType, sectionFieldPath)
+  )
+    return [];
   if (Array.isArray(value)) {
     return value.flatMap((child, index) =>
-      collectColumns(child, [...path, index], [...labels, `${index + 1}`]),
+      collectColumns(
+        child,
+        [...path, index],
+        [...labels, `${index + 1}`],
+        sectionType,
+        [...sectionFieldPath, index],
+      ),
     );
   }
   if (value && typeof value === "object") {
     return Object.entries(value).flatMap(([key, child]) =>
       hiddenKeys.has(key)
         ? []
-        : collectColumns(child, [...path, key], [...labels, humanize(key)]),
+        : collectColumns(
+            child,
+            [...path, key],
+            [...labels, humanize(key)],
+            sectionType,
+            [...sectionFieldPath, key],
+          ),
     );
   }
   const lastKey = String(path.at(-1) ?? "champ");
@@ -149,12 +173,14 @@ function isEditableSection(
     return false;
   if (section.type === "blog-advice" || section.type === "blog-index")
     return false;
-  if (collectionId === "zones") return true;
+  if (isDerivedCollectionSection(section.type)) return false;
+  if (collectionId === "all") return false;
+  if (collectionId === "zones") return section.type === "hero";
   if (section.type === "article-detail" && collectionId !== "articles")
     return false;
   const owner = CMS_SECTION_OWNERS[section.type];
   if (!owner) return false;
-  return collectionId === "all" || owner === collectionId;
+  return owner === collectionId;
 }
 
 export function CmsEditor({
@@ -180,11 +206,14 @@ export function CmsEditor({
       pages.filter(
         (page) =>
           collection.match(page) &&
+          (collectionId !== "realisations" ||
+            page.slug !== "/realisations") &&
+          (collectionId !== "prestations" || page.slug !== "/prestations") &&
           `${page.title} ${page.slug}`
             .toLowerCase()
             .includes(query.toLowerCase()),
       ),
-    [collection, pages, query],
+    [collection, collectionId, pages, query],
   );
   const columns = useMemo(() => {
     const seen = new Set<string>();
@@ -195,9 +224,10 @@ export function CmsEditor({
         ...page.sections.flatMap((section, index) =>
           isEditableSection(section, collectionId)
             ? collectColumns(
-                section as unknown as JsonValue,
-                ["sections", index],
+                section.fields as unknown as JsonValue,
+                ["sections", index, "fields"],
                 [humanize(section.type)],
+                section.type,
               )
             : [],
         ),
@@ -248,12 +278,13 @@ export function CmsEditor({
       setMessage(result.error ?? "Enregistrement impossible");
       return false;
     }
-    setPages(result.pages ?? synchronizedPages);
+    const savedPages = result.pages ?? synchronizedPages;
+    setPages(savedPages);
     if (nextStatus === "saving") {
       setStatus("idle");
       setMessage("Contenu synchronisé");
     }
-    return true;
+    return savedPages;
   }
 
   async function play() {
@@ -266,8 +297,9 @@ export function CmsEditor({
   }
 
   async function publish() {
-    if (!(await save("publishing"))) return;
-    const pagesToPublish = synchronizeArticleCollections(pages);
+    const savedPages = await save("publishing");
+    if (!savedPages) return;
+    const pagesToPublish = synchronizeArticleCollections(savedPages);
     const response = await fetch("/api/publish", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -29,6 +29,10 @@ import Link from "next/link";
 import { renderSection } from "@/components/site-sections";
 import type { ArticleBlock, SectionInstance, SitePage } from "@/lib/site-template";
 import { ensureSiteHeaderDefaults } from "@/lib/site-header-defaults";
+import {
+  isDerivedCollectionField,
+  isDerivedCollectionSection,
+} from "@/lib/content-sections";
 
 type Path = Array<string | number>;
 type LeftTab = "pages" | "sections";
@@ -3448,19 +3452,27 @@ function RightPanel({
       </div>
 
       <VariantSelector section={section} onVariantChange={onVariantChange} />
-      <SectionEditor
-        section={section}
-        onChange={onChange}
-        onAddSocialProofStat={onAddSocialProofStat}
-        onRemoveSocialProofStat={onRemoveSocialProofStat}
-        onAddRecentProjectCity={onAddRecentProjectCity}
-        onAddRecentProject={onAddRecentProject}
-        onRemoveRecentProject={onRemoveRecentProject}
-        onAddWorkMethodStep={onAddWorkMethodStep}
-        onRemoveWorkMethodStep={onRemoveWorkMethodStep}
-        onAddRepeatableItem={onAddRepeatableItem}
-        onRemoveRepeatableItem={onRemoveRepeatableItem}
-      />
+      {isDerivedCollectionSection(section.type) ? (
+        <div className="mt-3 rounded-[10px] bg-[#f3f3f3] px-3 py-3 text-[11px] leading-5 text-[#666]">
+          Cette liste est synchronisée avec sa collection dans le CMS. Modifie
+          les entrées depuis l’onglet CMS : cette section se mettra à jour
+          automatiquement.
+        </div>
+      ) : (
+        <SectionEditor
+          section={section}
+          onChange={onChange}
+          onAddSocialProofStat={onAddSocialProofStat}
+          onRemoveSocialProofStat={onRemoveSocialProofStat}
+          onAddRecentProjectCity={onAddRecentProjectCity}
+          onAddRecentProject={onAddRecentProject}
+          onRemoveRecentProject={onRemoveRecentProject}
+          onAddWorkMethodStep={onAddWorkMethodStep}
+          onRemoveWorkMethodStep={onRemoveWorkMethodStep}
+          onAddRepeatableItem={onAddRepeatableItem}
+          onRemoveRepeatableItem={onRemoveRepeatableItem}
+        />
+      )}
     </aside>
   );
 }
@@ -3591,7 +3603,11 @@ function SectionEditor({
     x: number;
     y: number;
   } | null>(null);
-  const groups = groupPaths(getEditableStringPaths(section.fields));
+  const groups = groupPaths(
+    getEditableStringPaths(section.fields).filter(
+      (path) => !isDerivedCollectionField(section.type, path),
+    ),
+  );
 
   if (section.type === "recent-projects") {
     return (

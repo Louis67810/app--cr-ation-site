@@ -3,7 +3,11 @@
 import { Check, ChevronDown, ImageIcon, Layers3, LoaderCircle, Search, Shuffle, UploadCloud, Variable } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { isGlobalEditableSection, SECTION_LABELS } from "@/lib/content-sections";
+import {
+  isDerivedCollectionField,
+  isGlobalEditableSection,
+  SECTION_LABELS,
+} from "@/lib/content-sections";
 import { prepareImageForUpload } from "@/lib/client-images";
 import type { SectionInstance, SitePage } from "@/lib/site-template";
 import { ensureSiteHeaderDefaults } from "@/lib/site-header-defaults";
@@ -50,6 +54,12 @@ function collectFields(value: JsonValue, path: Path = [], labels: string[] = [])
   }];
 }
 
+function collectSectionFields(section: SectionInstance) {
+  return collectFields(section.fields as JsonValue).filter(
+    (field) => !isDerivedCollectionField(section.type, field.path),
+  );
+}
+
 function seededAssets(assets: SectionAsset[], seed: string) {
   const result = [...assets];
   let state = [...seed].reduce((total, character) => ((total * 31) + character.charCodeAt(0)) >>> 0, 2166136261);
@@ -69,7 +79,7 @@ function distributeBackgroundAssets(pages: SitePage[], assets: SectionAsset[], s
   for (const page of pages) {
     for (const section of page.sections) {
       if (!isGlobalEditableSection(section.type)) continue;
-      for (const field of collectFields(section.fields as JsonValue)) {
+      for (const field of collectSectionFields(section)) {
         if (field.background) slots.push({ pageId: page.id, sectionId: section.id, path: field.path });
       }
     }
@@ -111,7 +121,7 @@ function buildGroups(pages: SitePage[]): SectionGroup[] {
   return [...grouped.entries()].map(([type, occurrences]) => {
     const uniqueFields = new Map<string, Omit<Field, "occurrences">>();
     for (const occurrence of occurrences) {
-      for (const field of collectFields(occurrence.section.fields as JsonValue)) {
+      for (const field of collectSectionFields(occurrence.section)) {
         if (!uniqueFields.has(field.key)) uniqueFields.set(field.key, field);
       }
     }
