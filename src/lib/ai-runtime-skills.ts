@@ -8,7 +8,8 @@ export type RuntimeSkillName =
   | "article-structure"
   | "article-writing"
   | "image-direction"
-  | "quiz-generation";
+  | "quiz-generation"
+  | "service-page-writing";
 
 const skillCache = new Map<RuntimeSkillName, string>();
 

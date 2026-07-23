@@ -59,6 +59,7 @@ type OverlayView =
   | "ideas"
   | "idea-form"
   | "idea-detail"
+  | "service-form"
   | "production"
   | "article"
   | "images"
@@ -173,6 +174,13 @@ export function AiAgents({
   const [ideas, setIdeas] = useState<EditorialIdea[]>([]);
   const [savingPageId, setSavingPageId] = useState<string | null>(null);
   const [production, setProduction] = useState<ProductionState | null>(null);
+  const [serviceName, setServiceName] = useState("");
+  const [serviceBrief, setServiceBrief] = useState("");
+  const [serviceGeneration, setServiceGeneration] = useState<{
+    status: "idle" | "running" | "completed" | "error";
+    error?: string;
+    page?: SitePage;
+  }>({ status: "idle" });
   const [executionMode, setExecutionMode] =
     useState<EditorialExecutionMode>("test");
   const analytics = initialAnalytics;
@@ -268,6 +276,60 @@ export function AiAgents({
       },
       true,
     );
+  }
+
+  function openServiceCreation() {
+    setServiceName("");
+    setServiceBrief("");
+    setServiceGeneration({ status: "idle" });
+    setView("service-form");
+  }
+
+  async function createServicePage(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (
+      !serviceName.trim() ||
+      !serviceBrief.trim() ||
+      serviceGeneration.status === "running"
+    )
+      return;
+    setServiceGeneration({ status: "running" });
+    try {
+      const response = await fetch("/api/ai-pages/prestation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectKey: project.key,
+          projectOwnerId: project.ownerId,
+          serviceName: serviceName.trim(),
+          brief: serviceBrief.trim(),
+          executionMode,
+        }),
+      });
+      const raw = await response.text();
+      let result: { page?: SitePage; pages?: SitePage[]; error?: string };
+      try {
+        result = JSON.parse(raw) as typeof result;
+      } catch {
+        throw new Error(
+          `La route a retourné une réponse non JSON (HTTP ${response.status}).`,
+        );
+      }
+      if (!response.ok || !result.page)
+        throw new Error(
+          result.error ?? "La page Prestation n'a pas pu être créée.",
+        );
+      setPages(result.pages ?? [...pages, result.page]);
+      setServiceGeneration({ status: "completed", page: result.page });
+    } catch (error) {
+      setServiceGeneration({
+        status: "error",
+        error:
+          error instanceof Error
+            ? error.message
+            : "La génération a été interrompue.",
+      });
+    }
   }
 
   function addIdea(event: React.FormEvent<HTMLFormElement>) {
@@ -633,6 +695,14 @@ export function AiAgents({
           </button>
           <button
             type="button"
+            onClick={openServiceCreation}
+            className="flex h-12 min-w-[172px] items-center justify-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold tracking-[-.02em] text-[#222]"
+          >
+            <Plus size={16} />
+            Créer une prestation
+          </button>
+          <button
+            type="button"
             onClick={openArticleCreation}
             className="flex h-12 min-w-[172px] items-center justify-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232_0%,#222_100%)] px-5 text-[14px] font-semibold tracking-[-.02em] text-[#fcfcfc] shadow-[0_2px_4px_-1px_rgba(13,13,13,.5),0_0_0_1px_#333,inset_0_.5px_1px_rgba(255,255,255,.15),inset_0_-1px_1.2px_.35px_#121212]"
           >
@@ -694,6 +764,7 @@ export function AiAgents({
               : view === "ideas" ||
                   view === "idea-form" ||
                   view === "idea-detail" ||
+                  view === "service-form" ||
                   view === "production"
                 ? "large"
                 : "medium"
@@ -731,6 +802,21 @@ export function AiAgents({
               onSave={saveIdea}
               onProduce={runProduction}
               onBack={openIdeas}
+              onClose={closeOverlay}
+            />
+          ) : null}
+          {view === "service-form" ? (
+            <ServicePageForm
+              name={serviceName}
+              brief={serviceBrief}
+              executionMode={executionMode}
+              generation={serviceGeneration}
+              onName={setServiceName}
+              onBrief={setServiceBrief}
+              onSubmit={createServicePage}
+              onOpenCms={() => {
+                window.location.href = `/dashboard?project=${encodeURIComponent(project.key)}&tab=cms`;
+              }}
               onClose={closeOverlay}
             />
           ) : null}
@@ -1291,6 +1377,133 @@ function IdeaForm({
         >
           Ajouter l’idée
         </button>
+      </footer>
+    </form>
+  );
+}
+
+function ServicePageForm({
+  name,
+  brief,
+  executionMode,
+  generation,
+  onName,
+  onBrief,
+  onSubmit,
+  onOpenCms,
+  onClose,
+}: {
+  name: string;
+  brief: string;
+  executionMode: EditorialExecutionMode;
+  generation: {
+    status: "idle" | "running" | "completed" | "error";
+    error?: string;
+    page?: SitePage;
+  };
+  onName: (value: string) => void;
+  onBrief: (value: string) => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onOpenCms: () => void;
+  onClose: () => void;
+}) {
+  const running = generation.status === "running";
+  const completed = generation.status === "completed";
+  return (
+    <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+      <OverlayTop title="Créer une prestation" onClose={onClose}>
+        <span className="hidden rounded-full bg-[#f3f3f3] px-3 py-2 text-[11px] font-semibold text-black/45 sm:block">
+          Structure verrouillée · Mode {executionMode === "test" ? "test" : "classique"}
+        </span>
+      </OverlayTop>
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-7 sm:px-12">
+        {completed && generation.page ? (
+          <div className="grid min-h-full place-items-center py-10 text-center">
+            <div className="max-w-[540px]">
+              <span className="mx-auto grid size-14 place-items-center rounded-full bg-[#ebffe8] text-[#37982a]">
+                <Check size={25} />
+              </span>
+              <h3 className="mt-5 font-serif text-[28px]">
+                {generation.page.title}
+              </h3>
+              <p className="mt-3 text-[13px] leading-6 text-black/50">
+                La page a été ajoutée en brouillon. Les sections, leur ordre,
+                les composants, les styles, les liens et les images du modèle
+                sont restés identiques.
+              </p>
+              <p className="mt-2 text-[12px] text-black/35">
+                {generation.page.slug}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="rounded-[14px] border border-black/[0.06] bg-[#fafafa] p-4 text-[12px] leading-5 text-black/50">
+              L’IA remplit uniquement le titre, l’introduction, les bénéfices
+              et la FAQ. Aucun élément de mise en page ne peut être ajouté,
+              supprimé ou déplacé.
+            </div>
+            <label className="mt-6 block text-[12px] font-semibold text-black/45">
+              Nom de la prestation
+              <input
+                autoFocus
+                value={name}
+                onChange={(event) => onName(event.target.value)}
+                disabled={running}
+                placeholder="Ex. Installation d’un système d’arrosage"
+                className="mt-2 h-12 w-full rounded-[10px] border border-black/10 px-4 text-[14px] outline-none focus:border-black/25 disabled:opacity-50"
+              />
+            </label>
+            <label className="mt-6 block text-[12px] font-semibold text-black/45">
+              Informations à respecter
+              <textarea
+                value={brief}
+                onChange={(event) => onBrief(event.target.value)}
+                disabled={running}
+                placeholder="Décris la prestation, les clients concernés, la zone d’intervention, les avantages réels et les limites à respecter…"
+                className="mt-2 min-h-[210px] w-full resize-none rounded-[14px] border border-black/10 p-5 text-[15px] leading-7 text-black/70 outline-none focus:border-black/25 disabled:opacity-50"
+              />
+            </label>
+            {generation.status === "error" ? (
+              <pre className="mt-5 max-h-36 overflow-auto whitespace-pre-wrap rounded-[12px] border border-[#f1c8c8] bg-[#fff5f5] p-4 font-sans text-[11px] leading-5 text-[#8b2929]">
+                {generation.error}
+              </pre>
+            ) : null}
+          </>
+        )}
+      </div>
+      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-black/[0.07] p-5 sm:px-12">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-12 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-5 text-[14px] font-semibold"
+        >
+          <ArrowLeft size={17} />
+          Retour
+        </button>
+        {completed ? (
+          <button
+            type="button"
+            onClick={onOpenCms}
+            className="flex h-12 items-center gap-2 rounded-[10px] bg-[#222] px-6 text-[14px] font-semibold text-white"
+          >
+            <FilePenLine size={16} />
+            Ouvrir dans le CMS
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={!name.trim() || !brief.trim() || running}
+            className="flex h-12 items-center gap-2 rounded-[10px] bg-[#222] px-6 text-[14px] font-semibold text-white disabled:opacity-35"
+          >
+            {running ? (
+              <LoaderCircle size={16} className="animate-spin" />
+            ) : (
+              <Sparkles size={16} />
+            )}
+            {running ? "Rédaction en cours…" : "Créer le brouillon"}
+          </button>
+        )}
       </footer>
     </form>
   );

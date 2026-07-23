@@ -525,7 +525,7 @@ async function readOpenRouterResult(
   }
 }
 
-async function askOpenRouter(input: {
+export async function askOpenRouter(input: {
   schemaName: string;
   schema: Record<string, unknown>;
   system: string;
