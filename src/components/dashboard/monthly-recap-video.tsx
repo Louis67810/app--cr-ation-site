@@ -31,9 +31,9 @@ function easeInOutCubic(value: number) {
     : 1 - Math.pow(-2 * progress + 2, 3) / 2;
 }
 
-function easeInQuint(value: number) {
+function acceleratingScroll(value: number) {
   const progress = clamp(value);
-  return progress * progress * progress * progress * progress;
+  return 0.35 * progress + 0.65 * Math.pow(progress, 8);
 }
 
 function formatTime(milliseconds: number) {
@@ -137,7 +137,7 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
           const exit = easeInOutCubic((end - elapsed) / 280);
           const visibility = Math.min(enter, exit);
           const translateY = enter < 1 ? (1 - enter) * 110 : exit < 1 ? -(1 - exit) * 24 : 0;
-          const localProgress = easeInQuint((elapsed - start) / scene.duration);
+          const localProgress = acceleratingScroll((elapsed - start) / scene.duration);
           const visible = elapsed >= start - 300 && elapsed <= end + 300;
           if (!visible) return null;
 
@@ -178,14 +178,14 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
 
               {scene.kind === "stat" ? (
                 <div className="relative grid h-full grid-cols-[minmax(0,.9fr)_minmax(120px,1.1fr)] items-center px-[7%] sm:grid-cols-[minmax(300px,.9fr)_minmax(360px,1.1fr)] sm:px-[9%]">
-                  <div className="relative z-30 min-w-0">
+                  <div className="relative z-50 min-w-0">
                     <p className="font-serif text-[clamp(52px,10vw,136px)] leading-none tracking-[-0.065em] text-[#1c1c1c]">{scene.accent ? <span className="text-[#036e89]">{scene.accent}</span> : null}{scene.value}</p>
                     <p className="mt-[clamp(14px,3vw,42px)] max-w-[560px] font-serif text-[clamp(20px,3.2vw,43px)] leading-[1.05] tracking-[-0.035em] text-[#797979]">{scene.label}</p>
                   </div>
                   <div className="relative z-10 h-[78%] w-full">
                     {scene.image ? <Image src={scene.image} alt={scene.imageAlt ?? ""} fill sizes="(max-width: 768px) 48vw, 55vw" className="object-contain object-center" priority={index < 4} /> : null}
                   </div>
-                  <div className="recap-aurora pointer-events-none absolute inset-0 z-20 opacity-50" />
+                  <div className="recap-aurora pointer-events-none absolute inset-0 z-40 opacity-100" />
                 </div>
               ) : null}
             </div>
