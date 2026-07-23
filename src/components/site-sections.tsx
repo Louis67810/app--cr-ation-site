@@ -59,6 +59,7 @@ import type {
   ServicesHubReviewsFields,
   TestimonialsFields,
   WorkMethodFields,
+  SiteBrandSettings,
 } from "@/lib/site-template";
 
 type EditablePath = Array<string | number>;
@@ -69,6 +70,7 @@ type RenderSectionOptions = {
   viewport?: "desktop" | "tablet" | "phone";
   onTextFocus?: () => void;
   onTextChange?: (path: EditablePath, value: string) => void;
+  brand?: SiteBrandSettings;
 };
 
 function isEnabled(value?: string) {
@@ -1505,6 +1507,7 @@ function ContactSectionA({
                 fields={fields.fields}
                 submitLabel={fields.submitLabel}
                 size="large"
+                recipientEmail={options?.brand?.email}
               />
             </div>
             <p className="mt-7 text-center text-[16px] font-semibold text-white">
@@ -1584,6 +1587,7 @@ function ContactSectionA({
               <ContactFormSection
                 fields={fields.fields}
                 submitLabel={fields.submitLabel}
+                recipientEmail={options?.brand?.email}
               />
             </div>
           </div>

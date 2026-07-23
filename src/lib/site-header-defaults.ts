@@ -1,4 +1,5 @@
 import type { SitePage } from "@/lib/site-template";
+import { normalizeSiteBrand } from "@/lib/site-brand";
 
 const primaryNavigation = [
   { label: "Prestations", href: "/prestations" },
@@ -24,6 +25,7 @@ export function ensureSiteHeaderDefaults(sourcePages: SitePage[]) {
             : section.fields.navigation,
           phone: section.fields.phone?.trim() || "06 00 00 00 00",
           phoneLabel: section.fields.phoneLabel?.trim() || "Appeler",
+          brand: normalizeSiteBrand(section.fields.brand),
         },
       };
     }),

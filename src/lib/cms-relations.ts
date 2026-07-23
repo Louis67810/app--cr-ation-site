@@ -8,6 +8,7 @@ import {
   visibleProjectImageAssets,
   type ProjectImageAsset,
 } from "@/lib/asset-visibility";
+import { getSiteBrand, normalizeSiteBrand } from "@/lib/site-brand";
 
 type RealisationCard = RealisationsPageFields["projects"][number];
 
@@ -351,6 +352,7 @@ export function synchronizeCmsRelations(
   sourceAssets: ProjectImageAsset[] = [],
 ) {
   let pages = ensureRealisationDetailPages(sourcePages);
+  const brand = getSiteBrand(pages);
   const services = serviceEntries(pages);
   const sectors = sectorEntries(pages);
   const topLevelPages = topLevelEntries(pages);
@@ -427,6 +429,7 @@ export function synchronizeCmsRelations(
               title: service.title,
               href: service.href,
             })),
+            brand: normalizeSiteBrand(section.fields.brand ?? brand),
           },
         };
       }

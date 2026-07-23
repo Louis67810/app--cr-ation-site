@@ -28,10 +28,12 @@ export function ContactFormSection({
   fields,
   submitLabel,
   size = "default",
+  recipientEmail,
 }: {
   fields: Array<{ label: string; type: string }>;
   submitLabel: string;
   size?: "default" | "large";
+  recipientEmail?: string;
 }) {
   const [submitted, setSubmitted] = useState(false);
 
@@ -58,6 +60,12 @@ export function ContactFormSection({
         event.preventDefault();
         setSubmitted(true);
         trackContact();
+        const recipient = recipientEmail?.trim();
+        if (recipient) {
+          const formData = new FormData(event.currentTarget);
+          const lines = Array.from(formData.entries()).map(([key, value]) => `${key}: ${value}`).join("\n");
+          window.setTimeout(() => { window.location.href = `mailto:${recipient}?subject=${encodeURIComponent("Nouvelle demande depuis le site")}&body=${encodeURIComponent(lines)}`; }, 120);
+        }
       }}
     >
       {fields.map((field, index) => {
@@ -69,6 +77,7 @@ export function ContactFormSection({
         return textarea ? (
           <label key={`${field.label}-${index}`} className="relative block">
             <textarea
+              name={field.label.replace("*", "").trim()}
               aria-label={field.label}
               required={field.label.includes("*")}
               placeholder=" "
@@ -79,6 +88,7 @@ export function ContactFormSection({
         ) : (
           <label key={`${field.label}-${index}`} className="relative block">
             <input
+              name={field.label.replace("*", "").trim()}
               aria-label={field.label}
               required={field.label.includes("*")}
               type={field.type || "text"}
@@ -97,7 +107,7 @@ export function ContactFormSection({
       </button>
       {submitted ? (
         <p className="typo-body-small text-white/72">
-          Merci, votre demande a bien ete prise en compte.
+          Merci, votre demande a bien été prise en compte.
         </p>
       ) : null}
     </form>

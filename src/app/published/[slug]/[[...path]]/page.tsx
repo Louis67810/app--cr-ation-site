@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { SiteTracker } from "@/components/site-tracker";
 import { renderSection } from "@/components/site-sections";
 import { getLocalPublication } from "@/lib/local-publications";
+import { getSiteBrand, siteBrandStyle } from "@/lib/site-brand";
 import { createClient } from "@/lib/supabase/server";
 import type { SectionInstance, SitePage } from "@/lib/site-template";
 
@@ -74,20 +75,20 @@ export default async function PublishedSitePage({
   const sections = page.sections.map((section) =>
     prefixPublishedLinks(section, prefix),
   ) as SectionInstance[];
+  const brand = getSiteBrand(publication.pages);
 
   return (
     <>
       {remotePublication && preview !== "dashboard" ? <SiteTracker publishedSlug={slug} pagePath={pageSlug} /> : null}
       <main
         className="min-h-screen bg-white text-[#0f1112]"
-        style={
-          preview === "dashboard"
-            ? ({ "--site-hero-height": "855px" } as CSSProperties)
-            : undefined
-        }
+        style={{
+          ...siteBrandStyle(brand),
+          ...(preview === "dashboard" ? { "--site-hero-height": "855px" } : {}),
+        } as CSSProperties}
       >
         {sections.map((section) => (
-          <div key={section.id}>{renderSection(section)}</div>
+          <div key={section.id}>{renderSection(section, { brand })}</div>
         ))}
       </main>
     </>

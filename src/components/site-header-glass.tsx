@@ -269,6 +269,9 @@ export function SiteHeaderGlass({
       : "!inline-flex"
     : "!hidden 2xl:!inline-flex";
   const phone = fields.phone?.trim() || "06 00 00 00 00";
+  const logoImageUrl = light
+    ? fields.brand?.logoOnLightUrl || fields.logoImageUrl
+    : fields.brand?.logoOnDarkUrl || fields.logoImageUrl;
   const phoneHref = `tel:${phone.replace(/[^+\d]/g, "")}`;
   const homeHref = getPublishedHome(pathname);
   const serviceMenuGroups = buildServiceMenuGroups(fields.serviceLinks);
@@ -423,10 +426,10 @@ export function SiteHeaderGlass({
             ariaLabel="Accueil"
             disabled={options?.disableLinks}
           >
-            {fields.logoImageUrl ? (
+            {logoImageUrl ? (
               <span
                 className="h-8 w-20 bg-contain bg-center bg-no-repeat"
-                style={{ backgroundImage: `url(${fields.logoImageUrl})` }}
+                style={{ backgroundImage: `url(${logoImageUrl})` }}
                 role="img"
                 aria-label={fields.logoLabel || "Logo"}
               />
@@ -763,10 +766,10 @@ function MobileDrawer({
               disabled={disabled}
               className="typo-body-small flex h-11 min-w-24 items-center justify-center rounded-lg bg-black/[0.06] px-3 text-black"
             >
-              {fields.logoImageUrl ? (
+              {fields.brand?.logoOnLightUrl || fields.logoImageUrl ? (
                 <span
                   className="h-8 w-20 bg-contain bg-center bg-no-repeat"
-                  style={{ backgroundImage: `url(${fields.logoImageUrl})` }}
+                  style={{ backgroundImage: `url(${fields.brand?.logoOnLightUrl || fields.logoImageUrl})` }}
                   role="img"
                   aria-label={fields.logoLabel || "Logo"}
                 />

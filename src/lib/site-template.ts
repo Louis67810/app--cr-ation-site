@@ -13,6 +13,20 @@ export type NavigationItem = {
   href: string;
 };
 
+export type SiteBrandSettings = {
+  primaryColor: string;
+  accentColor: string;
+  ctaVariant: "pill" | "rounded";
+  headingFont: "new-york" | "jakarta";
+  logoOnDarkUrl?: string;
+  logoOnLightUrl?: string;
+  email: string;
+  phone: string;
+  address: string;
+  googleReviewsUrl?: string;
+  contactMode: "form" | "qualifier";
+};
+
 export type SiteHeaderGlassFields = {
   logoLabel: string;
   logoImageUrl?: string;
@@ -24,6 +38,7 @@ export type SiteHeaderGlassFields = {
   cta: Cta;
   phone?: string;
   phoneLabel?: string;
+  brand?: SiteBrandSettings;
 };
 
 export type HeroFullImageFields = {
