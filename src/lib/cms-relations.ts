@@ -37,8 +37,7 @@ function serviceEntries(pages: SitePage[]) {
   return pages
     .filter(
       (page) =>
-        page.slug.startsWith("/prestations/") &&
-        page.slug !== "/prestations",
+        page.slug.startsWith("/prestations/") && page.slug !== "/prestations",
     )
     .map((page): HubService | null => {
       const hero = page.sections.find(
@@ -55,20 +54,44 @@ function serviceEntries(pages: SitePage[]) {
     .filter((entry): entry is HubService => Boolean(entry));
 }
 
+function sectorEntries(pages: SitePage[]) {
+  return pages
+    .filter(
+      (page) => page.slug.startsWith("/secteurs/") && page.slug !== "/secteurs",
+    )
+    .map((page) => ({
+      label:
+        page.title.replace(/^Secteur\s*[–—-]\s*/i, "").trim() || page.title,
+      href: page.slug,
+    }));
+}
+
+function topLevelEntries(pages: SitePage[]) {
+  const labels = new Map([
+    ["/", "Accueil"],
+    ["/prestations", "Prestations"],
+    ["/realisations", "Réalisations"],
+    ["/a-propos", "À propos"],
+    ["/blog", "Ressources"],
+    ["/contact", "Contact"],
+  ]);
+  return Array.from(labels)
+    .filter(([href]) => pages.some((page) => page.slug === href))
+    .map(([href, label]) => ({ label, href }));
+}
+
 function realisationDetailEntries(pages: SitePage[]) {
   return pages
     .filter(
       (page) =>
-        page.slug.startsWith("/realisations/") &&
-        page.slug !== "/realisations",
+        page.slug.startsWith("/realisations/") && page.slug !== "/realisations",
     )
     .map((page): RealisationCard | null => {
       const detail = page.sections.find(
         (section) => section.type === "realisation-detail",
       );
       if (detail?.type !== "realisation-detail") return null;
-      const city =
-        detail.fields.breadcrumbs.at(-1)?.label?.trim() || "Autres";
+      const city = detail.fields.breadcrumbs.at(-1)?.label?.trim() || "Autres";
       return {
         city,
         category: city,
@@ -146,8 +169,7 @@ function ensureRealisationDetailPages(sourcePages: SitePage[]) {
   );
   const existingPages = pages.filter(
     (page) =>
-      page.slug.startsWith("/realisations/") &&
-      page.slug !== "/realisations",
+      page.slug.startsWith("/realisations/") && page.slug !== "/realisations",
   );
   const claimedPageIds = new Set<string>();
   const usedSlugs = new Set(pages.map((page) => page.slug));
@@ -263,6 +285,8 @@ export function synchronizeCmsRelations(
 ) {
   let pages = ensureRealisationDetailPages(sourcePages);
   const services = serviceEntries(pages);
+  const sectors = sectorEntries(pages);
+  const topLevelPages = topLevelEntries(pages);
   const projects = realisationDetailEntries(pages);
   const configuredZoneCities = pages
     .filter((page) => page.slug.startsWith("/zones/"))
@@ -322,6 +346,23 @@ export function synchronizeCmsRelations(
   pages = pages.map((page) => ({
     ...page,
     sections: page.sections.map((section) => {
+      if (section.type === "site-header") {
+        return {
+          ...section,
+          fields: {
+            ...section.fields,
+            navigation: topLevelPages
+              .filter(
+                (entry) => entry.href !== "/" && entry.href !== "/contact",
+              )
+              .map((entry) => ({ ...entry })),
+            serviceLinks: services.map((service) => ({
+              title: service.title,
+              href: service.href,
+            })),
+          },
+        };
+      }
       if (section.type === "services" && services.length) {
         return {
           ...section,
@@ -355,9 +396,7 @@ export function synchronizeCmsRelations(
           ...section,
           fields: {
             ...section.fields,
-            ...(zoneCity
-              ? { title: `Nos réalisations à ${zoneCity}` }
-              : {}),
+            ...(zoneCity ? { title: `Nos réalisations à ${zoneCity}` } : {}),
             filters: uniqueBy(
               scoped.map((project) => project.city),
               (city) => city.toLocaleLowerCase("fr"),
@@ -422,26 +461,48 @@ export function synchronizeCmsRelations(
           fields: { ...section.fields, areas: areaEntries },
         };
       }
-      if (section.type === "site-footer" && areaEntries.length) {
-        const groupIndex = section.fields.linkGroups.findIndex((group) =>
-          /zones?\s+d['’]intervention/i.test(group.title),
-        );
-        if (groupIndex < 0) return section;
+      if (section.type === "site-footer") {
+        const linkGroups = [
+          {
+            title: "Pages",
+            links: topLevelPages.map((entry) => ({ ...entry })),
+          },
+          ...(services.length
+            ? [
+                {
+                  title: "Conception",
+                  links: services.map((service) => ({
+                    label: service.title,
+                    href: service.href,
+                  })),
+                },
+              ]
+            : []),
+          ...(sectors.length
+            ? [
+                {
+                  title: "Secteurs",
+                  links: sectors.map((entry) => ({ ...entry })),
+                },
+              ]
+            : []),
+          ...(areaEntries.length
+            ? [
+                {
+                  title: "Zones d’intervention",
+                  links: areaEntries.map((area) => ({
+                    label: area.name,
+                    href: area.href,
+                  })),
+                },
+              ]
+            : []),
+        ];
         return {
           ...section,
           fields: {
             ...section.fields,
-            linkGroups: section.fields.linkGroups.map((group, index) =>
-              index === groupIndex
-                ? {
-                    ...group,
-                    links: areaEntries.map((area) => ({
-                      label: area.name,
-                      href: area.href,
-                    })),
-                  }
-                : group,
-            ),
+            linkGroups,
           },
         };
       }

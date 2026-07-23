@@ -493,7 +493,7 @@ const serviceMenuGroups: Array<{
     ],
   },
   {
-    title: "Entretenir",
+    title: "Conception",
     links: [
       ["Entretien paysager", "/prestations/entretien-paysager"],
       ["Taille et élagage", "/prestations/taille-elagage"],

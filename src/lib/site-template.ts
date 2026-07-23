@@ -17,6 +17,10 @@ export type SiteHeaderGlassFields = {
   logoLabel: string;
   logoImageUrl?: string;
   navigation: NavigationItem[];
+  serviceLinks?: Array<{
+    title: string;
+    href: string;
+  }>;
   cta: Cta;
   phone?: string;
   phoneLabel?: string;

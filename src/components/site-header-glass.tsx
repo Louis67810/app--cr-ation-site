@@ -32,10 +32,12 @@ type MegaMenuKind = "services" | "resources";
 
 const PublishedPathContext = createContext("");
 
-const serviceMenuGroups: Array<{
+type ServiceMenuGroup = {
   title: string;
   links: Array<readonly [string, string]>;
-}> = [
+};
+
+const fallbackServiceMenuGroups: ServiceMenuGroup[] = [
   {
     title: "Créer",
     links: [
@@ -45,7 +47,7 @@ const serviceMenuGroups: Array<{
     ],
   },
   {
-    title: "Entretenir",
+    title: "Conception",
     links: [
       ["Entretien paysager", "/prestations/entretien-paysager"],
       ["Taille et élagage", "/prestations/taille-elagage"],
@@ -61,6 +63,34 @@ const serviceMenuGroups: Array<{
     ],
   },
 ];
+
+function buildServiceMenuGroups(
+  services: SiteHeaderGlassFields["serviceLinks"],
+) {
+  const links = Array.from(
+    new Map(
+      (services ?? [])
+        .filter((service) => service.title.trim() && service.href.trim())
+        .map((service) => [
+          service.href,
+          [service.title, service.href] as const,
+        ]),
+    ).values(),
+  );
+  if (!links.length) return fallbackServiceMenuGroups;
+
+  const groupTitles = ["Créer", "Conception", "Aménager"];
+  const groupSize = Math.ceil(links.length / groupTitles.length);
+  const groups = groupTitles
+    .map((title, index): ServiceMenuGroup => ({
+      title,
+      links: links.slice(index * groupSize, (index + 1) * groupSize),
+    }))
+    .filter((group) => group.links.length);
+
+  groups.at(-1)?.links.push(["Toutes les prestations", "/prestations"]);
+  return groups;
+}
 
 const resourceCards = [
   {
@@ -241,6 +271,15 @@ export function SiteHeaderGlass({
   const phone = fields.phone?.trim() || "06 00 00 00 00";
   const phoneHref = `tel:${phone.replace(/[^+\d]/g, "")}`;
   const homeHref = getPublishedHome(pathname);
+  const serviceMenuGroups = buildServiceMenuGroups(fields.serviceLinks);
+  const navigation = fields.navigation.length
+    ? fields.navigation
+    : [
+        { label: "Prestations", href: "/prestations" },
+        { label: "Réalisations", href: "/realisations" },
+        { label: "À propos", href: "/a-propos" },
+        { label: "Ressources", href: "/blog" },
+      ];
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setPortalReady(true));
@@ -404,38 +443,39 @@ export function SiteHeaderGlass({
             aria-label="Navigation principale"
             className={`${desktopNavigation} typo-body-small h-full items-center gap-7 leading-none`}
           >
-            <MegaMenuTrigger
-              label="Prestations"
-              kind="services"
-              href="/prestations"
-              active={activeMenu === "services"}
-              onActivate={setActiveMenu}
-              disabled={options?.disableLinks}
-            />
-            <HeaderLink
-              href="/realisations"
-              ariaLabel="Réalisations"
-              className="cta-roll whitespace-nowrap"
-              disabled={options?.disableLinks}
-            >
-              <RollingText value="Réalisations" />
-            </HeaderLink>
-            <HeaderLink
-              href="/a-propos"
-              ariaLabel="À propos"
-              className="cta-roll whitespace-nowrap"
-              disabled={options?.disableLinks}
-            >
-              <RollingText value="À propos" />
-            </HeaderLink>
-            <MegaMenuTrigger
-              label="Ressources"
-              kind="resources"
-              href="/blog"
-              active={activeMenu === "resources"}
-              onActivate={setActiveMenu}
-              disabled={options?.disableLinks}
-            />
+            {navigation.map((item) =>
+              item.href === "/prestations" ? (
+                <MegaMenuTrigger
+                  key={item.href}
+                  label={item.label}
+                  kind="services"
+                  href={item.href}
+                  active={activeMenu === "services"}
+                  onActivate={setActiveMenu}
+                  disabled={options?.disableLinks}
+                />
+              ) : item.href === "/blog" ? (
+                <MegaMenuTrigger
+                  key={item.href}
+                  label={item.label}
+                  kind="resources"
+                  href={item.href}
+                  active={activeMenu === "resources"}
+                  onActivate={setActiveMenu}
+                  disabled={options?.disableLinks}
+                />
+              ) : (
+                <HeaderLink
+                  key={item.href}
+                  href={item.href}
+                  ariaLabel={item.label}
+                  className="cta-roll whitespace-nowrap"
+                  disabled={options?.disableLinks}
+                >
+                  <RollingText value={item.label} />
+                </HeaderLink>
+              ),
+            )}
           </nav>
 
           <HeaderLink
@@ -481,7 +521,10 @@ export function SiteHeaderGlass({
               {activeMenu === "resources" ? (
                 <ResourcesMenu disabled={options?.disableLinks} />
               ) : (
-                <ServicesMenu disabled={options?.disableLinks} />
+                <ServicesMenu
+                  groups={serviceMenuGroups}
+                  disabled={options?.disableLinks}
+                />
               )}
             </div>
           </div>
@@ -498,6 +541,7 @@ export function SiteHeaderGlass({
               open={mobileOpen}
               disabled={options?.disableLinks}
               fields={fields}
+              serviceGroups={serviceMenuGroups}
               homeHref={homeHref}
               offset={drawerOffset}
               onClose={closeMobile}
@@ -557,10 +601,16 @@ function MegaMenuTrigger({
   );
 }
 
-function ServicesMenu({ disabled }: { disabled?: boolean }) {
+function ServicesMenu({
+  groups,
+  disabled,
+}: {
+  groups: ServiceMenuGroup[];
+  disabled?: boolean;
+}) {
   return (
     <div className="grid grid-cols-3 gap-10">
-      {serviceMenuGroups.map((group) => (
+      {groups.map((group) => (
         <div key={group.title}>
           <HeaderLink
             href="/prestations"
@@ -643,6 +693,7 @@ function MobileDrawer({
   open,
   disabled,
   fields,
+  serviceGroups,
   homeHref,
   offset,
   onClose,
@@ -659,6 +710,7 @@ function MobileDrawer({
   open: boolean;
   disabled?: boolean;
   fields: SiteHeaderGlassFields;
+  serviceGroups: ServiceMenuGroup[];
   homeHref: string;
   offset: number;
   onClose: () => void;
@@ -750,7 +802,7 @@ function MobileDrawer({
                 />
               </summary>
               <div className="grid gap-1 pb-4">
-                {serviceMenuGroups
+                {serviceGroups
                   .flatMap((group) => group.links)
                   .map(([title, href]) => (
                     <HeaderLink
