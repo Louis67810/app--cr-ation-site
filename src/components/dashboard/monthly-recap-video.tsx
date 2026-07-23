@@ -31,9 +31,9 @@ function easeInOutCubic(value: number) {
     : 1 - Math.pow(-2 * progress + 2, 3) / 2;
 }
 
-function easeInCubic(value: number) {
+function easeInQuint(value: number) {
   const progress = clamp(value);
-  return progress * progress * progress;
+  return progress * progress * progress * progress * progress;
 }
 
 function formatTime(milliseconds: number) {
@@ -58,7 +58,7 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
 
   const scenes = useMemo<RecapScene[]>(() => [
     { id: "intro", kind: "intro", duration: 1250 },
-    { id: "preview", kind: "preview", duration: 6400 },
+    { id: "preview", kind: "preview", duration: 8400 },
     { id: "visitors", kind: "stat", duration: 2900, value: formatNumber(data.visitors), label: "visiteurs uniques", image: "/images/monthly-recap/stat-07.png", imageAlt: "Carte et repères végétaux" },
     { id: "views", kind: "stat", duration: 2900, value: formatNumber(data.pageViews), label: "pages consultées", image: "/images/monthly-recap/stat-02.png", imageAlt: "Interaction avec une page" },
     { id: "contacts", kind: "stat", duration: 2900, value: formatNumber(data.contacts), label: "prises de contact", image: "/images/monthly-recap/stat-04.png", imageAlt: "Boîte aux lettres et enveloppe" },
@@ -137,7 +137,7 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
           const exit = easeInOutCubic((end - elapsed) / 280);
           const visibility = Math.min(enter, exit);
           const translateY = enter < 1 ? (1 - enter) * 110 : exit < 1 ? -(1 - exit) * 24 : 0;
-          const localProgress = easeInCubic((elapsed - start) / scene.duration);
+          const localProgress = easeInQuint((elapsed - start) / scene.duration);
           const visible = elapsed >= start - 300 && elapsed <= end + 300;
           if (!visible) return null;
 
@@ -173,19 +173,19 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
                       <div className="h-full w-full bg-[url('/dashboard-site-preview.png')] bg-[length:100%_auto] bg-top bg-no-repeat" />
                     )}
                   </div>
-                  <div className="recap-aurora pointer-events-none absolute inset-0 z-40 opacity-50" />
                 </div>
               ) : null}
 
               {scene.kind === "stat" ? (
-                <div className="grid h-full grid-cols-[minmax(0,.9fr)_minmax(120px,1.1fr)] items-center px-[7%] sm:grid-cols-[minmax(300px,.9fr)_minmax(360px,1.1fr)] sm:px-[9%]">
-                  <div className="min-w-0">
+                <div className="relative grid h-full grid-cols-[minmax(0,.9fr)_minmax(120px,1.1fr)] items-center px-[7%] sm:grid-cols-[minmax(300px,.9fr)_minmax(360px,1.1fr)] sm:px-[9%]">
+                  <div className="relative z-30 min-w-0">
                     <p className="font-serif text-[clamp(52px,10vw,136px)] leading-none tracking-[-0.065em] text-[#1c1c1c]">{scene.accent ? <span className="text-[#036e89]">{scene.accent}</span> : null}{scene.value}</p>
                     <p className="mt-[clamp(14px,3vw,42px)] max-w-[560px] font-serif text-[clamp(20px,3.2vw,43px)] leading-[1.05] tracking-[-0.035em] text-[#797979]">{scene.label}</p>
                   </div>
-                  <div className="relative h-[78%] w-full">
+                  <div className="relative z-10 h-[78%] w-full">
                     {scene.image ? <Image src={scene.image} alt={scene.imageAlt ?? ""} fill sizes="(max-width: 768px) 48vw, 55vw" className="object-contain object-center" priority={index < 4} /> : null}
                   </div>
+                  <div className="recap-aurora pointer-events-none absolute inset-0 z-20 opacity-50" />
                 </div>
               ) : null}
             </div>
