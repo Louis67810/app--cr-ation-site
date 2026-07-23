@@ -83,6 +83,7 @@ export async function POST(request: Request) {
     const needsThumbnail =
       !detail.fields.thumbnailImageUrl ||
       detail.fields.thumbnailVersion !== ARTICLE_THUMBNAIL_VERSION ||
+      detail.fields.thumbnailBrandColor !== brand.primaryColor ||
       previousDetail?.fields.title !== detail.fields.title ||
       previousDetail?.fields.heroImageUrl !== detail.fields.heroImageUrl;
     if (!needsThumbnail) continue;
@@ -125,6 +126,7 @@ export async function POST(request: Request) {
       }
       detail.fields.thumbnailImageUrl = publicData.publicUrl;
       detail.fields.thumbnailVersion = ARTICLE_THUMBNAIL_VERSION;
+      detail.fields.thumbnailBrandColor = brand.primaryColor;
     } catch {
       // A thumbnail failure must never prevent the CMS draft from being saved.
     }

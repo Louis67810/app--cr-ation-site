@@ -103,7 +103,7 @@ export function AssetLibrary({ project, initialAssets }: { project: DashboardPro
       const response = await fetch("/api/projects/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectKey: project.key, projectOwnerId: project.ownerId, projectName: project.name, pages: applySiteBrand(project.pages, brand) }) });
       const result = await response.json() as { error?: string };
       if (!response.ok) throw new Error(result.error ?? "Enregistrement impossible");
-      setMessage("Identité du site enregistrée. Toutes les pages utilisent maintenant ces réglages."); router.refresh();
+      setMessage("Identité enregistrée. Les miniatures des articles sont régénérées avec la nouvelle couleur."); router.refresh();
     } catch (error) { setMessage(error instanceof Error ? error.message : "Enregistrement impossible"); }
     finally { setSavingBrand(false); }
   }
