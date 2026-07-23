@@ -979,7 +979,7 @@ function ServicesCardsA({
                 <SiteCta
                   variant="explore"
                   href={service.href}
-                  value="Explorer"
+                  value="Découvrir la prestation"
                   options={options}
                 />
               </div>

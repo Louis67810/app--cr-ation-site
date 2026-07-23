@@ -201,7 +201,7 @@ function createSection(type: SectionInstance["type"]): SectionInstance {
       variant: "cards-centered-a",
       fields: {
         title: "Pourquoi nous choisir ?",
-        cta: { label: "Book a Table", href: "/contact" },
+        cta: { label: "Nous contacter", href: "/contact" },
         socialProof: { ratingLabel: "Excellent", reviewCount: "500 avis" },
         services: [
           {
@@ -700,8 +700,8 @@ function createSection(type: SectionInstance["type"]): SectionInstance {
       fields: {
         title: "Une histoire de terrain et de passion",
         subtitle: "Decouvrez l'equipe et les valeurs qui accompagnent chacun de nos projets paysagers.",
-        primaryCta: { label: "Nous contacter", href: "#contact" },
-        secondaryCta: { label: "Nos prestations", href: "/prestations" },
+        primaryCta: { label: "Nous contacter", href: "/contact" },
+        secondaryCta: { label: "Voir nos prestations", href: "/prestations" },
         imageUrl: defaultGardenImage,
         imageAlt: "Equipe de paysagistes au travail",
       },

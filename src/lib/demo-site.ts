@@ -1513,8 +1513,8 @@ export const demoAboutPage: SitePage = {
         title: "Une passion du paysage transmise sur le terrain",
         subtitle:
           "Depuis plus de 40 ans, notre entreprise imagine, realise et entretient des exterieurs durables avec la meme exigence de proximite.",
-        primaryCta: { label: "Nous contacter", href: "#contact" },
-        secondaryCta: { label: "Nos prestations", href: "#prestations" },
+        primaryCta: { label: "Nous contacter", href: "/contact" },
+        secondaryCta: { label: "Voir nos prestations", href: "/prestations" },
         imageUrl: mowingImage,
         imageAlt: "Paysagiste entretenant un jardin soigne",
       },

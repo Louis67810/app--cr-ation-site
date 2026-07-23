@@ -135,7 +135,7 @@ export function ServiceAreasInteractive({
                   active ? "translate-x-0 opacity-100" : "opacity-75"
                 }`}
               >
-                Explorer
+                Voir la zone
                 <ChevronRight size={20} strokeWidth={1.67} />
               </span>
             </a>

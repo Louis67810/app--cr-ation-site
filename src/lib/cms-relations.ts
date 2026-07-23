@@ -80,6 +80,73 @@ function topLevelEntries(pages: SitePage[]) {
     .map(([href, label]) => ({ label, href }));
 }
 
+function normalizeCtaLabel(label: string, href: string) {
+  const normalized = label.trim().toLocaleLowerCase("fr");
+  if (normalized === "nos prestations" && href === "/prestations") {
+    return "Voir nos prestations";
+  }
+  if (normalized === "tout voir" && href === "/prestations") {
+    return "Voir toutes les prestations";
+  }
+  if (normalized === "book a table") {
+    if (href === "/blog") return "Voir les ressources";
+    if (href === "#qualification") return "Commencer le questionnaire";
+    return "Nous contacter";
+  }
+  return label;
+}
+
+function normalizeHref(href: string, validSlugs: Set<string>) {
+  const value = href.trim();
+  const aliases = new Map([
+    ["#contact", "/contact"],
+    ["#prestations", "/prestations"],
+    ["#realisations", "/realisations"],
+  ]);
+  const resolved = aliases.get(value) ?? value;
+
+  if (resolved.startsWith("/") && !validSlugs.has(resolved)) {
+    return validSlugs.has("/contact") ? "/contact" : "/";
+  }
+  return resolved;
+}
+
+function normalizeLinks(value: unknown, validSlugs: Set<string>): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeLinks(item, validSlugs));
+  }
+  if (!value || typeof value !== "object") return value;
+
+  const next = Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+      key,
+      normalizeLinks(item, validSlugs),
+    ]),
+  ) as Record<string, unknown>;
+
+  const href = next.href;
+  if (typeof href === "string") {
+    next.href = normalizeHref(href, validSlugs);
+    if (typeof next.label === "string") {
+      next.label = normalizeCtaLabel(next.label, next.href as string);
+    }
+  }
+
+  return next;
+}
+
+function matchingServiceHref(title: string, services: HubService[]) {
+  const normalized = title.trim().toLocaleLowerCase("fr");
+  return (
+    services.find(
+      (service) =>
+        service.title.trim().toLocaleLowerCase("fr") === normalized ||
+        normalized.includes(service.title.trim().toLocaleLowerCase("fr")) ||
+        service.title.trim().toLocaleLowerCase("fr").includes(normalized),
+    )?.href ?? "/prestations"
+  );
+}
+
 function realisationDetailEntries(pages: SitePage[]) {
   return pages
     .filter(
@@ -382,6 +449,23 @@ export function synchronizeCmsRelations(
           fields: { ...section.fields, services },
         } as typeof section;
       }
+      if (section.type === "sector-extra-services") {
+        return {
+          ...section,
+          fields: {
+            ...section.fields,
+            cta: {
+              ...section.fields.cta,
+              href: "/prestations",
+              label: "Voir nos prestations",
+            },
+            services: section.fields.services.map((service) => ({
+              ...service,
+              href: matchingServiceHref(service.title, services),
+            })),
+          },
+        };
+      }
       if (section.type === "realisations-page" && projects.length) {
         const zoneCity = cities.find(
           (candidate) => `/zones/${slugify(candidate)}` === page.slug,
@@ -507,6 +591,55 @@ export function synchronizeCmsRelations(
         };
       }
       return section;
+    }),
+  }));
+
+  const validSlugs = new Set(pages.map((page) => page.slug));
+  pages = pages.map((page) => ({
+    ...page,
+    sections: page.sections.map((section) => {
+      if (section.type === "about-hero") {
+        const fields = normalizeLinks(
+          section.fields,
+          validSlugs,
+        ) as typeof section.fields;
+        return {
+          ...section,
+          fields: {
+            ...fields,
+            secondaryCta: {
+              ...fields.secondaryCta,
+              label: "Voir nos prestations",
+              href: "/prestations",
+            },
+          },
+        };
+      }
+
+      if (
+        section.type === "services-centered" &&
+        /pourquoi nous choisir/i.test(section.fields.title)
+      ) {
+        const fields = normalizeLinks(
+          section.fields,
+          validSlugs,
+        ) as typeof section.fields;
+        return {
+          ...section,
+          fields: {
+            ...fields,
+            cta: { ...fields.cta, label: "Nous contacter", href: "/contact" },
+          },
+        };
+      }
+
+      return {
+        ...section,
+        fields: normalizeLinks(
+          section.fields,
+          validSlugs,
+        ) as typeof section.fields,
+      } as typeof section;
     }),
   }));
 
