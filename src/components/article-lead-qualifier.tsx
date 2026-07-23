@@ -109,7 +109,7 @@ export function ArticleLeadQualifier({ qualifier }: { qualifier: LeadQualifier }
               }}
             >
               <div className="grid gap-3">
-                <p className="typo-body-small text-[#003441]">Derniere etape</p>
+                <p className="typo-body-small text-[var(--site-primary)]">Dernière étape</p>
                 <h2 className="typo-h3 text-black">{qualifier.form.title}</h2>
                 {selectedSummary ? (
                   <p className="typo-body-small text-black/64">
@@ -121,7 +121,7 @@ export function ArticleLeadQualifier({ qualifier }: { qualifier: LeadQualifier }
                 {qualifier.form.fields.map((field) => {
                   const multiline = field.type === "textarea";
                   const className =
-                    "w-full rounded-lg border border-black/[0.08] bg-[#fbfbfb] px-5 py-4 text-[14px] font-bold leading-[25px] text-black outline-none placeholder:text-black/50 focus:border-[#003441]/40";
+                    "w-full rounded-lg border border-black/[0.08] bg-[#fbfbfb] px-5 py-4 text-[14px] font-bold leading-[25px] text-black outline-none placeholder:text-black/50 focus:border-[var(--site-primary)]";
 
                   return multiline ? (
                     <label key={field.label} className="relative block md:col-span-2">
@@ -181,7 +181,7 @@ export function ArticleLeadQualifier({ qualifier }: { qualifier: LeadQualifier }
                       className={`relative min-h-[360px] overflow-hidden rounded-3xl border text-left backdrop-blur-[17px] transition md:min-h-[444px] ${
                         selected
                           ? "border-white/12 bg-[#12424e] text-white"
-                          : "border-black/12 bg-white text-black hover:border-[#003441]/30"
+                          : "border-black/12 bg-white text-black hover:border-[var(--site-primary)]"
                       }`}
                     >
                       <div className="absolute inset-x-0 top-[88px] flex justify-center">

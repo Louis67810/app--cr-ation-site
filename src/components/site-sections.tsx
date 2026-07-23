@@ -205,7 +205,7 @@ function SiteCta({
     explore: "service-explore-cta mt-6",
     inverted: "site-cta site-cta-inverted cta-roll rounded-full text-[#003441]",
     white:
-      "site-cta cta-roll w-full justify-between rounded-full border-2 border-[#092528] bg-white text-[#003441] shadow-[0_101px_40px_rgba(0,0,0,0.01),0_57px_34px_rgba(0,0,0,0.05),0_25px_25px_rgba(0,0,0,0.09),0_6px_14px_rgba(0,0,0,0.1),inset_0_2px_0_rgba(255,255,255,0.24)]",
+      "site-cta cta-roll w-full justify-between rounded-full border-2 border-[var(--site-primary)] bg-white text-[var(--site-primary)] shadow-[0_101px_40px_rgba(0,0,0,0.01),0_57px_34px_rgba(0,0,0,0.05),0_25px_25px_rgba(0,0,0,0.09),0_6px_14px_rgba(0,0,0,0.1),inset_0_2px_0_rgba(255,255,255,0.24)]",
     "white-soft":
       "site-cta cta-roll rounded-full border border-[rgba(0,0,0,0.04)] bg-white text-black/80",
   }[variant];
@@ -852,7 +852,7 @@ function SocialProofBandA({
   const tablet = options?.viewport === "tablet";
 
   return (
-    <section className="bg-[#003441] px-5 py-10 font-[var(--font-inter)] text-white">
+    <section className="bg-[var(--site-primary)] px-5 py-10 font-[var(--font-inter)] text-white">
       <div
         className={`mx-auto grid max-w-[1600px] gap-8 ${
           compact
@@ -873,7 +873,7 @@ function SocialProofBandA({
               value={stat.value}
               path={["stats", index, "value"]}
               options={options}
-              className="typo-stat block text-[#00d494]"
+              className="typo-stat block text-[var(--site-accent)]"
             />
             <EditableText
               as="p"
@@ -1642,12 +1642,12 @@ function ArticleDetailA({
                     <TemplateLink
                       href={item.href}
                       disabled={options?.disableLinks}
-                      className="hover:text-[#003441]"
+                      className="hover:text-[var(--site-primary)]"
                     >
                       {item.label}
                     </TemplateLink>
                     {index < fields.breadcrumbs.length - 1 ? (
-                      <ChevronRight size={20} className="text-[#00bf89]" />
+                      <ChevronRight size={20} className="text-[var(--site-accent)]" />
                     ) : null}
                   </span>
                 ))}
@@ -1719,7 +1719,7 @@ function ArticleDetailA({
                   <a
                     key={heading.id}
                     href={`#${heading.id}`}
-                    className={`typo-body-small text-black/80 transition hover:text-[#003441] ${
+                    className={`typo-body-small text-black/80 transition hover:text-[var(--site-primary)] ${
                       heading.level === "h3" ? "pl-4" : ""
                     }`}
                   >
@@ -1729,12 +1729,12 @@ function ArticleDetailA({
               </div>
             </div>
 
-            <div className="relative mt-6 min-h-[556px] overflow-hidden rounded-3xl bg-[#003441] p-8 pt-10 text-white md:p-10 md:pt-12">
+            <div className="relative mt-6 min-h-[556px] overflow-hidden rounded-3xl bg-[var(--site-primary)] p-8 pt-10 text-white md:p-10 md:pt-12">
               <div
                 className="absolute inset-x-0 bottom-0 h-[207px] bg-cover bg-center opacity-55"
                 style={{ backgroundImage: `url(${fields.heroImageUrl})` }}
               />
-              <div className="absolute inset-x-0 bottom-0 h-[229px] bg-gradient-to-b from-[#003441] via-[#003441]/65 to-[#00344100]" />
+              <div className="site-brand-article-fade absolute inset-x-0 bottom-0 h-[229px]" />
               <div className="relative z-10 flex min-h-[335px] flex-col items-start">
                 <SocialProofPill
                   ratingLabel={fields.socialProof.ratingLabel}
@@ -1800,7 +1800,7 @@ function ArticleDetailA({
                       value={block.text}
                       path={["blocks", index, "text"]}
                       options={options}
-                      className={`${block.level === "h3" ? "typo-h4" : "typo-h3"} ${block.alignment === "center" ? "text-center" : ""} text-[#003441]`}
+                    className={`${block.level === "h3" ? "typo-h4" : "typo-h3"} ${block.alignment === "center" ? "text-center" : ""} text-[var(--site-primary)]`}
                     />
                   </div>
                 );
@@ -1822,9 +1822,9 @@ function ArticleDetailA({
                 return (
                   <div
                     key={index}
-                    className="overflow-hidden rounded-[33px] border border-[#003441]/21 bg-[linear-gradient(180deg,rgba(0,52,65,0.16)_0%,rgba(0,134,167,0)_100%)]"
+                    className="overflow-hidden rounded-[33px] border border-[color:color-mix(in_srgb,var(--site-primary)_21%,transparent)] bg-[color:color-mix(in_srgb,var(--site-primary)_6%,transparent)]"
                   >
-                    <div className="bg-[#003441] px-8 py-7 text-center">
+                    <div className="bg-[var(--site-primary)] px-8 py-7 text-center">
                       <EditableText
                         value={block.title}
                         path={["blocks", index, "title"]}
@@ -1835,11 +1835,11 @@ function ArticleDetailA({
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[760px] border-collapse">
                         <thead>
-                          <tr className="bg-[#003441]/10">
+                          <tr className="bg-[color:color-mix(in_srgb,var(--site-primary)_10%,transparent)]">
                             {block.columns.map((column, columnIndex) => (
                               <th
                                 key={`${column}-${columnIndex}`}
-                                className="px-12 py-10 text-left font-serif text-[20px] leading-[1.3] tracking-[-0.04em] text-[#003441]"
+                                className="px-12 py-10 text-left font-serif text-[20px] leading-[1.3] tracking-[-0.04em] text-[var(--site-primary)]"
                               >
                                 {column}
                               </th>
@@ -1851,13 +1851,13 @@ function ArticleDetailA({
                             <tr
                               key={rowIndex}
                               className={
-                                rowIndex % 2 === 1 ? "bg-[#003441]/[0.02]" : ""
+                                rowIndex % 2 === 1 ? "bg-[color:color-mix(in_srgb,var(--site-primary)_2%,transparent)]" : ""
                               }
                             >
                               {row.map((cell, cellIndex) => (
                                 <td
                                   key={`${cell}-${cellIndex}`}
-                                  className="px-12 py-10 font-serif text-[20px] leading-[1.3] tracking-[-0.04em] text-[#003441]"
+                                  className="px-12 py-10 font-serif text-[20px] leading-[1.3] tracking-[-0.04em] text-[var(--site-primary)]"
                                 >
                                   {cell}
                                 </td>
@@ -1885,7 +1885,7 @@ function ArticleDetailA({
                           value={block.title}
                           path={["blocks", index, "title"]}
                           options={options}
-                          className="typo-h5 mb-2 text-[#003441]"
+                          className="typo-h5 mb-2 text-[var(--site-primary)]"
                         />
                       ) : null}
                       <EditableText
@@ -1946,7 +1946,7 @@ function ArticleDetailA({
                 return (
                   <div key={index}>
                     {block.title ? (
-                      <h2 className="typo-h3 mb-8 text-[#003441]">
+                      <h2 className="typo-h3 mb-8 text-[var(--site-primary)]">
                         {block.title}
                       </h2>
                     ) : null}
@@ -1956,7 +1956,7 @@ function ArticleDetailA({
                           key={`${card.title}-${cardIndex}`}
                           className="rounded-[40px] border border-black/10 bg-white p-10 shadow-[0_31px_12px_rgba(0,0,0,0.01),0_17px_10px_rgba(0,0,0,0.03),0_8px_8px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.05)]"
                         >
-                          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg bg-[#e8f7fb] text-[#003441]">
+                          <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg bg-[color:color-mix(in_srgb,var(--site-accent)_12%,white)] text-[var(--site-primary)]">
                             {card.icon === "leaf" ? (
                               <Leaf size={32} />
                             ) : card.icon === "shield" ? (
@@ -1986,7 +1986,7 @@ function ArticleDetailA({
                   <TemplateLink
                     href={block.href}
                     disabled={options?.disableLinks}
-                    className="font-medium text-[#003441] underline decoration-[#003441] underline-offset-4"
+                          className="font-medium text-[var(--site-primary)] underline decoration-[var(--site-primary)] underline-offset-4"
                   >
                     {block.label}
                   </TemplateLink>
@@ -2023,7 +2023,7 @@ function ArticleDetailA({
                     className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-105"
                     style={{ backgroundImage: `url(${post.imageUrl})` }}
                   />
-                  <span className="typo-body-small absolute right-8 top-8 rounded-[9px] bg-[#003441] px-4 py-[3px] leading-[1.19] text-white">
+                  <span className="typo-body-small absolute right-8 top-8 rounded-[9px] bg-[var(--site-primary)] px-4 py-[3px] leading-[1.19] text-white">
                     {post.category}
                   </span>
                 </div>
@@ -2134,7 +2134,7 @@ function RealisationDetailA({
                     {item.label}
                   </TemplateLink>
                   {index < fields.breadcrumbs.length - 1 ? (
-                    <ChevronRight size={20} className="text-[#00bf89]" />
+                    <ChevronRight size={20} className="text-[var(--site-accent)]" />
                   ) : null}
                 </span>
               ))}
@@ -2270,16 +2270,12 @@ function RealisationDetailA({
                     {project.title}
                   </h3>
                   <TemplateLink
-                    href="/contact"
+                    href={project.href}
                     disabled={options?.disableLinks}
                     className="site-cta site-cta-primary cta-roll mt-6 inline-flex rounded-full text-[#00d494]"
-                    style={{ paddingRight: 20 }}
                     ariaLabel={project.title}
                   >
-                    <CtaLabel value="Nous contacter" options={options} />
-                    <span className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/35 bg-black/25 text-white">
-                      <ArrowUpRight size={16} strokeWidth={1.33} />
-                    </span>
+                    <CtaLabel value="Voir la réalisation en détail" options={options} />
                   </TemplateLink>
                 </div>
               </article>
@@ -2314,7 +2310,7 @@ function RealisationDetailSidebar({
             <a
               key={heading.id}
               href={`#${heading.id}`}
-              className="typo-body-small text-black/80 transition hover:text-[#003441]"
+              className="typo-body-small text-black/80 transition hover:text-[var(--site-primary)]"
             >
               {heading.text}
             </a>
@@ -2434,7 +2430,7 @@ function RealisationDetailBlockRenderer({
               key={`${card.title}-${cardIndex}`}
               className="rounded-[40px] border border-black/10 bg-white p-10 shadow-[0_31px_12px_rgba(0,0,0,0.01),0_17px_10px_rgba(0,0,0,0.03),0_8px_8px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.05)]"
             >
-              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg bg-[#e8f7fb] text-[#003441]">
+              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-lg bg-[color:color-mix(in_srgb,var(--site-accent)_12%,white)] text-[var(--site-primary)]">
                 <Icon size={32} strokeWidth={2} />
               </div>
               <h3 className="typo-h4 text-black">{card.title}</h3>
@@ -2557,7 +2553,7 @@ function SectorServicesCardsA({
                 key={`${service.title}-${index}`}
                 className="min-h-[420px] rounded-[40px] bg-[#fbfbfb] p-10"
               >
-                <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-[#4299c8]/21 bg-[#e8f7fb] text-[#003441]">
+                <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-[color:color-mix(in_srgb,var(--site-primary)_21%,transparent)] bg-[color:color-mix(in_srgb,var(--site-accent)_12%,white)] text-[var(--site-primary)]">
                   <Icon size={32} strokeWidth={2} />
                 </div>
                 <EditableText
@@ -2809,7 +2805,7 @@ function AboutStoryA({
                   key={`${highlight.title}-${index}`}
                   className="min-h-[285px] rounded-[25px] bg-white/[0.04] p-8"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-[3px] bg-[#e8f7fb] text-[#003441]">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-[3px] bg-[color:color-mix(in_srgb,var(--site-accent)_12%,white)] text-[var(--site-primary)]">
                     <Icon size={24} strokeWidth={1.75} />
                   </div>
                   <EditableText
@@ -3206,7 +3202,7 @@ function BlogPostText({
         value={post.category}
         path={["posts", index, "category"]}
         options={options}
-        className="rounded-[9px] bg-[#003441]/[0.08] px-4 py-[7px] text-[16px] leading-[1.19] tracking-[-0.02em] text-[#003441]"
+        className="rounded-[9px] bg-[color:color-mix(in_srgb,var(--site-primary)_8%,transparent)] px-4 py-[7px] text-[16px] leading-[1.19] tracking-[-0.02em] text-[var(--site-primary)]"
       />
       <div className="grid gap-4">
         <EditableText
@@ -3289,7 +3285,7 @@ function SiteFooterLandscaperA({
   options?: RenderSectionOptions;
 }) {
   return (
-    <footer className="bg-[#003441] font-[var(--font-inter)] text-white">
+    <footer className="bg-[var(--site-primary)] font-[var(--font-inter)] text-white">
       <div className="relative min-h-[970px] overflow-hidden">
         <div
           className="absolute left-[-7px] top-0 h-[1109px] w-[calc(100%+14px)] bg-cover bg-top"
@@ -3298,8 +3294,8 @@ function SiteFooterLandscaperA({
             backgroundPosition: "center top",
           }}
         />
-        <div className="absolute inset-x-[-1px] top-0 h-[970px] bg-[linear-gradient(180deg,rgba(0,52,65,0.1)_0%,rgba(0,52,65,0.72)_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(37.3%_36.12%_at_49.97%_0%,rgba(0,52,65,0.28)_0%,rgba(0,52,65,0.74)_100%)]" />
+        <div className="site-brand-footer-overlay absolute inset-x-[-1px] top-0 h-[970px]" />
+        <div className="site-brand-footer-radial absolute inset-0" />
         <div className="relative mx-auto flex min-h-[970px] max-w-[1600px] items-center justify-center px-5 py-24 md:px-10 xl:px-20">
           <div className="mx-auto flex max-w-[760px] flex-col items-center gap-6 text-center">
             <EditableText
@@ -3327,7 +3323,7 @@ function SiteFooterLandscaperA({
         </div>
       </div>
 
-      <div className="relative bg-[#003441]">
+      <div className="relative bg-[var(--site-primary)]">
         <div className="mx-auto grid max-w-[1600px] gap-14 border-t border-white/10 px-5 py-20 md:px-10 lg:grid-cols-[minmax(280px,520px)_1fr] xl:px-20">
           <div>
             <EditableText

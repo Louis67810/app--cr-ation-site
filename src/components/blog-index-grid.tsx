@@ -48,7 +48,7 @@ export function BlogIndexGrid({
                 className="h-full w-full bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-105"
                 style={{ backgroundImage: `url(${post.imageUrl})` }}
               />
-              <span className="typo-body-small absolute right-8 top-8 rounded-[9px] bg-[#003441] px-4 py-[3px] leading-[1.19] text-white">
+              <span className="typo-body-small absolute right-8 top-8 rounded-[9px] bg-[var(--site-primary)] px-4 py-[3px] leading-[1.19] text-white">
                 {post.category}
               </span>
             </div>

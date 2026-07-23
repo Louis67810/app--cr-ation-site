@@ -5,7 +5,7 @@ import { ImageResponse } from "next/og";
 
 const THUMBNAIL_WIDTH = 1592;
 const THUMBNAIL_HEIGHT = 1015;
-export const ARTICLE_THUMBNAIL_VERSION = 2;
+export const ARTICLE_THUMBNAIL_VERSION = 3;
 let titleFontPromise: Promise<ArrayBuffer> | undefined;
 
 function loadTitleFont() {
@@ -39,6 +39,7 @@ export async function generateArticleThumbnail(input: {
   articleTitle: string;
   logoLabel?: string;
   logoImageUrl?: string;
+  primaryColor?: string;
 }) {
   const titleFont = await loadTitleFont();
   const title = shortenTitle(input.articleTitle);
@@ -99,7 +100,7 @@ export async function generateArticleThumbnail(input: {
           padding: "95px 95px 109px",
           border: "2px solid rgba(255,255,255,0.13)",
           borderRadius: 28,
-          background: "#003441",
+          background: input.primaryColor ?? "#003441",
           boxShadow: "0 26px 70px rgba(0,0,0,0.18)",
         }}
       >

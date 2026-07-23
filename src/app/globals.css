@@ -70,8 +70,8 @@ body {
 }
 
 .figma-cta-primary {
-  background: #003441;
-  border: 1px solid #092528;
+  background: var(--site-primary);
+  border: 1px solid color-mix(in srgb, var(--site-primary), #000 30%);
   box-shadow:
     0 101px 40px rgba(0, 0, 0, 0.01),
     0 57px 34px rgba(0, 0, 0, 0.05),
@@ -82,7 +82,7 @@ body {
 }
 
 .figma-cta-primary:hover {
-  background: #063d4b;
+  background: color-mix(in srgb, var(--site-primary), #fff 8%);
 }
 
 .figma-cta-secondary {
@@ -155,7 +155,7 @@ body {
 
 .site-cta-inverted {
   background: var(--site-accent);
-  border: 1px solid #092528;
+  border: 1px solid color-mix(in srgb, var(--site-primary), #000 30%);
   box-shadow:
     0 101px 40px rgba(0, 0, 0, 0.01),
     0 57px 34px rgba(0, 0, 0, 0.05),
@@ -167,6 +167,18 @@ body {
 }
 
 .site-cta-inverted, .site-cta-inverted * { color: var(--site-primary) !important; }
+
+.site-brand-footer-overlay {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--site-primary) 10%, transparent) 0%, color-mix(in srgb, var(--site-primary) 72%, transparent) 100%);
+}
+
+.site-brand-footer-radial {
+  background: radial-gradient(37.3% 36.12% at 49.97% 0%, color-mix(in srgb, var(--site-primary) 28%, transparent) 0%, color-mix(in srgb, var(--site-primary) 74%, transparent) 100%);
+}
+
+.site-brand-article-fade {
+  background: linear-gradient(to bottom, var(--site-primary), color-mix(in srgb, var(--site-primary) 65%, transparent), transparent);
+}
 
 .cta-roll {
   display: inline-flex;

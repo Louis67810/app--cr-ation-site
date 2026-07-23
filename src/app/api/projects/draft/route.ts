@@ -13,6 +13,7 @@ import {
 import { ensureSiteHeaderDefaults } from "@/lib/site-header-defaults";
 import { visibleProjectImageAssets } from "@/lib/asset-visibility";
 import { synchronizeCmsRelations } from "@/lib/cms-relations";
+import { getSiteBrand } from "@/lib/site-brand";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -24,9 +25,10 @@ function projectBrand(pages: SitePage[]) {
   return header?.type === "site-header"
     ? {
         logoLabel: header.fields.logoLabel,
-        logoImageUrl: header.fields.logoImageUrl,
+        logoImageUrl: header.fields.brand?.logoOnLightUrl ?? header.fields.logoImageUrl,
+        primaryColor: getSiteBrand(pages).primaryColor,
       }
-    : { logoLabel: "", logoImageUrl: undefined };
+    : { logoLabel: "", logoImageUrl: undefined, primaryColor: getSiteBrand(pages).primaryColor };
 }
 
 export async function POST(request: Request) {

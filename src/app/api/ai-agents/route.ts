@@ -30,6 +30,7 @@ import type {
 } from "@/lib/site-template";
 import { synchronizeArticleCollections } from "@/lib/article-content";
 import { visibleProjectImageAssets } from "@/lib/asset-visibility";
+import { getSiteBrand } from "@/lib/site-brand";
 import { synchronizeCmsRelations } from "@/lib/cms-relations";
 
 export const runtime = "nodejs";
@@ -82,10 +83,11 @@ function getProjectBrand(pages: SitePage[]) {
     if (header?.type === "site-header")
       return {
         logoLabel: header.fields.logoLabel.trim(),
-        logoImageUrl: header.fields.logoImageUrl?.trim() || undefined,
+        logoImageUrl: header.fields.brand?.logoOnLightUrl?.trim() || header.fields.logoImageUrl?.trim() || undefined,
+        primaryColor: getSiteBrand(pages).primaryColor,
       };
   }
-  return { logoLabel: "", logoImageUrl: undefined };
+  return { logoLabel: "", logoImageUrl: undefined, primaryColor: getSiteBrand(pages).primaryColor };
 }
 
 function addArticleToPages(

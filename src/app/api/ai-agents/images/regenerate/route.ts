@@ -11,6 +11,7 @@ import {
 import { normalizeProjectKey } from "@/lib/project-key";
 import { createClient } from "@/lib/supabase/server";
 import type { SitePage } from "@/lib/site-template";
+import { getSiteBrand } from "@/lib/site-brand";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -123,13 +124,14 @@ export async function POST(request: Request) {
         header?.type === "site-header" ? header.fields.logoLabel : "";
       const logoImageUrl =
         header?.type === "site-header"
-          ? header.fields.logoImageUrl
+          ? header.fields.brand?.logoOnLightUrl ?? header.fields.logoImageUrl
           : undefined;
       const thumbnail = await generateArticleThumbnail({
         backgroundImageUrl: publicUrl,
         articleTitle: detail.fields.title,
         logoLabel,
         logoImageUrl,
+        primaryColor: getSiteBrand(pages).primaryColor,
       });
       const thumbnailPath = `${projectOwnerId}/${projectKey}/article-thumbnail-${crypto.randomUUID()}.png`;
       const { error: thumbnailUploadError } = await supabase.storage
