@@ -143,15 +143,17 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
 
           return (
             <div key={scene.id} className="absolute inset-0 z-10 will-change-transform" style={{ opacity: visibility, transform: `translate3d(0, ${translateY}px, 0)` }} aria-hidden={visibility < 0.5}>
+              <div className="recap-aurora pointer-events-none absolute inset-0 z-0 opacity-50" />
+
               {scene.kind === "intro" ? (
-                <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+                <div className="relative z-10 flex h-full flex-col items-center justify-center px-8 text-center">
                   <p className="font-serif text-[clamp(36px,6.8vw,92px)] leading-[.95] tracking-[-0.055em] text-[#1c1c1c]">Votre récap</p>
                   <p className="mt-5 font-serif text-[clamp(20px,3vw,42px)] capitalize leading-none text-[#1c1c1c]">{monthLabel}</p>
                 </div>
               ) : null}
 
               {scene.kind === "preview" ? (
-                <div className="absolute inset-0 overflow-hidden">
+                <div className="absolute inset-0 z-10 overflow-hidden">
                   <div
                     ref={registerPreviewFrame}
                     className="absolute left-[20%] top-[9%] z-30 aspect-[1800/3466] w-[66%] origin-top-left overflow-hidden rounded-[12px] shadow-[-40px_160px_80px_rgba(0,0,0,.10)] will-change-transform"
@@ -182,17 +184,14 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
                     <p className="font-serif text-[clamp(52px,10vw,136px)] leading-none tracking-[-0.065em] text-[#1c1c1c]">{scene.accent ? <span className="text-[#036e89]">{scene.accent}</span> : null}{scene.value}</p>
                     <p className="mt-[clamp(14px,3vw,42px)] max-w-[560px] font-serif text-[clamp(20px,3.2vw,43px)] leading-[1.05] tracking-[-0.035em] text-[#797979]">{scene.label}</p>
                   </div>
-                  <div className="relative z-10 h-[78%] w-full">
-                    {scene.image ? <Image src={scene.image} alt={scene.imageAlt ?? ""} fill sizes="(max-width: 768px) 48vw, 55vw" className="object-contain object-center mix-blend-multiply" priority={index < 4} /> : null}
+                  <div className="relative z-10 h-[78%] w-full mix-blend-multiply">
+                    {scene.image ? <Image src={scene.image} alt={scene.imageAlt ?? ""} fill sizes="(max-width: 768px) 48vw, 55vw" className="object-contain object-center" priority={index < 4} /> : null}
                   </div>
-                  <div className="recap-aurora pointer-events-none absolute inset-0 z-40 opacity-50" />
                 </div>
               ) : null}
             </div>
           );
         })}
-
-        <div className="recap-aurora pointer-events-none absolute inset-0 z-0 opacity-50" />
       </div>
 
       <div className="flex items-center gap-3 border-t border-black/[0.06] bg-white px-4 py-3 sm:px-5">
