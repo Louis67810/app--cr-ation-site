@@ -33,7 +33,7 @@ function easeInOutCubic(value: number) {
 
 function acceleratingScroll(value: number) {
   const progress = clamp(value);
-  return 0.35 * progress + 0.65 * Math.pow(progress, 8);
+  return 0.65 * progress + 0.35 * Math.pow(progress, 10);
 }
 
 function formatTime(milliseconds: number) {
@@ -185,7 +185,7 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
                   <div className="relative z-10 h-[78%] w-full">
                     {scene.image ? <Image src={scene.image} alt={scene.imageAlt ?? ""} fill sizes="(max-width: 768px) 48vw, 55vw" className="object-contain object-center" priority={index < 4} /> : null}
                   </div>
-                  <div className="recap-aurora pointer-events-none absolute inset-0 z-40 opacity-100" />
+                  <div className="recap-aurora pointer-events-none absolute inset-0 z-40 opacity-50" />
                 </div>
               ) : null}
             </div>
