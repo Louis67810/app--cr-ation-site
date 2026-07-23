@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { Pause, Play, RotateCcw } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MonthlyRecapData } from "@/components/dashboard/dashboard-shell";
 
 type RecapScene = {
@@ -31,6 +31,11 @@ function easeInOutCubic(value: number) {
     : 1 - Math.pow(-2 * progress + 2, 3) / 2;
 }
 
+function easeInCubic(value: number) {
+  const progress = clamp(value);
+  return progress * progress * progress;
+}
+
 function formatTime(milliseconds: number) {
   const seconds = Math.floor(milliseconds / 1000);
   return `0:${String(seconds).padStart(2, "0")}`;
@@ -44,6 +49,8 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
 }) {
   const [playing, setPlaying] = useState(true);
   const [elapsed, setElapsed] = useState(0);
+  const [previewFrame, setPreviewFrame] = useState<HTMLDivElement | null>(null);
+  const [previewScale, setPreviewScale] = useState(1);
   const elapsedRef = useRef(0);
   const previousFrameRef = useRef<number | null>(null);
   const conversionRate = data.visitors ? (data.contacts / data.visitors) * 100 : 0;
@@ -62,6 +69,18 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
     { id: "growth", kind: "stat", duration: 3600, accent: growth >= 0 ? "+" : "−", value: `${Math.abs(growth).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %`, label: "de visiteurs vs mois dernier", image: "/images/monthly-recap/stat-08.png", imageAlt: "Deux plantes illustrant la croissance" },
   ], [counts.articles, counts.realisations, conversionRate, data.articleImpressions, data.contacts, data.pageViews, data.visitors, growth]);
   const totalDuration = useMemo(() => scenes.reduce((total, scene) => total + scene.duration, 0), [scenes]);
+  const registerPreviewFrame = useCallback((node: HTMLDivElement | null) => {
+    setPreviewFrame(node);
+  }, []);
+
+  useEffect(() => {
+    if (!previewFrame) return;
+    const updateScale = () => setPreviewScale(previewFrame.clientWidth / 1800);
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(previewFrame);
+    updateScale();
+    return () => observer.disconnect();
+  }, [previewFrame]);
 
   useEffect(() => {
     elapsedRef.current = elapsed;
@@ -118,7 +137,7 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
           const exit = easeInOutCubic((end - elapsed) / 280);
           const visibility = Math.min(enter, exit);
           const translateY = enter < 1 ? (1 - enter) * 110 : exit < 1 ? -(1 - exit) * 24 : 0;
-          const localProgress = easeInOutCubic((elapsed - start) / scene.duration);
+          const localProgress = easeInCubic((elapsed - start) / scene.duration);
           const visible = elapsed >= start - 300 && elapsed <= end + 300;
           if (!visible) return null;
 
@@ -133,24 +152,28 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
 
               {scene.kind === "preview" ? (
                 <div className="absolute inset-0 overflow-hidden">
-                  <div className="absolute left-[4%] top-[14%] z-20 h-[43%] w-[12%] bg-gradient-to-r from-[#fafafa] to-transparent" />
                   <div
-                    className="absolute left-[20%] top-[9%] z-30 aspect-[1800/3466] w-[66%] origin-top-left overflow-hidden rounded-[12px] bg-white shadow-[-40px_160px_80px_rgba(0,0,0,.10)] will-change-transform"
+                    ref={registerPreviewFrame}
+                    className="absolute left-[20%] top-[9%] z-30 aspect-[1800/3466] w-[66%] origin-top-left overflow-hidden rounded-[12px] shadow-[-40px_160px_80px_rgba(0,0,0,.10)] will-change-transform"
                     style={{ transform: `translate3d(${16 * localProgress}%, ${-58 * localProgress}%, 0) skewX(-13.5deg)` }}
                   >
                     {previewUrl ? (
-                      <div className="h-[272.73%] w-[272.73%] origin-top-left [transform:scale(.36667)]">
+                      <div
+                        className="h-[3466px] w-[1800px] origin-top-left"
+                        style={{ transform: `scale(${previewScale})` }}
+                      >
                         <iframe
                           src={previewUrl}
                           title="Aperçu complet du site"
                           tabIndex={-1}
-                          className="pointer-events-none h-full w-full border-0 bg-white"
+                          className="pointer-events-none h-[3466px] w-[1800px] border-0 bg-transparent"
                         />
                       </div>
                     ) : (
                       <div className="h-full w-full bg-[url('/dashboard-site-preview.png')] bg-[length:100%_auto] bg-top bg-no-repeat" />
                     )}
                   </div>
+                  <div className="recap-aurora pointer-events-none absolute inset-0 z-40 opacity-50" />
                 </div>
               ) : null}
 
