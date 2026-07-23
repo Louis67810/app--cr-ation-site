@@ -33,7 +33,7 @@ function easeInOutCubic(value: number) {
 
 function acceleratingScroll(value: number) {
   const progress = clamp(value);
-  return 0.65 * progress + 0.35 * Math.pow(progress, 10);
+  return clamp(0.95 * progress + 0.4 * Math.pow(progress, 10));
 }
 
 function formatTime(milliseconds: number) {
@@ -58,7 +58,7 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
 
   const scenes = useMemo<RecapScene[]>(() => [
     { id: "intro", kind: "intro", duration: 1250 },
-    { id: "preview", kind: "preview", duration: 8400 },
+    { id: "preview", kind: "preview", duration: 6500 },
     { id: "visitors", kind: "stat", duration: 2900, value: formatNumber(data.visitors), label: "visiteurs uniques", image: "/images/monthly-recap/stat-07.png", imageAlt: "Carte et repères végétaux" },
     { id: "views", kind: "stat", duration: 2900, value: formatNumber(data.pageViews), label: "pages consultées", image: "/images/monthly-recap/stat-02.png", imageAlt: "Interaction avec une page" },
     { id: "contacts", kind: "stat", duration: 2900, value: formatNumber(data.contacts), label: "prises de contact", image: "/images/monthly-recap/stat-04.png", imageAlt: "Boîte aux lettres et enveloppe" },
@@ -183,7 +183,7 @@ export function MonthlyRecapVideo({ data, counts, monthLabel, previewUrl }: {
                     <p className="mt-[clamp(14px,3vw,42px)] max-w-[560px] font-serif text-[clamp(20px,3.2vw,43px)] leading-[1.05] tracking-[-0.035em] text-[#797979]">{scene.label}</p>
                   </div>
                   <div className="relative z-10 h-[78%] w-full">
-                    {scene.image ? <Image src={scene.image} alt={scene.imageAlt ?? ""} fill sizes="(max-width: 768px) 48vw, 55vw" className="object-contain object-center" priority={index < 4} /> : null}
+                    {scene.image ? <Image src={scene.image} alt={scene.imageAlt ?? ""} fill sizes="(max-width: 768px) 48vw, 55vw" className="object-contain object-center mix-blend-multiply" priority={index < 4} /> : null}
                   </div>
                   <div className="recap-aurora pointer-events-none absolute inset-0 z-40 opacity-50" />
                 </div>
