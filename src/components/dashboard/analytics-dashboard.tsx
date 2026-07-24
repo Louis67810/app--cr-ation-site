@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, CircleDot, Globe2, Laptop, LoaderCircle, RefreshCw, Smartphone } from "lucide-react";
+import { ChevronDown, FileText, Laptop, Link2, LoaderCircle, MapPin, RefreshCw, Smartphone } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { EditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 
@@ -46,18 +46,25 @@ function eventBucket(event: Event, range: AnalyticsRange) {
 }
 
 function formatBucket(bucket: string, range: AnalyticsRange, detailed = false) {
-  const date = range === "year"
-    ? new Date(`${bucket}-01T12:00:00Z`)
-    : range === "day"
-      ? new Date(bucket)
-      : new Date(`${bucket}T12:00:00`);
+  let date: Date;
+  if (range === "year") {
+    const monthBucket = bucket.match(/^\d{4}-\d{2}/)?.[0];
+    if (!monthBucket) return bucket;
+    date = new Date(`${monthBucket}-01T12:00:00Z`);
+  } else {
+    date = range === "day" ? new Date(bucket) : new Date(`${bucket}T12:00:00`);
+  }
+  if (Number.isNaN(date.getTime())) return bucket;
   if (range === "day") {
     return new Intl.DateTimeFormat("fr-FR", detailed
       ? { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }
       : { hour: "2-digit" }).format(date);
   }
   if (range === "year") {
-    return new Intl.DateTimeFormat("fr-FR", { month: detailed ? "long" : "short", year: detailed ? "numeric" : undefined }).format(date);
+    const options: Intl.DateTimeFormatOptions = detailed
+      ? { month: "long", year: "numeric" }
+      : { month: "short" };
+    return new Intl.DateTimeFormat("fr-FR", options).format(date);
   }
   return new Intl.DateTimeFormat("fr-FR", detailed
     ? { weekday: "short", day: "numeric", month: "long", year: "numeric" }
@@ -74,14 +81,15 @@ function LineChart({ series, range, onRangeChange }: { series: SeriesPoint[]; ra
     return `${x.toFixed(2)},${y.toFixed(2)}`;
   }).join(" ");
   const area = `${left},${bottom} ${points("pageViews")} ${width},${bottom}`;
-  const hovered = hoveredIndex === null ? null : series[hoveredIndex];
-  const hoveredLeft = hoveredIndex === null ? 0 : hoveredIndex / Math.max(1, series.length - 1) * 100;
+  const validHoveredIndex = hoveredIndex !== null && hoveredIndex < series.length ? hoveredIndex : null;
+  const hovered = validHoveredIndex === null ? null : series[validHoveredIndex];
+  const hoveredLeft = validHoveredIndex === null ? 0 : validHoveredIndex / Math.max(1, series.length - 1) * 100;
   const hoveredViewsTop = hovered ? (bottom - (hovered.pageViews / max) * 185) / height * 230 : 0;
   const hoveredVisitorsTop = hovered ? (bottom - (hovered.uniqueVisitors / max) * 185) / height * 230 : 0;
-  return <div className="mt-7 border-t border-black/[0.08] pt-4">
+  return <div className="mt-7 pt-1">
     <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-4 text-[11px] font-medium text-black/45"><span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#8064ff]" />Pages vues</span><span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#179dff]" />Visiteurs</span></div>
-      <div className="flex rounded-[9px] bg-black/[0.045] p-1" aria-label="Période du graphique">{rangeOptions.map((option) => <button type="button" key={option.value} aria-pressed={range === option.value} onClick={() => onRangeChange(option.value)} className={`${range === option.value ? "bg-white text-black shadow-sm" : "text-black/45 hover:text-black/70"} rounded-[7px] px-3 py-1.5 text-[11px] font-semibold transition`}>{option.label}</button>)}</div>
+      <div className="flex items-center gap-4 text-[11px] font-medium text-black/45"><span className="flex items-center gap-1.5"><span className="size-2 rounded-[2px] bg-[#8064ff]" />Pages vues</span><span className="flex items-center gap-1.5"><span className="size-2 rounded-[2px] bg-[#179dff]" />Visiteurs</span></div>
+      <div className="flex rounded-[9px] bg-black/[0.045] p-1" aria-label="Période du graphique">{rangeOptions.map((option) => <button type="button" key={option.value} aria-pressed={range === option.value} onClick={() => { setHoveredIndex(null); onRangeChange(option.value); }} className={`${range === option.value ? "bg-white text-black shadow-sm" : "text-black/45 hover:text-black/70"} rounded-[7px] px-3 py-1.5 text-[11px] font-semibold transition`}>{option.label}</button>)}</div>
     </div>
     <div
       className="relative h-[270px] w-full touch-none overflow-hidden"
@@ -121,6 +129,7 @@ export function AnalyticsDashboard({ projectKey, projectOwnerId, initialData }: 
   const [error, setError] = useState("");
   const titles = useMemo(() => new Map(data.pages.map((page) => [page.path, page.title])), [data.pages]);
   const analytics = data.internalAnalytics;
+  const activeAnalytics = analytics?.range === range ? analytics : undefined;
 
   async function refreshTracking() {
     setSyncing(true); setError("");
@@ -151,21 +160,21 @@ export function AnalyticsDashboard({ projectKey, projectOwnerId, initialData }: 
     return () => controller.abort();
   }, [projectKey, projectOwnerId, range]);
 
-  const filteredEvents = useMemo(() => (analytics?.events ?? []).filter((event) => Object.entries(filters).every(([key, value]) => !value || event[key as keyof Event] === value)), [analytics, filters]);
+  const filteredEvents = useMemo(() => (activeAnalytics?.events ?? []).filter((event) => Object.entries(filters).every(([key, value]) => !value || event[key as keyof Event] === value)), [activeAnalytics, filters]);
   const series = useMemo(() => {
-    const buckets = analytics?.series.map((item) => item.bucket) ?? [];
+    const buckets = activeAnalytics?.series.map((item) => item.bucket) ?? [];
     return buckets.map((bucket) => {
       const events = filteredEvents.filter((event) => eventBucket(event, range) === bucket);
       return { bucket, pageViews: events.length, uniqueVisitors: new Set(events.map((event) => event.visitor_id)).size };
     });
-  }, [analytics, filteredEvents, range]);
+  }, [activeAnalytics, filteredEvents, range]);
   const uniqueVisitors = new Set(filteredEvents.map((event) => event.visitor_id)).size;
   const pageViews = filteredEvents.length;
   const engagement = filteredEvents.reduce((total, event) => total + Number(event.engagement_seconds ?? 0), 0);
   const selectedCount = Object.keys(filters).length;
   const toggle = (key: keyof Filters, value: string) => setFilters((current) => ({ ...current, [key]: current[key] === value ? undefined : value }));
   const cards = [
-    ["Visiteurs en direct", analytics?.liveVisitors ?? 0, true],
+    ["Visiteurs en direct", activeAnalytics?.liveVisitors ?? 0, true],
     ["Pages vues totales", pageViews, false],
     ["Visiteurs uniques", uniqueVisitors, false],
     ["Temps total", seconds(engagement), false],
@@ -175,10 +184,10 @@ export function AnalyticsDashboard({ projectKey, projectOwnerId, initialData }: 
   return <section className="mt-8 pb-12">
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4"><div><h2 className="font-serif text-[28px] text-black">Statistiques</h2><p className="mt-1 text-[13px] text-black/45">{range === "day" ? "Dernières 24 heures" : range === "week" ? "7 derniers jours" : range === "year" ? "12 derniers mois" : "30 derniers jours"} · données du tracker intégré au site publié.</p></div><div className="flex items-center gap-3">{selectedCount ? <button type="button" onClick={() => setFilters({})} className="text-[12px] font-medium text-black/55 hover:text-black">Effacer les filtres ({selectedCount})</button> : null}<button type="button" onClick={refreshTracking} disabled={syncing} className="flex h-9 items-center gap-2 rounded-[10px] bg-gradient-to-b from-[#323232] to-[#222] px-5 text-[14px] font-semibold text-white shadow-md disabled:opacity-50">{syncing ? <LoaderCircle size={15} className="animate-spin" /> : <RefreshCw size={15} />}{syncing ? "Actualisation…" : "Actualiser"}</button></div></div>
     {error ? <p className="mb-4 rounded-[10px] border border-red-200 bg-red-50 p-3 text-[12px] text-red-700">{error}</p> : null}
-    <div className="border-y border-black/[0.08] py-7"><div className="grid grid-cols-2 gap-x-8 gap-y-7 md:grid-cols-5">{cards.map(([label, value, live]) => <div key={label}><div className="flex items-center gap-1.5 text-[13px] font-medium text-black/55">{label}{live ? <span className="relative flex size-3"><span className="absolute inline-flex size-full animate-ping rounded-full bg-[#149cff] opacity-25"/><span className="relative inline-flex size-2.5 rounded-full bg-[#149cff]"/></span> : null}</div><p className="mt-1.5 text-[27px] font-semibold tracking-[-.04em] text-black/80">{typeof value === "number" ? integer(value) : value}</p></div>)}</div></div>
+    <div className="border-t border-black/[0.08] py-7"><div className="grid grid-cols-2 gap-x-8 gap-y-7 md:grid-cols-5">{cards.map(([label, value, live]) => <div key={label}><div className="flex items-center gap-1.5 text-[13px] font-medium text-black/55">{label}{live ? <span className="relative flex size-3"><span className="absolute inline-flex size-full animate-ping rounded-full bg-[#149cff] opacity-25"/><span className="relative inline-flex size-2.5 rounded-full bg-[#149cff]"/></span> : null}</div><p className="mt-1.5 text-[27px] font-semibold tracking-[-.04em] text-black/80">{typeof value === "number" ? integer(value) : value}</p></div>)}</div></div>
     <LineChart series={series} range={range} onRangeChange={(nextRange) => { if (nextRange !== range) { setSyncing(true); setRange(nextRange); } }} />
-    <div className="mt-8 grid gap-x-10 gap-y-9 border-t border-black/[0.08] pt-7 lg:grid-cols-2"><Breakdown title="Sources" icon={<Globe2 size={16} className="text-black/45" />} items={group(filteredEvents, "referrer")} filterKey="referrer" selected={filters.referrer} onSelect={toggle} label={sourceLabel}/><Breakdown title="Pages" icon={<CircleDot size={16} className="text-black/45" />} items={group(filteredEvents, "page_path")} filterKey="page_path" selected={filters.page_path} onSelect={toggle} label={(value) => pageLabel(value, titles)}/><Breakdown title="Géographie" icon={<Globe2 size={16} className="text-black/45" />} items={group(filteredEvents, "country_code")} filterKey="country_code" selected={filters.country_code} onSelect={toggle} label={countryLabel}/><Breakdown title="Appareils" icon={<Laptop size={16} className="text-black/45" />} items={group(filteredEvents, "device_type")} filterKey="device_type" selected={filters.device_type} onSelect={toggle} label={deviceLabel}/></div>
-    {!analytics?.events.length && !syncing ? <p className="mt-8 rounded-[12px] border border-dashed border-black/15 p-5 text-[12px] text-black/50">Aucune donnée détaillée pour le moment. Applique la migration puis navigue sur le site publié : les visites apparaîtront ici automatiquement.</p> : null}
+    <div className="mt-8 grid gap-x-10 gap-y-9 border-t border-black/[0.08] pt-7 lg:grid-cols-2"><Breakdown title="Sources" icon={<Link2 size={16} className="text-black/45" />} items={group(filteredEvents, "referrer")} filterKey="referrer" selected={filters.referrer} onSelect={toggle} label={sourceLabel}/><Breakdown title="Pages" icon={<FileText size={16} className="text-black/45" />} items={group(filteredEvents, "page_path")} filterKey="page_path" selected={filters.page_path} onSelect={toggle} label={(value) => pageLabel(value, titles)}/><Breakdown title="Géographie" icon={<MapPin size={16} className="text-black/45" />} items={group(filteredEvents, "country_code")} filterKey="country_code" selected={filters.country_code} onSelect={toggle} label={countryLabel}/><Breakdown title="Appareils" icon={<Laptop size={16} className="text-black/45" />} items={group(filteredEvents, "device_type")} filterKey="device_type" selected={filters.device_type} onSelect={toggle} label={deviceLabel}/></div>
+    {!activeAnalytics?.events.length && !syncing ? <p className="mt-8 rounded-[12px] border border-dashed border-black/15 p-5 text-[12px] text-black/50">Aucune donnée détaillée pour le moment. Applique la migration puis navigue sur le site publié : les visites apparaîtront ici automatiquement.</p> : null}
     <p className="mt-8 flex items-center gap-2 text-[11px] text-black/40"><Smartphone size={13} />Clique sur une source, une page, un pays ou un appareil pour croiser toutes les statistiques.</p>
   </section>;
 }
