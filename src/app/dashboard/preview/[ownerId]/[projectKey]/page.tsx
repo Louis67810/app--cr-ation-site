@@ -44,7 +44,7 @@ export default async function DashboardProjectPreview({
       className="min-h-screen bg-white text-[#0f1112]"
       style={{
         ...siteBrandStyle(brand),
-        "--site-hero-height": "600px",
+        "--site-hero-height": "1045px",
       } as CSSProperties}
     >
       {homePage.sections.map((section) => (

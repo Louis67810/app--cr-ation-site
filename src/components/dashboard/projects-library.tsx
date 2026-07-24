@@ -51,13 +51,13 @@ function ProjectThumbnail({ project }: { project: DashboardProject }) {
   return (
     <div className="relative aspect-[1.08/1] overflow-hidden rounded-[12px] border border-black/[0.07] bg-[#f4f4f2]">
       <div className="absolute inset-[24px] origin-center -skew-x-[14deg] scale-[.93] overflow-hidden rounded-[9px] bg-white shadow-[-7px_31px_69px_rgba(0,0,0,.10)]">
-        <div className="pointer-events-none h-[2440px] w-[1800px] origin-top-left [transform:scale(.215)]">
+        <div className="pointer-events-none h-[3400px] w-[2200px] origin-top-left [transform:scale(.176)]">
           <iframe
             src={previewUrl}
             title={`Aperçu de ${project.name}`}
             loading="lazy"
             tabIndex={-1}
-            className="h-[2440px] w-[1800px] border-0 bg-white"
+            className="h-[3400px] w-[2200px] border-0 bg-white"
           />
         </div>
       </div>
