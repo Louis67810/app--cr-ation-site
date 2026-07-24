@@ -29,6 +29,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SitePage } from "@/lib/site-template";
 import type { EditorialPerformanceSnapshot } from "@/lib/editorial-performance";
+import { ProjectsLibrary } from "@/components/dashboard/projects-library";
 
 const DeferredPanel = () => <div className="grid min-h-[240px] place-items-center text-[12px] text-black/40"><LoaderCircle size={18} className="animate-spin" /></div>;
 const CmsEditor = dynamic(() => import("@/components/dashboard/cms-editor").then((module) => module.CmsEditor), { loading: DeferredPanel });
@@ -39,7 +40,7 @@ const AiAgents = dynamic(() => import("@/components/dashboard/ai-agents").then((
 const MonthlyRecap = dynamic(() => import("@/components/dashboard/monthly-recap").then((module) => module.MonthlyRecap), { loading: DeferredPanel });
 const AnalyticsDashboard = dynamic(() => import("@/components/dashboard/analytics-dashboard").then((module) => module.AnalyticsDashboard), { loading: DeferredPanel });
 
-export type DashboardTab = "overview" | "traffic" | "pages" | "cms" | "assets" | "ai" | "recap" | "settings";
+export type DashboardTab = "projects" | "overview" | "traffic" | "pages" | "cms" | "assets" | "ai" | "recap" | "settings";
 
 export type MonthlyRecapEvent = { id: string; event_type: "page_created" | "article_created" | "realisation_created" | "project_published"; entity_title: string; created_at: string };
 export type MonthlyRecapSettings = { recipient_email: string; enabled: boolean; send_day: number };
@@ -236,6 +237,7 @@ function ProjectSelector({
 
 function MobileDashboardNav({ projects, project, activeTab }: { projects: DashboardProject[]; project: DashboardProject; activeTab: DashboardTab }) {
   const items: Array<[DashboardTab, string, typeof Home]> = [
+    ["projects", "Projets", FolderKanban],
     ["overview", "Vue", Home],
     ["traffic", "Stats", BarChart3],
     ["pages", "Pages", FolderKanban],
@@ -313,7 +315,14 @@ export function DashboardShell({
           </Link>
         </div> : null}
 
-        <nav className="mt-10">
+        <nav className="mt-8">
+          <p className="px-3 text-[13px] text-black/40">Espace</p>
+          <div className="mt-2 grid gap-1 text-[14px]">
+            <Link prefetch={false} href="/dashboard?tab=projects" className={`${activeTab === "projects" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><FolderKanban size={18} />Projets</Link>
+          </div>
+        </nav>
+
+        <nav className="mt-8">
           <p className="px-3 text-[13px] text-black/40">Dashboard</p>
           <div className="mt-2 grid gap-1 text-[14px]">
             <Link prefetch={false} href={tabHref("overview")} className={`${activeTab === "overview" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Home size={18} />Vue d’ensemble</Link>
@@ -329,7 +338,7 @@ export function DashboardShell({
       </aside>
 
       <section className={activeTab === "cms" ? "min-h-0 min-w-0 flex-1 overflow-hidden lg:col-start-2 lg:row-start-1 lg:h-full" : "min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:row-start-1 lg:px-10 lg:py-11 xl:px-12"}>
-        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents key={`${project.ownerId}:${project.key}`} project={project} initialAnalytics={analytics} /> : activeTab === "recap" ? <MonthlyRecap project={project} data={recap} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
+        {activeTab === "projects" ? <ProjectsLibrary projects={projects} /> : activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents key={`${project.ownerId}:${project.key}`} project={project} initialAnalytics={analytics} /> : activeTab === "recap" ? <MonthlyRecap project={project} data={recap} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
         {activeTab !== "traffic" ? <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-serif text-[27px] leading-tight tracking-[-0.05em] sm:text-[30px]">{activeTab === "pages" ? "Pages du site" : "Bonjour, voici votre site"}</h1>

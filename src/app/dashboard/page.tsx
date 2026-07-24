@@ -41,8 +41,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const userId = authData?.claims?.sub;
   if (!userId) redirect("/login");
 
+  const resolvedSearchParams = await searchParams;
+  const allowedTabs: DashboardTab[] = ["projects", "overview", "traffic", "pages", "cms", "assets", "ai", "recap", "settings"];
+  const requestedTab = allowedTabs.includes(resolvedSearchParams.tab as DashboardTab)
+    ? resolvedSearchParams.tab as DashboardTab
+    : resolvedSearchParams.project
+      ? "overview"
+      : "projects";
+  const loadProjectLibrary = requestedTab === "projects";
+
   // Keep project switching light: the full page document is fetched only for the selected project.
-  const projectSelection = "owner_id, project_key, project_name, published_slug, published_at, created_at, updated_at";
+  const projectSelection = `owner_id, project_key, project_name, published_slug, published_at, created_at, updated_at${loadProjectLibrary ? ", pages" : ""}`;
   const [{ data: ownedRows }, { data: memberships }] = await Promise.all([
     supabase.from("site_projects").select(projectSelection).eq("owner_id", userId).order("updated_at", { ascending: false }),
     supabase.from("project_members").select("owner_id, project_key").eq("user_id", userId),
@@ -54,7 +63,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   }));
 
   const projects: DashboardProject[] = [
-    ...((ownedRows ?? []) as ProjectRow[]).map((project) => dashboardProject(project, "admin")),
+    ...((ownedRows ?? []) as unknown as ProjectRow[]).map((project) => dashboardProject(project, "admin")),
     ...sharedRows.filter((project): project is ProjectRow => Boolean(project)).map((project) => dashboardProject(project, "collaborator")),
   ];
 
@@ -65,14 +74,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   if (projects.length === 0) redirect("/login");
 
-  const resolvedSearchParams = await searchParams;
   const requestedKey = normalizeProjectKey(resolvedSearchParams.project);
   const selected = projects.find((project) => project.key === requestedKey) ?? projects[0];
-  const allowedTabs: DashboardTab[] = ["overview", "traffic", "pages", "cms", "assets", "ai", "recap", "settings"];
-  const requestedTab = allowedTabs.includes(resolvedSearchParams.tab as DashboardTab) ? resolvedSearchParams.tab as DashboardTab : "overview";
   const activeTab = (requestedTab === "settings" || requestedTab === "recap") && selected.role !== "admin" ? "overview" : requestedTab;
 
-  if (!selected.isDemo) {
+  if (!loadProjectLibrary && !selected.isDemo) {
     const { data: selectedContent } = await supabase
       .from("site_projects")
       .select("pages")
