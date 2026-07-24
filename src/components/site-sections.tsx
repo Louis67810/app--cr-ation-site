@@ -2302,7 +2302,11 @@ function RealisationDetailA({
                     className="site-cta site-cta-primary cta-roll mt-6 inline-flex rounded-full text-[#00d494]"
                     ariaLabel={project.title}
                   >
-                    <CtaLabel value="Voir la réalisation en détail" options={options} />
+                    <CtaLabel
+                      value={fields.relatedCardCtaLabel}
+                      path={["relatedCardCtaLabel"]}
+                      options={options}
+                    />
                   </TemplateLink>
                 </div>
               </article>
@@ -2739,11 +2743,21 @@ function AboutHeroA({
   fields: AboutHeroFields;
   options?: RenderSectionOptions;
 }) {
+  const compact = options?.viewport === "phone";
+
   return (
     <section className="overflow-hidden bg-white font-[var(--font-inter)]">
       <div className="relative min-h-[980px] overflow-hidden bg-[#001c23] px-5 pt-40 text-white md:px-10 md:pt-52 xl:min-h-[1100px] xl:px-20">
-        <div className="pointer-events-none absolute bottom-[-120px] left-[-560px] h-[657px] w-[871px] rounded-[50%] border border-white/[0.06] bg-white/[0.02]" />
-        <div className="pointer-events-none absolute bottom-[-120px] right-[-560px] h-[657px] w-[871px] rounded-[50%] border border-white/[0.06] bg-white/[0.02]" />
+        <div
+          className={`pointer-events-none absolute bottom-[-120px] h-[657px] w-[871px] rounded-[50%] border border-white/[0.06] bg-white/[0.02] ${
+            compact ? "left-[-608px]" : "left-[-608px] md:left-[-560px]"
+          }`}
+        />
+        <div
+          className={`pointer-events-none absolute bottom-[-120px] h-[657px] w-[871px] rounded-[50%] border border-white/[0.06] bg-white/[0.02] ${
+            compact ? "right-[-608px]" : "right-[-608px] md:right-[-560px]"
+          }`}
+        />
         <div className="relative z-10 mx-auto flex max-w-[760px] flex-col items-center text-center">
           <EditableText
             as="h1"
@@ -3169,16 +3183,16 @@ function RealisationsPageA({
                           className="typo-h4 block max-w-[710px] leading-[1.45] tracking-[-0.02em] text-black"
                         />
                         <TemplateLink
-                          href="/contact"
+                          href={project.href}
                           disabled={options?.disableLinks}
                           className="site-cta site-cta-primary cta-roll mt-6 inline-flex rounded-full text-[#00d494]"
-                          style={{ paddingRight: 20 }}
                           ariaLabel={project.title}
                         >
-                          <CtaLabel value="Nous contacter" options={options} />
-                          <span className="ml-2 inline-flex h-8 w-8 items-center justify-center rounded-full border border-black/35 bg-black/25 text-white">
-                            <ArrowUpRight size={16} strokeWidth={1.33} />
-                          </span>
+                          <CtaLabel
+                            value={fields.cardCtaLabel}
+                            path={["cardCtaLabel"]}
+                            options={options}
+                          />
                         </TemplateLink>
                       </div>
                     </article>

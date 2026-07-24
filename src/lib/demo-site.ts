@@ -575,7 +575,7 @@ export const demoRealisationsPage: SitePage = {
         })),
         listTitle: "Toutes nos realisations",
         filters: homeRecentProjectsFields.cities,
-        cardCtaLabel: "Decouvrir la realisation",
+        cardCtaLabel: "Voir la réalisation",
         projects: sharedRealisationProjects.map((project, index) => ({
           city: project.city,
           category: project.city,
@@ -779,7 +779,7 @@ const demoRealisationDetailFields: RealisationDetailFields = {
   ],
   relatedTitle: "Toutes nos realisations",
   relatedFilters: homeRecentProjectsFields.cities,
-  relatedCardCtaLabel: "Decouvrir la realisation",
+  relatedCardCtaLabel: "Voir la réalisation",
   relatedProjects: relatedRealisationProjects,
 };
 

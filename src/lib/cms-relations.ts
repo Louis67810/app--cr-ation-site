@@ -379,6 +379,26 @@ export function synchronizeCmsRelations(
     .map((asset) => asset.public_url)
     .slice(0, 12);
   const homePage = pages.find((page) => page.slug === "/");
+  const sharedHeader = homePage?.sections.find(
+    (section) => section.type === "site-header",
+  );
+
+  if (sharedHeader) {
+    pages = pages.map((page) =>
+      page.sections.some((section) => section.type === "site-header")
+        ? page
+        : {
+            ...page,
+            sections: [
+              {
+                ...structuredClone(sharedHeader),
+                id: `${page.id}-header`,
+              },
+              ...page.sections,
+            ],
+          },
+    );
+  }
 
   if (homePage && cities.length) {
     for (const city of cities) {
@@ -484,6 +504,7 @@ export function synchronizeCmsRelations(
           fields: {
             ...section.fields,
             ...(zoneCity ? { title: `Nos réalisations à ${zoneCity}` } : {}),
+            cardCtaLabel: "Voir la réalisation",
             filters: uniqueBy(
               scoped.map((project) => project.city),
               (city) => city.toLocaleLowerCase("fr"),
@@ -523,6 +544,7 @@ export function synchronizeCmsRelations(
           fields: {
             ...section.fields,
             relatedFilters: cities,
+            relatedCardCtaLabel: "Voir la réalisation",
             relatedProjects: projects
               .filter((project) => project.href !== page.slug)
               .slice(0, 8),
