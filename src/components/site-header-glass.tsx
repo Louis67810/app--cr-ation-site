@@ -428,7 +428,7 @@ export function SiteHeaderGlass({
     <PublishedPathContext.Provider value={homeHref === "/" ? "" : homeHref}>
       <header
         onMouseLeave={() => setActiveMenu(null)}
-        className={`${options?.viewport ? "absolute" : pastHero ? "fixed" : "absolute md:fixed"} inset-x-0 top-0 z-[90] transform-gpu overflow-visible font-[var(--font-inter)] will-change-transform transition-[transform,background-color,color,border-color] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:duration-500 ${
+        className={`${options?.viewport ? "absolute" : pastHero ? "fixed" : "absolute md:fixed"} inset-x-0 top-0 z-[90] transform-gpu overflow-visible font-[var(--font-inter)] will-change-transform transition-[transform,background-color,color,border-color] duration-[850ms] ease-in-out md:duration-500 ${
           !options?.viewport && pastHero && !mobileHeaderVisible && !mobileOpen
             ? "-translate-y-full md:translate-y-0"
             : "translate-y-0"
