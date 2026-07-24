@@ -86,7 +86,7 @@ function LineChart({ series, range, onRangeChange }: { series: SeriesPoint[]; ra
   const hoveredLeft = validHoveredIndex === null ? 0 : validHoveredIndex / Math.max(1, series.length - 1) * 100;
   const hoveredViewsTop = hovered ? (bottom - (hovered.pageViews / max) * 185) / height * 230 : 0;
   const hoveredVisitorsTop = hovered ? (bottom - (hovered.uniqueVisitors / max) * 185) / height * 230 : 0;
-  return <div className="mt-7 pt-1">
+  return <div className="mt-7 border-t border-black/[0.08] pt-4">
     <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-4 text-[11px] font-medium text-black/45"><span className="flex items-center gap-1.5"><span className="size-2 rounded-[2px] bg-[#8064ff]" />Pages vues</span><span className="flex items-center gap-1.5"><span className="size-2 rounded-[2px] bg-[#179dff]" />Visiteurs</span></div>
       <div className="flex rounded-[9px] bg-black/[0.045] p-1" aria-label="Période du graphique">{rangeOptions.map((option) => <button type="button" key={option.value} aria-pressed={range === option.value} onClick={() => { setHoveredIndex(null); onRangeChange(option.value); }} className={`${range === option.value ? "bg-white text-black shadow-sm" : "text-black/45 hover:text-black/70"} rounded-[7px] px-3 py-1.5 text-[11px] font-semibold transition`}>{option.label}</button>)}</div>
