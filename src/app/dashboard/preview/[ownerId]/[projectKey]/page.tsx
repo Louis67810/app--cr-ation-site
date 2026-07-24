@@ -42,7 +42,10 @@ export default async function DashboardProjectPreview({
   return (
     <main
       className="min-h-screen bg-white text-[#0f1112]"
-      style={siteBrandStyle(brand) as CSSProperties}
+      style={{
+        ...siteBrandStyle(brand),
+        "--site-hero-height": "855px",
+      } as CSSProperties}
     >
       {homePage.sections.map((section) => (
         <div key={section.id}>{renderSection(section, { brand })}</div>

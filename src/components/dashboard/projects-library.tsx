@@ -49,8 +49,8 @@ function ProjectThumbnail({ project }: { project: DashboardProject }) {
   const previewUrl = `/dashboard/preview/${encodeURIComponent(project.ownerId)}/${encodeURIComponent(project.key)}`;
 
   return (
-    <div className="relative aspect-[1.08/1] overflow-hidden rounded-[12px] border border-black/[0.07] bg-[#f4f4f2] [perspective:1100px]">
-      <div className="absolute inset-[10px] origin-center overflow-hidden rounded-[9px] bg-white shadow-[0_22px_60px_rgba(0,0,0,.11)] [transform:perspective(900px)_rotateY(-6deg)_rotateX(2deg)_scale(.96)]">
+    <div className="relative aspect-[1.08/1] overflow-hidden rounded-[12px] border border-black/[0.07] bg-[#f4f4f2]">
+      <div className="absolute inset-[24px] origin-center -skew-x-[14deg] scale-[.93] overflow-hidden rounded-[9px] bg-white shadow-[-7px_31px_69px_rgba(0,0,0,.10)]">
         <div className="pointer-events-none h-[2440px] w-[1800px] origin-top-left [transform:scale(.215)]">
           <iframe
             src={previewUrl}
@@ -105,7 +105,7 @@ function ProjectCard({
           </p>
         </Link>
 
-        <div className="relative">
+        <div className="relative" data-library-popover>
           <button
             type="button"
             onClick={onMenuToggle}
@@ -176,7 +176,10 @@ export function ProjectsLibrary({
 
   useEffect(() => {
     function closeMenus(event: PointerEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
+      if (
+        !(event.target instanceof Element) ||
+        !event.target.closest("[data-library-popover]")
+      ) {
         setMenuKey(null);
         setSortOpen(false);
       }
@@ -285,7 +288,7 @@ export function ProjectsLibrary({
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative">
+          <div className="relative" data-library-popover>
             <button
               type="button"
               onClick={() => setSortOpen((current) => !current)}

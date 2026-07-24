@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowLeft,
   ArrowUpRight,
   BarChart3,
   Bot,
@@ -220,6 +221,8 @@ function ProjectSelector({
         </button>
 
         {open ? <div role="menu" className={`${placement === "mobile" ? "fixed inset-x-3 bottom-[calc(112px+env(safe-area-inset-bottom))]" : "absolute left-0 top-[calc(100%+7px)] w-[260px]"} z-[120] overflow-hidden rounded-[12px] border border-black/10 bg-white p-1.5 shadow-[0_18px_50px_rgba(0,0,0,.14)]`}>
+          <Link prefetch={false} role="menuitem" href="/dashboard?tab=projects" onClick={() => setOpen(false)} className="flex h-10 items-center gap-2 rounded-[8px] px-3 text-[13px] font-medium hover:bg-black/[0.035]"><ArrowLeft size={15} />Tous les projets</Link>
+          <div className="my-1.5 border-t border-black/[0.08]" />
           <div className="max-h-60 overflow-y-auto">
             {projects.map((item) => <Link prefetch={false} role="menuitem" key={item.key} href={`/dashboard?project=${encodeURIComponent(item.key)}&tab=${activeTab}`} onClick={() => setOpen(false)} className={`${item.key === project.key ? "bg-black/[0.055]" : "hover:bg-black/[0.035]"} flex h-10 items-center justify-between gap-3 rounded-[8px] px-3 text-[13px]`}><span className="truncate">{item.name}</span>{item.key === project.key ? <Check size={14} /> : null}</Link>)}
           </div>
@@ -307,17 +310,7 @@ export function DashboardShell({
     return (
       <main className="min-h-screen bg-white text-[#1c1c1c] lg:grid lg:grid-cols-[212px_minmax(0,1fr)]">
         <aside className="hidden h-screen border-r border-black/10 bg-[#fcf9f4] px-4 py-4 lg:sticky lg:top-0 lg:block">
-          <Link
-            href="/dashboard?tab=projects"
-            className="flex h-12 items-center gap-2 rounded-[9px] px-2 text-[14px] font-semibold tracking-[-0.02em]"
-          >
-            <span className="grid size-6 place-items-center rounded-full bg-black text-white">
-              <Sparkles size={12} />
-            </span>
-            Rollit
-          </Link>
-
-          <nav className="mt-8" aria-label="Navigation de l’espace">
+          <nav className="mt-2" aria-label="Navigation de l’espace">
             <p className="px-3 text-[13px] text-black/40">Espace</p>
             <div className="mt-2 grid gap-1 text-[14px]">
               <Link
@@ -333,18 +326,6 @@ export function DashboardShell({
           </nav>
         </aside>
 
-        <div className="border-b border-black/[0.08] bg-[#fcf9f4] px-4 py-3 lg:hidden">
-          <Link
-            href="/dashboard?tab=projects"
-            className="flex h-10 items-center gap-2 text-[14px] font-semibold"
-          >
-            <span className="grid size-6 place-items-center rounded-full bg-black text-white">
-              <Sparkles size={12} />
-            </span>
-            Rollit
-          </Link>
-        </div>
-
         <section className="min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:px-10 lg:py-11 xl:px-12">
           <ProjectsLibrary projects={projects} />
         </section>
@@ -355,6 +336,14 @@ export function DashboardShell({
   return (
     <main className={`${activeTab === "cms" ? "fixed inset-0 flex h-dvh flex-col overflow-hidden pb-[calc(108px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_minmax(0,1fr)] lg:pb-0" : "min-h-screen pb-[calc(108px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_1fr] lg:pb-0"} bg-white text-[#1c1c1c]`}>
       <aside className={`${activeTab === "cms" ? "lg:col-start-1 lg:row-start-1 lg:h-dvh lg:overflow-hidden lg:border-r" : "lg:sticky lg:top-0 lg:col-start-1 lg:row-start-1 lg:h-screen lg:border-r"} hidden border-black/10 bg-[#fcf9f4] px-4 py-4 lg:block`}>
+        <Link
+          prefetch={false}
+          href="/dashboard?tab=projects"
+          className="mb-2 flex h-9 items-center gap-2 rounded-[8px] px-2 text-[12px] font-medium text-black/50 transition hover:bg-black/[0.04] hover:text-black"
+        >
+          <ArrowLeft size={15} />
+          Tous les projets
+        </Link>
         <ProjectSelector projects={projects} project={project} activeTab={activeTab} />
 
         {project.role === "admin" ? <div className="mt-8 px-3">
