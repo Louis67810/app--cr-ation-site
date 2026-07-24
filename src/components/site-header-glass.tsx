@@ -245,6 +245,7 @@ export function SiteHeaderGlass({
   const pathname = usePathname();
   const [activeMenu, setActiveMenu] = useState<MegaMenuKind | null>(null);
   const [pastHero, setPastHero] = useState(false);
+  const [mobileHeaderVisible, setMobileHeaderVisible] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
   const [drawerOffset, setDrawerOffset] = useState(0);
@@ -295,19 +296,37 @@ export function SiteHeaderGlass({
     if (!hero) return;
 
     let frame = 0;
-    let previousState: boolean | null = null;
-    const watchHeroBoundary = () => {
+    let previousScrollY = window.scrollY;
+    const updateHeader = () => {
       const nextState = hero.getBoundingClientRect().bottom <= 96;
-      if (nextState !== previousState) {
-        previousState = nextState;
-        setPastHero(nextState);
+      const currentScrollY = window.scrollY;
+      const isPhone = window.matchMedia("(max-width: 767px)").matches;
+      setPastHero((current) => current === nextState ? current : nextState);
+
+      if (!isPhone || !nextState) {
+        setMobileHeaderVisible(true);
+        previousScrollY = currentScrollY;
+      } else {
+        const scrollDelta = currentScrollY - previousScrollY;
+        if (Math.abs(scrollDelta) >= 6) {
+          setMobileHeaderVisible(scrollDelta < 0);
+          previousScrollY = currentScrollY;
+        }
       }
-      frame = window.requestAnimationFrame(watchHeroBoundary);
+      frame = 0;
     };
 
-    frame = window.requestAnimationFrame(watchHeroBoundary);
+    const scheduleUpdate = () => {
+      if (!frame) frame = window.requestAnimationFrame(updateHeader);
+    };
+
+    frame = window.requestAnimationFrame(updateHeader);
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
     return () => {
-      window.cancelAnimationFrame(frame);
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
     };
   }, [options?.viewport]);
 
@@ -409,7 +428,11 @@ export function SiteHeaderGlass({
     <PublishedPathContext.Provider value={homeHref === "/" ? "" : homeHref}>
       <header
         onMouseLeave={() => setActiveMenu(null)}
-        className={`${options?.viewport ? "absolute" : "absolute md:fixed"} inset-x-0 top-0 z-[90] overflow-visible font-[var(--font-inter)] transition-[background-color,color,border-color] duration-500 ease-in-out ${
+        className={`${options?.viewport ? "absolute" : pastHero ? "fixed" : "absolute md:fixed"} inset-x-0 top-0 z-[90] overflow-visible font-[var(--font-inter)] transition-[transform,background-color,color,border-color] duration-500 ease-in-out ${
+          !options?.viewport && pastHero && !mobileHeaderVisible && !mobileOpen
+            ? "-translate-y-full md:translate-y-0"
+            : "translate-y-0"
+        } ${
           light
             ? "border-b border-black/10 bg-white/95 text-black backdrop-blur-md"
             : activeMenu
@@ -561,6 +584,27 @@ export function SiteHeaderGlass({
           </>
         ) : null}
       </header>
+      {!options?.viewport ? (
+        <div
+          aria-hidden={!pastHero}
+          inert={!pastHero}
+          className={`fixed inset-x-0 bottom-0 z-[70] flex h-[132px] items-end bg-[linear-gradient(to_bottom,rgba(255,255,255,0),rgba(255,255,255,0.94)_55%,#fff_100%)] px-4 transition-[transform,opacity] duration-500 ease-in-out md:hidden ${
+            pastHero
+              ? "translate-y-0 opacity-100"
+              : "pointer-events-none translate-y-5 opacity-0"
+          }`}
+          style={{ paddingBottom: "calc(16px + env(safe-area-inset-bottom))" }}
+        >
+          <HeaderLink
+            href={phoneHref}
+            ariaLabel={`Appeler le ${phone}`}
+            className="site-cta site-cta-primary pointer-events-auto !flex w-full items-center justify-center rounded-full text-[#00d494]"
+          >
+            <Phone size={16} />
+            <span>{fields.phoneLabel?.trim() || "Appeler"}</span>
+          </HeaderLink>
+        </div>
+      ) : null}
     </PublishedPathContext.Provider>
   );
 }
