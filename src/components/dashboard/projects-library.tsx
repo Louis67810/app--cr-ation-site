@@ -50,7 +50,7 @@ function ProjectThumbnail({ project }: { project: DashboardProject }) {
 
   return (
     <div className="relative aspect-[1.08/1] overflow-hidden rounded-[12px] border border-black/[0.07] bg-[#f4f4f2] [perspective:1100px]">
-      <div className="absolute inset-[10px] origin-bottom overflow-hidden rounded-[9px] bg-white shadow-[0_22px_60px_rgba(0,0,0,.09)] transition-[transform,box-shadow] duration-500 ease-[cubic-bezier(.22,1,.36,1)] [transform:rotateX(2.5deg)_translateY(5px)_scale(.985)] group-hover:shadow-[0_30px_70px_rgba(0,0,0,.14)] group-hover:[transform:rotateX(0deg)_translateY(-6px)_scale(1)]">
+      <div className="absolute inset-[10px] origin-center overflow-hidden rounded-[9px] bg-white shadow-[0_22px_60px_rgba(0,0,0,.11)] [transform:perspective(900px)_rotateY(-6deg)_rotateX(2deg)_scale(.96)]">
         <div className="pointer-events-none h-[2440px] w-[1800px] origin-top-left [transform:scale(.215)]">
           <iframe
             src={previewUrl}
@@ -60,7 +60,6 @@ function ProjectThumbnail({ project }: { project: DashboardProject }) {
             className="h-[2440px] w-[1800px] border-0 bg-white"
           />
         </div>
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-white/90" />
       </div>
     </div>
   );
@@ -81,11 +80,13 @@ function ProjectCard({
   onRename: () => void;
   onDuplicate: () => void;
 }) {
+  const dashboardUrl = `/dashboard?project=${encodeURIComponent(project.key)}&tab=overview`;
+
   return (
-    <article className="group relative min-w-0 transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] hover:-translate-y-1.5">
+    <article className="relative min-w-0">
       <Link
-        href={`/builder?project=${encodeURIComponent(project.key)}`}
-        className="block outline-none focus-visible:ring-2 focus-visible:ring-black/40"
+        href={dashboardUrl}
+        className="block translate-y-0 outline-none transition-transform duration-300 ease-out hover:-translate-y-2 focus-visible:-translate-y-2 focus-visible:ring-2 focus-visible:ring-black/40"
         aria-label={`Ouvrir ${project.name}`}
       >
         <ProjectThumbnail project={project} />
@@ -93,7 +94,7 @@ function ProjectCard({
 
       <div className="mt-4 flex min-w-0 items-start gap-3">
         <Link
-          href={`/builder?project=${encodeURIComponent(project.key)}`}
+          href={dashboardUrl}
           className="min-w-0 flex-1"
         >
           <h2 className="truncate text-[15px] font-semibold tracking-[-0.02em] text-[#1c1c1c]">
@@ -122,7 +123,7 @@ function ProjectCard({
           {menuOpen ? (
             <div className="absolute right-0 top-11 z-30 w-48 rounded-[12px] border border-black/10 bg-white p-1.5 text-[13px] shadow-[0_18px_50px_rgba(0,0,0,.14)]">
               <Link
-                href={`/builder?project=${encodeURIComponent(project.key)}`}
+                href={dashboardUrl}
                 className="flex h-10 items-center gap-3 rounded-[8px] px-3 hover:bg-black/[0.04]"
               >
                 <ExternalLink size={15} />

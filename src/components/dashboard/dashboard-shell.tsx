@@ -237,7 +237,6 @@ function ProjectSelector({
 
 function MobileDashboardNav({ projects, project, activeTab }: { projects: DashboardProject[]; project: DashboardProject; activeTab: DashboardTab }) {
   const items: Array<[DashboardTab, string, typeof Home]> = [
-    ["projects", "Projets", FolderKanban],
     ["overview", "Vue", Home],
     ["traffic", "Stats", BarChart3],
     ["pages", "Pages", FolderKanban],
@@ -304,6 +303,55 @@ export function DashboardShell({
     }
   }
 
+  if (activeTab === "projects") {
+    return (
+      <main className="min-h-screen bg-white text-[#1c1c1c] lg:grid lg:grid-cols-[212px_minmax(0,1fr)]">
+        <aside className="hidden h-screen border-r border-black/10 bg-[#fcf9f4] px-4 py-4 lg:sticky lg:top-0 lg:block">
+          <Link
+            href="/dashboard?tab=projects"
+            className="flex h-12 items-center gap-2 rounded-[9px] px-2 text-[14px] font-semibold tracking-[-0.02em]"
+          >
+            <span className="grid size-6 place-items-center rounded-full bg-black text-white">
+              <Sparkles size={12} />
+            </span>
+            Rollit
+          </Link>
+
+          <nav className="mt-8" aria-label="Navigation de l’espace">
+            <p className="px-3 text-[13px] text-black/40">Espace</p>
+            <div className="mt-2 grid gap-1 text-[14px]">
+              <Link
+                prefetch={false}
+                href="/dashboard?tab=projects"
+                aria-current="page"
+                className="relative flex h-8 items-center gap-3 rounded-lg bg-black/5 px-3 pl-9 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black"
+              >
+                <FolderKanban size={18} />
+                Projets
+              </Link>
+            </div>
+          </nav>
+        </aside>
+
+        <div className="border-b border-black/[0.08] bg-[#fcf9f4] px-4 py-3 lg:hidden">
+          <Link
+            href="/dashboard?tab=projects"
+            className="flex h-10 items-center gap-2 text-[14px] font-semibold"
+          >
+            <span className="grid size-6 place-items-center rounded-full bg-black text-white">
+              <Sparkles size={12} />
+            </span>
+            Rollit
+          </Link>
+        </div>
+
+        <section className="min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:px-10 lg:py-11 xl:px-12">
+          <ProjectsLibrary projects={projects} />
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className={`${activeTab === "cms" ? "fixed inset-0 flex h-dvh flex-col overflow-hidden pb-[calc(108px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_minmax(0,1fr)] lg:pb-0" : "min-h-screen pb-[calc(108px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_1fr] lg:pb-0"} bg-white text-[#1c1c1c]`}>
       <aside className={`${activeTab === "cms" ? "lg:col-start-1 lg:row-start-1 lg:h-dvh lg:overflow-hidden lg:border-r" : "lg:sticky lg:top-0 lg:col-start-1 lg:row-start-1 lg:h-screen lg:border-r"} hidden border-black/10 bg-[#fcf9f4] px-4 py-4 lg:block`}>
@@ -314,13 +362,6 @@ export function DashboardShell({
             Ouvrir le projet
           </Link>
         </div> : null}
-
-        <nav className="mt-8">
-          <p className="px-3 text-[13px] text-black/40">Espace</p>
-          <div className="mt-2 grid gap-1 text-[14px]">
-            <Link prefetch={false} href="/dashboard?tab=projects" className={`${activeTab === "projects" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><FolderKanban size={18} />Projets</Link>
-          </div>
-        </nav>
 
         <nav className="mt-8">
           <p className="px-3 text-[13px] text-black/40">Dashboard</p>
@@ -338,7 +379,7 @@ export function DashboardShell({
       </aside>
 
       <section className={activeTab === "cms" ? "min-h-0 min-w-0 flex-1 overflow-hidden lg:col-start-2 lg:row-start-1 lg:h-full" : "min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:row-start-1 lg:px-10 lg:py-11 xl:px-12"}>
-        {activeTab === "projects" ? <ProjectsLibrary projects={projects} /> : activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents key={`${project.ownerId}:${project.key}`} project={project} initialAnalytics={analytics} /> : activeTab === "recap" ? <MonthlyRecap project={project} data={recap} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
+        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents key={`${project.ownerId}:${project.key}`} project={project} initialAnalytics={analytics} /> : activeTab === "recap" ? <MonthlyRecap project={project} data={recap} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
         {activeTab !== "traffic" ? <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-serif text-[27px] leading-tight tracking-[-0.05em] sm:text-[30px]">{activeTab === "pages" ? "Pages du site" : "Bonjour, voici votre site"}</h1>
