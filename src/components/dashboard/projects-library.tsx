@@ -49,8 +49,8 @@ function ProjectThumbnail({ project }: { project: DashboardProject }) {
   const previewUrl = `/dashboard/preview/${encodeURIComponent(project.ownerId)}/${encodeURIComponent(project.key)}`;
 
   return (
-    <div className="relative aspect-[1.08/1] overflow-hidden rounded-[12px] border border-black/[0.07] bg-[#f4f4f2]">
-      <div className="absolute inset-[24px] origin-center -skew-x-[14deg] scale-[.93] overflow-hidden rounded-[9px] bg-white shadow-[-7px_31px_69px_rgba(0,0,0,.10)]">
+    <div className="absolute left-0 top-0 aspect-[1.08/1] w-full origin-top-left scale-[.85] overflow-hidden rounded-[12px] border border-black/[0.07] bg-[#f4f4f2]">
+      <div className="absolute inset-x-[24px] bottom-0 top-[-16px] origin-bottom -skew-x-[14deg] scale-[.93] overflow-hidden rounded-[9px] bg-white shadow-[-7px_31px_69px_rgba(0,0,0,.10)]">
         <div className="pointer-events-none h-[3400px] w-[2200px] origin-top-left [transform:scale(.176)]">
           <iframe
             src={previewUrl}
@@ -83,16 +83,16 @@ function ProjectCard({
   const dashboardUrl = `/dashboard?project=${encodeURIComponent(project.key)}&tab=overview`;
 
   return (
-    <article className="relative w-[85%] min-w-0">
+    <article className="relative min-w-0">
       <Link
         href={dashboardUrl}
-        className="block translate-y-0 outline-none transition-transform duration-300 ease-out hover:-translate-y-2 focus-visible:-translate-y-2 focus-visible:ring-2 focus-visible:ring-black/40"
+        className="relative block aspect-[1.2706/1] translate-y-0 outline-none transition-transform duration-300 ease-out hover:-translate-y-2 focus-visible:-translate-y-2 focus-visible:ring-2 focus-visible:ring-black/40"
         aria-label={`Ouvrir ${project.name}`}
       >
         <ProjectThumbnail project={project} />
       </Link>
 
-      <div className="mt-4 flex min-w-0 items-start gap-3">
+      <div className="mt-4 flex w-[85%] min-w-0 items-start gap-3">
         <Link
           href={dashboardUrl}
           className="min-w-0 flex-1"
