@@ -11,6 +11,8 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
+type AnalyticsRange = "day" | "week" | "month" | "year";
+
 async function context(request: Request) {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getClaims();
@@ -18,6 +20,10 @@ async function context(request: Request) {
   if (!userId) return { error: NextResponse.json({ error: "Non authentifié." }, { status: 401 }) };
 
   const url = new URL(request.url);
+  const requestedRange = url.searchParams.get("range");
+  const analyticsRange: AnalyticsRange = requestedRange === "day" || requestedRange === "week" || requestedRange === "year"
+    ? requestedRange
+    : "month";
   let payload: { projectKey?: unknown; projectOwnerId?: unknown } = {};
   if (request.method === "POST") payload = await request.json() as typeof payload;
   const projectKey = normalizeProjectKey(request.method === "POST" ? payload.projectKey : url.searchParams.get("projectKey"));
@@ -32,7 +38,7 @@ async function context(request: Request) {
 
   const { data: project } = await supabase.from("site_projects").select("pages").eq("owner_id", projectOwnerId).eq("project_key", projectKey).maybeSingle();
   const pages = Array.isArray(project?.pages) ? project.pages as SitePage[] : structuredClone(demoSitePages);
-  return { supabase, projectKey, projectOwnerId, pages };
+  return { supabase, projectKey, projectOwnerId, pages, analyticsRange };
 }
 
 type TrackingEvent = {
@@ -47,22 +53,44 @@ type TrackingEvent = {
   engagement_seconds?: number;
 };
 
-function buildInternalAnalytics(events: TrackingEvent[]) {
+function buildInternalAnalytics(events: TrackingEvent[], range: AnalyticsRange) {
   const now = Date.now();
-  const days = Array.from({ length: 31 }, (_, index) => {
-    const value = new Date(now - (30 - index) * 86_400_000);
-    return value.toISOString().slice(0, 10);
-  });
+  const buckets = range === "day"
+    ? Array.from({ length: 24 }, (_, index) => {
+        const value = new Date(now - (23 - index) * 3_600_000);
+        value.setUTCMinutes(0, 0, 0);
+        return value.toISOString();
+      })
+    : range === "year"
+      ? Array.from({ length: 12 }, (_, index) => {
+          const value = new Date();
+          value.setUTCDate(1);
+          value.setUTCMonth(value.getUTCMonth() - (11 - index));
+          return value.toISOString().slice(0, 7);
+        })
+      : Array.from({ length: range === "week" ? 7 : 31 }, (_, index) => {
+          const value = new Date(now - ((range === "week" ? 6 : 30) - index) * 86_400_000);
+          return value.toISOString().slice(0, 10);
+        });
+  const eventBucket = (event: TrackingEvent) => {
+    const value = new Date(event.occurred_at);
+    if (range === "day") {
+      value.setUTCMinutes(0, 0, 0);
+      return value.toISOString();
+    }
+    return event.occurred_at.slice(0, range === "year" ? 7 : 10);
+  };
   const liveVisitorIds = new Set(events
     .filter((event) => new Date(event.last_seen_at).getTime() >= now - 120_000)
     .map((event) => event.visitor_id));
   return {
+    range,
     liveVisitors: liveVisitorIds.size,
     events,
-    series: days.map((day) => {
-      const daily = events.filter((event) => event.occurred_at.slice(0, 10) === day);
+    series: buckets.map((bucket) => {
+      const daily = events.filter((event) => eventBucket(event) === bucket);
       return {
-        day,
+        bucket,
         pageViews: daily.length,
         uniqueVisitors: new Set(daily.map((event) => event.visitor_id)).size,
       };
@@ -71,7 +99,19 @@ function buildInternalAnalytics(events: TrackingEvent[]) {
 }
 
 async function snapshotData(input: Exclude<Awaited<ReturnType<typeof context>>, { error: NextResponse }>) {
-  const after = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const rangeStart = new Date();
+  if (input.analyticsRange === "day") {
+    rangeStart.setUTCMinutes(0, 0, 0);
+    rangeStart.setUTCHours(rangeStart.getUTCHours() - 23);
+  } else if (input.analyticsRange === "year") {
+    rangeStart.setUTCDate(1);
+    rangeStart.setUTCHours(0, 0, 0, 0);
+    rangeStart.setUTCMonth(rangeStart.getUTCMonth() - 11);
+  } else {
+    rangeStart.setUTCHours(0, 0, 0, 0);
+    rangeStart.setUTCDate(rangeStart.getUTCDate() - (input.analyticsRange === "week" ? 6 : 30));
+  }
+  const after = rangeStart.toISOString();
   if ("error" in input) return input.error;
   const [performanceResult, summaryResult, trackingResult, eventsResult, sessionsResult] = await Promise.all([
     input.supabase.from("project_page_performance").select("*").eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey).order("ga_page_views", { ascending: false }),
@@ -98,7 +138,7 @@ async function snapshotData(input: Exclude<Awaited<ReturnType<typeof context>>, 
   }));
   return {
     ...base,
-    internalAnalytics: buildInternalAnalytics(events),
+    internalAnalytics: buildInternalAnalytics(events, input.analyticsRange),
   };
 }
 
