@@ -428,7 +428,7 @@ export function SiteHeaderGlass({
     <PublishedPathContext.Provider value={homeHref === "/" ? "" : homeHref}>
       <header
         onMouseLeave={() => setActiveMenu(null)}
-        className={`${options?.viewport ? "absolute" : pastHero ? "fixed" : "absolute md:fixed"} inset-x-0 top-0 z-[90] overflow-visible font-[var(--font-inter)] transition-[transform,background-color,color,border-color] duration-500 ease-in-out ${
+        className={`${options?.viewport ? "absolute" : pastHero ? "fixed" : "absolute md:fixed"} inset-x-0 top-0 z-[90] transform-gpu overflow-visible font-[var(--font-inter)] will-change-transform transition-[transform,background-color,color,border-color] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:duration-500 ${
           !options?.viewport && pastHero && !mobileHeaderVisible && !mobileOpen
             ? "-translate-y-full md:translate-y-0"
             : "translate-y-0"
@@ -588,10 +588,10 @@ export function SiteHeaderGlass({
         <div
           aria-hidden={!pastHero}
           inert={!pastHero}
-          className={`fixed inset-x-0 bottom-0 z-[70] flex h-[132px] items-end bg-[linear-gradient(to_bottom,rgba(255,255,255,0),rgba(255,255,255,0.94)_55%,#fff_100%)] px-4 transition-[transform,opacity] duration-500 ease-in-out md:hidden ${
+          className={`fixed inset-x-0 bottom-0 z-[70] flex h-[132px] transform-gpu items-end bg-[linear-gradient(to_bottom,rgba(255,255,255,0),rgba(255,255,255,0.94)_55%,#fff_100%)] px-4 will-change-[transform,opacity] transition-[transform,opacity] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] md:hidden ${
             pastHero
               ? "translate-y-0 opacity-100"
-              : "pointer-events-none translate-y-5 opacity-0"
+              : "pointer-events-none translate-y-full opacity-0"
           }`}
           style={{ paddingBottom: "calc(16px + env(safe-area-inset-bottom))" }}
         >
