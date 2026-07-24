@@ -1229,27 +1229,39 @@ function WorkMethodAlternatingA({
       <div className="mt-16 grid gap-5">
         {fields.steps.map((step, index) => {
           const imageFirst = index % 2 === 0;
-          const stacked = compact || tablet;
+          const layout = compact
+            ? "grid-cols-[minmax(0,1fr)_minmax(118px,42%)]"
+            : tablet
+              ? "grid-cols-1"
+              : "grid-cols-[minmax(0,1fr)_minmax(118px,42%)] md:grid-cols-[0.78fr_1fr]";
+          const imageLayout = compact
+            ? "order-2 min-h-[220px]"
+            : tablet
+              ? "order-2 min-h-[360px]"
+              : `order-2 min-h-[220px] md:min-h-[520px] lg:min-h-[868px] ${
+                  imageFirst ? "md:order-none" : "md:order-2"
+                }`;
+          const textLayout = compact
+            ? "order-1 gap-4 px-5 py-7"
+            : tablet
+              ? "order-1 gap-8 px-12 py-10"
+              : `order-1 gap-4 px-5 py-7 md:gap-8 md:px-12 lg:px-24 lg:py-24 ${
+                  imageFirst ? "md:order-none" : "md:order-1"
+                }`;
 
           return (
             <article
               key={`${step.title}-${index}`}
-              className={`grid overflow-hidden bg-[#f6f6f4] ${
-                stacked ? "grid-cols-1" : "grid-cols-[0.78fr_1fr]"
-              }`}
+              className={`grid overflow-hidden bg-[#f6f6f4] ${layout}`}
             >
               <div
-                className={`min-h-[360px] bg-cover bg-center max-md:order-2 md:min-h-[520px] lg:min-h-[868px] ${
-                  compact ? "order-2" : !imageFirst && !stacked ? "order-2" : ""
-                }`}
+                className={`${imageLayout} bg-cover bg-center`}
                 style={{ backgroundImage: `url(${step.imageUrl})` }}
                 role="img"
                 aria-label={step.title}
               />
               <div
-                className={`flex flex-col justify-center gap-8 px-5 py-10 max-md:order-1 md:px-12 lg:px-24 lg:py-24 ${
-                  compact ? "order-1" : ""
-                }`}
+                className={`${textLayout} flex flex-col justify-center`}
               >
                 <EditableText
                   as="h3"
@@ -1373,6 +1385,11 @@ function BlogAdvicePostsA({
   const posts = fields.posts;
   const featured = posts[0];
   const gridPosts = posts.slice(1, 4);
+  const mobilePosts = posts.slice(0, 4);
+  const compact = options?.viewport === "phone";
+  const preview = Boolean(options?.viewport);
+  const mobileLayout = compact ? "grid" : preview ? "hidden" : "grid md:hidden";
+  const desktopLayout = compact ? "hidden" : preview ? "block" : "hidden md:block";
 
   return (
     <section className="bg-white px-5 py-20 font-[var(--font-inter)] md:px-10 md:py-28 xl:px-20">
@@ -1394,24 +1411,34 @@ function BlogAdvicePostsA({
           />
         </div>
         <div className="mt-12 h-px w-full bg-black/17" />
-        {featured ? (
-          <article className="mt-24 grid items-center gap-16 lg:grid-cols-[minmax(0,684px)_minmax(0,813px)]">
-            <BlogPostText
-              post={featured}
-              index={0}
-              featured
-              options={options}
-            />
-            <BlogPostImage post={featured} className="h-[542px]" />
-          </article>
-        ) : null}
-        <div className="mt-12 grid gap-8 lg:grid-cols-3">
-          {gridPosts.map((post, index) => (
-            <article key={`${post.title}-${index}`} className="grid gap-8">
-              <BlogPostImage post={post} className="h-[330px]" />
-              <BlogPostText post={post} index={index + 1} options={options} />
+        <div className={`${mobileLayout} mt-10 gap-10`}>
+          {mobilePosts.map((post, index) => (
+            <article key={`${post.title}-${index}`} className="grid gap-6">
+              <BlogPostImage post={post} className="h-[230px]" />
+              <BlogPostText post={post} index={index} options={options} />
             </article>
           ))}
+        </div>
+        <div className={desktopLayout}>
+          {featured ? (
+            <article className="mt-24 grid items-center gap-16 lg:grid-cols-[minmax(0,684px)_minmax(0,813px)]">
+              <BlogPostText
+                post={featured}
+                index={0}
+                featured
+                options={options}
+              />
+              <BlogPostImage post={featured} className="h-[542px]" />
+            </article>
+          ) : null}
+          <div className="mt-12 grid gap-8 lg:grid-cols-3">
+            {gridPosts.map((post, index) => (
+              <article key={`${post.title}-${index}`} className="grid gap-8">
+                <BlogPostImage post={post} className="h-[330px]" />
+                <BlogPostText post={post} index={index + 1} options={options} />
+              </article>
+            ))}
+          </div>
         </div>
       </div>
     </section>
