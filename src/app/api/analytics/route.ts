@@ -44,6 +44,7 @@ type TrackingEvent = {
   country_code: string;
   occurred_at: string;
   last_seen_at: string;
+  engagement_seconds?: number;
 };
 
 function buildInternalAnalytics(events: TrackingEvent[]) {
@@ -72,11 +73,12 @@ function buildInternalAnalytics(events: TrackingEvent[]) {
 async function snapshotData(input: Exclude<Awaited<ReturnType<typeof context>>, { error: NextResponse }>) {
   const after = new Date(Date.now() - 30 * 86_400_000).toISOString();
   if ("error" in input) return input.error;
-  const [performanceResult, summaryResult, trackingResult, eventsResult] = await Promise.all([
+  const [performanceResult, summaryResult, trackingResult, eventsResult, sessionsResult] = await Promise.all([
     input.supabase.from("project_page_performance").select("*").eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey).order("ga_page_views", { ascending: false }),
     input.supabase.from("project_analytics_summary").select("*").eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey).maybeSingle(),
     input.supabase.from("project_page_traffic_daily").select("page_path, day, page_views, unique_visitors, total_engagement_seconds, updated_at").eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey),
     input.supabase.from("project_tracking_events").select("page_path, session_id, visitor_id, referrer, device_type, country_code, occurred_at, last_seen_at").eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey).gte("occurred_at", after).order("occurred_at", { ascending: true }),
+    input.supabase.from("project_page_tracking_sessions").select("page_path, session_id, engagement_seconds").eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey).gte("created_at", after),
   ]);
   const base = buildEditorialPerformanceSnapshot({
     pages: input.pages,
@@ -86,9 +88,17 @@ async function snapshotData(input: Exclude<Awaited<ReturnType<typeof context>>, 
     performanceError: performanceResult.error?.message ?? summaryResult.error?.message,
     trackingError: trackingResult.error?.message,
   });
+  const engagementBySession = new Map((sessionsResult.data ?? []).map((session) => [
+    `${session.page_path}:${session.session_id}`,
+    Number(session.engagement_seconds ?? 0),
+  ]));
+  const events = ((eventsResult.data ?? []) as TrackingEvent[]).map((event) => ({
+    ...event,
+    engagement_seconds: engagementBySession.get(`${event.page_path}:${event.session_id}`) ?? 0,
+  }));
   return {
     ...base,
-    internalAnalytics: buildInternalAnalytics((eventsResult.data ?? []) as TrackingEvent[]),
+    internalAnalytics: buildInternalAnalytics(events),
   };
 }
 

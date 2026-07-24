@@ -1,12 +1,12 @@
 "use client";
 
-import { ChevronDown, CircleDot, Globe2, Laptop, LoaderCircle, RefreshCw, Smartphone, Users } from "lucide-react";
+import { ChevronDown, CircleDot, Globe2, Laptop, LoaderCircle, RefreshCw, Smartphone } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { EditorialPerformanceSnapshot } from "@/lib/editorial-performance";
 
 type Event = {
   page_path: string; session_id: string; visitor_id: string; referrer: string;
-  device_type: "desktop" | "mobile" | "tablet"; country_code: string; occurred_at: string; last_seen_at: string;
+  device_type: "desktop" | "mobile" | "tablet"; country_code: string; occurred_at: string; last_seen_at: string; engagement_seconds: number;
 };
 type InternalAnalytics = { liveVisitors: number; events: Event[]; series: Array<{ day: string; pageViews: number; uniqueVisitors: number }> };
 type ResponseData = EditorialPerformanceSnapshot & { internalAnalytics?: InternalAnalytics; error?: string };
@@ -62,7 +62,7 @@ function Breakdown({ title, icon, items, filterKey, selected, onSelect, label }:
 export function AnalyticsDashboard({ projectKey, projectOwnerId, initialData }: { projectKey: string; projectOwnerId: string; initialData: EditorialPerformanceSnapshot; gaPropertyId?: string }) {
   const [data, setData] = useState<ResponseData>(initialData);
   const [filters, setFilters] = useState<Filters>({});
-  const [syncing, setSyncing] = useState(false);
+  const [syncing, setSyncing] = useState(true);
   const [error, setError] = useState("");
   const titles = useMemo(() => new Map(data.pages.map((page) => [page.path, page.title])), [data.pages]);
   const analytics = data.internalAnalytics;
@@ -77,7 +77,24 @@ export function AnalyticsDashboard({ projectKey, projectOwnerId, initialData }: 
     } catch (caught) { setError(caught instanceof Error ? caught.message : "L’actualisation a échoué."); }
     finally { setSyncing(false); }
   }
-  useEffect(() => { void refreshTracking(); }, []); // The initial server snapshot deliberately stays light.
+  useEffect(() => {
+    const controller = new AbortController();
+    const url = `/api/analytics?projectKey=${encodeURIComponent(projectKey)}&projectOwnerId=${encodeURIComponent(projectOwnerId)}`;
+    void fetch(url, { signal: controller.signal })
+      .then(async (response) => {
+        const result = await response.json() as ResponseData;
+        if (!response.ok) throw new Error(result.error ?? "L’actualisation a échoué.");
+        return result;
+      })
+      .then((result) => setData(result))
+      .catch((caught: unknown) => {
+        if (!controller.signal.aborted) setError(caught instanceof Error ? caught.message : "L’actualisation a échoué.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSyncing(false);
+      });
+    return () => controller.abort();
+  }, [projectKey, projectOwnerId]);
 
   const filteredEvents = useMemo(() => (analytics?.events ?? []).filter((event) => Object.entries(filters).every(([key, value]) => !value || event[key as keyof Event] === value)), [analytics, filters]);
   const series = useMemo(() => {
@@ -89,19 +106,19 @@ export function AnalyticsDashboard({ projectKey, projectOwnerId, initialData }: 
   }, [analytics, filteredEvents]);
   const uniqueVisitors = new Set(filteredEvents.map((event) => event.visitor_id)).size;
   const pageViews = filteredEvents.length;
-  const engagement = data.pages.reduce((total, page) => total + page.internalTracking.totalEngagementSeconds, 0);
+  const engagement = filteredEvents.reduce((total, event) => total + Number(event.engagement_seconds ?? 0), 0);
   const selectedCount = Object.keys(filters).length;
   const toggle = (key: keyof Filters, value: string) => setFilters((current) => ({ ...current, [key]: current[key] === value ? undefined : value }));
   const cards = [
     ["Visiteurs en direct", analytics?.liveVisitors ?? 0, true],
-    ["Visiteurs uniques", uniqueVisitors, false],
     ["Pages vues totales", pageViews, false],
-    ["Taux de rebond", pageViews ? "—" : "—", false],
-    ["Session moyenne", seconds(pageViews ? engagement / pageViews : 0), false],
+    ["Visiteurs uniques", uniqueVisitors, false],
+    ["Temps total", seconds(engagement), false],
+    ["Temps moyen", seconds(pageViews ? engagement / pageViews : 0), false],
   ] as const;
 
   return <section className="mt-8 pb-12">
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4"><div><h2 className="font-serif text-[28px] text-black">Statistiques</h2><p className="mt-1 text-[13px] text-black/45">30 derniers jours · données du tracker intégré au site publié.</p></div><div className="flex items-center gap-3">{selectedCount ? <button type="button" onClick={() => setFilters({})} className="text-[12px] font-medium text-black/55 hover:text-black">Effacer les filtres ({selectedCount})</button> : null}<button type="button" onClick={refreshTracking} disabled={syncing} className="flex h-11 items-center gap-2 rounded-[10px] bg-[#1c1c1c] px-4 text-[12px] font-semibold text-white disabled:opacity-50">{syncing ? <LoaderCircle size={15} className="animate-spin" /> : <RefreshCw size={15} />}{syncing ? "Actualisation…" : "Actualiser"}</button></div></div>
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-4"><div><h2 className="font-serif text-[28px] text-black">Statistiques</h2><p className="mt-1 text-[13px] text-black/45">30 derniers jours · données du tracker intégré au site publié.</p></div><div className="flex items-center gap-3">{selectedCount ? <button type="button" onClick={() => setFilters({})} className="text-[12px] font-medium text-black/55 hover:text-black">Effacer les filtres ({selectedCount})</button> : null}<button type="button" onClick={refreshTracking} disabled={syncing} className="flex h-9 items-center gap-2 rounded-[10px] bg-gradient-to-b from-[#323232] to-[#222] px-5 text-[14px] font-semibold text-white shadow-md disabled:opacity-50">{syncing ? <LoaderCircle size={15} className="animate-spin" /> : <RefreshCw size={15} />}{syncing ? "Actualisation…" : "Actualiser"}</button></div></div>
     {error ? <p className="mb-4 rounded-[10px] border border-red-200 bg-red-50 p-3 text-[12px] text-red-700">{error}</p> : null}
     <div className="border-y border-black/[0.08] py-7"><div className="grid grid-cols-2 gap-x-8 gap-y-7 md:grid-cols-5">{cards.map(([label, value, live]) => <div key={label}><div className="flex items-center gap-1.5 text-[13px] font-medium text-black/55">{label}{live ? <span className="relative flex size-3"><span className="absolute inline-flex size-full animate-ping rounded-full bg-[#149cff] opacity-25"/><span className="relative inline-flex size-2.5 rounded-full bg-[#149cff]"/></span> : null}</div><p className="mt-1.5 text-[27px] font-semibold tracking-[-.04em] text-black/80">{typeof value === "number" ? integer(value) : value}</p></div>)}</div></div>
     <LineChart series={series} />

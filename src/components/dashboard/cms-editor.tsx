@@ -604,6 +604,8 @@ export function CmsEditor({
                         <img
                           src={preview}
                           alt=""
+                          loading="lazy"
+                          decoding="async"
                           className="h-[45px] w-[62px] rounded-[5px] border border-black/[0.07] object-cover"
                         />
                       ) : (
@@ -628,6 +630,8 @@ export function CmsEditor({
                                     <img
                                       src={String(value)}
                                       alt=""
+                                      loading="lazy"
+                                      decoding="async"
                                       className="h-full w-full object-cover"
                                     />
                                   ) : (
@@ -816,6 +820,8 @@ function EntryCollection({
                   <img
                     src={presentation.image}
                     alt=""
+                    loading="lazy"
+                    decoding="async"
                     className="h-[62px] w-[82px] rounded-[9px] object-cover sm:w-[96px]"
                   />
                 ) : (
@@ -1044,6 +1050,8 @@ function EntryDetailEditor({
                               <img
                                 src={String(value)}
                                 alt=""
+                                loading="lazy"
+                                decoding="async"
                                 className="absolute inset-0 size-full object-cover"
                               />
                             ) : (

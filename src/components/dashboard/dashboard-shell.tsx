@@ -24,17 +24,20 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SitePage } from "@/lib/site-template";
-import { CmsEditor } from "@/components/dashboard/cms-editor";
-import { ProjectSettings } from "@/components/dashboard/project-settings";
-import { AssetLibrary } from "@/components/dashboard/asset-library";
-import { GlobalSectionsEditor } from "@/components/dashboard/global-sections-editor";
-import { AiAgents } from "@/components/dashboard/ai-agents";
-import { MonthlyRecap } from "@/components/dashboard/monthly-recap";
-import { AnalyticsDashboard } from "@/components/dashboard/analytics-dashboard";
 import type { EditorialPerformanceSnapshot } from "@/lib/editorial-performance";
+
+const DeferredPanel = () => <div className="grid min-h-[240px] place-items-center text-[12px] text-black/40"><LoaderCircle size={18} className="animate-spin" /></div>;
+const CmsEditor = dynamic(() => import("@/components/dashboard/cms-editor").then((module) => module.CmsEditor), { loading: DeferredPanel });
+const ProjectSettings = dynamic(() => import("@/components/dashboard/project-settings").then((module) => module.ProjectSettings), { loading: DeferredPanel });
+const AssetLibrary = dynamic(() => import("@/components/dashboard/asset-library").then((module) => module.AssetLibrary), { loading: DeferredPanel });
+const GlobalSectionsEditor = dynamic(() => import("@/components/dashboard/global-sections-editor").then((module) => module.GlobalSectionsEditor), { loading: DeferredPanel });
+const AiAgents = dynamic(() => import("@/components/dashboard/ai-agents").then((module) => module.AiAgents), { loading: DeferredPanel });
+const MonthlyRecap = dynamic(() => import("@/components/dashboard/monthly-recap").then((module) => module.MonthlyRecap), { loading: DeferredPanel });
+const AnalyticsDashboard = dynamic(() => import("@/components/dashboard/analytics-dashboard").then((module) => module.AnalyticsDashboard), { loading: DeferredPanel });
 
 export type DashboardTab = "overview" | "traffic" | "pages" | "cms" | "assets" | "ai" | "recap" | "settings";
 
@@ -143,7 +146,7 @@ function ProjectPreviewCard({ project }: { project: DashboardProject }) {
       {previews.map((page, index) => {
         const url = previewUrl(page);
         const placement = index === 0 ? "hidden sm:block sm:-left-[210px] sm:top-[172px] sm:z-[1]" : index === 1 ? "left-[calc(50%_-_198px)] top-[30px] z-10 shadow-[-54px_218px_90px_rgba(0,0,0,.01),-30px_122px_76px_rgba(0,0,0,.05),-13px_54px_56px_rgba(0,0,0,.09),-3px_14px_31px_rgba(0,0,0,.10)] sm:left-[82px] sm:top-[48px]" : "hidden sm:block sm:left-[420px] sm:top-[112px] sm:z-[2]";
-        return <div key={`${page?.id ?? "fallback"}-${index}`} className={`pointer-events-none absolute h-[365px] w-[396px] origin-top-left overflow-hidden rounded-[7px] bg-white [transform:skewX(14deg)] transition-transform duration-500 group-hover:[transform:skewX(14deg)_translateY(-4px)] ${placement}`}><div className="h-[3466px] w-[1800px] origin-top-left [transform:scale(.22)]">{url ? <iframe src={url} title={`Aperçu ${page?.title ?? project.name}`} tabIndex={-1} className="h-[3466px] w-[1800px] border-0 bg-white" /> : <div className="h-[3466px] w-[1800px] bg-[url('/dashboard-site-preview.png')] bg-[length:1800px_auto] bg-top bg-no-repeat" />}</div></div>;
+        return <div key={`${page?.id ?? "fallback"}-${index}`} className={`pointer-events-none absolute h-[365px] w-[396px] origin-top-left overflow-hidden rounded-[7px] bg-white [transform:skewX(14deg)] transition-transform duration-500 group-hover:[transform:skewX(14deg)_translateY(-4px)] ${placement}`}><div className="h-[3466px] w-[1800px] origin-top-left [transform:scale(.22)]">{url ? <iframe src={url} title={`Aperçu ${page?.title ?? project.name}`} loading="lazy" tabIndex={-1} className="h-[3466px] w-[1800px] border-0 bg-white" /> : <div className="h-[3466px] w-[1800px] bg-[url('/dashboard-site-preview.png')] bg-[length:1800px_auto] bg-top bg-no-repeat" />}</div></div>;
       })}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] h-[138px] bg-gradient-to-b from-[rgba(250,250,250,.09)] to-[#fafafa]" />
       <span className="absolute bottom-4 left-4 z-20 flex h-11 items-center gap-2 rounded-[11px] border border-black/[0.06] bg-white px-3.5 text-[14px] tracking-[.01em] text-black/70 shadow-sm transition group-hover:-translate-y-0.5 group-hover:shadow-md sm:bottom-[19px] sm:left-[23px] sm:h-[45px] sm:gap-3 sm:px-4 sm:text-[16px]">Ouvrir le projet<ArrowUpRight size={20} /></span>
@@ -217,7 +220,7 @@ function ProjectSelector({
 
         {open ? <div role="menu" className={`${placement === "mobile" ? "fixed inset-x-3 bottom-[calc(112px+env(safe-area-inset-bottom))]" : "absolute left-0 top-[calc(100%+7px)] w-[260px]"} z-[120] overflow-hidden rounded-[12px] border border-black/10 bg-white p-1.5 shadow-[0_18px_50px_rgba(0,0,0,.14)]`}>
           <div className="max-h-60 overflow-y-auto">
-            {projects.map((item) => <Link role="menuitem" key={item.key} href={`/dashboard?project=${encodeURIComponent(item.key)}&tab=${activeTab}`} onClick={() => setOpen(false)} className={`${item.key === project.key ? "bg-black/[0.055]" : "hover:bg-black/[0.035]"} flex h-10 items-center justify-between gap-3 rounded-[8px] px-3 text-[13px]`}><span className="truncate">{item.name}</span>{item.key === project.key ? <Check size={14} /> : null}</Link>)}
+            {projects.map((item) => <Link prefetch={false} role="menuitem" key={item.key} href={`/dashboard?project=${encodeURIComponent(item.key)}&tab=${activeTab}`} onClick={() => setOpen(false)} className={`${item.key === project.key ? "bg-black/[0.055]" : "hover:bg-black/[0.035]"} flex h-10 items-center justify-between gap-3 rounded-[8px] px-3 text-[13px]`}><span className="truncate">{item.name}</span>{item.key === project.key ? <Check size={14} /> : null}</Link>)}
           </div>
           {project.role === "admin" ? <><div className="my-1.5 border-t border-black/[0.08]" />
           {creating ? <form onSubmit={createProject} className="p-1.5">
@@ -242,7 +245,7 @@ function MobileDashboardNav({ projects, project, activeTab }: { projects: Dashbo
     ...(project.role === "admin" ? [["recap", "Récap", CalendarDays] as [DashboardTab, string, typeof Home]] : []),
     ...(project.role === "admin" ? [["settings", "Réglages", Settings2] as [DashboardTab, string, typeof Home]] : []),
   ];
-  return <nav aria-label="Navigation du dashboard" className="fixed inset-x-0 bottom-0 z-[110] border-t border-black/10 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"><div className="border-b border-black/[0.07] px-2"><ProjectSelector projects={projects} project={project} activeTab={activeTab} placement="mobile" /></div><div className="grid h-16" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>{items.map(([tab, label, Icon]) => <Link key={tab} href={`/dashboard?project=${encodeURIComponent(project.key)}&tab=${tab}`} aria-current={activeTab === tab ? "page" : undefined} className={`${activeTab === tab ? "text-black" : "text-black/40"} relative flex min-w-0 flex-col items-center justify-center gap-1 text-[9px] font-medium`}>{activeTab === tab ? <span className="absolute top-0 h-0.5 w-7 rounded-full bg-black" /> : null}<Icon size={18} strokeWidth={activeTab === tab ? 2.2 : 1.8} /><span className="max-w-full truncate px-0.5">{label}</span></Link>)}</div></nav>;
+  return <nav aria-label="Navigation du dashboard" className="fixed inset-x-0 bottom-0 z-[110] border-t border-black/10 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden"><div className="border-b border-black/[0.07] px-2"><ProjectSelector projects={projects} project={project} activeTab={activeTab} placement="mobile" /></div><div className="grid h-16" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>{items.map(([tab, label, Icon]) => <Link prefetch={false} key={tab} href={`/dashboard?project=${encodeURIComponent(project.key)}&tab=${tab}`} aria-current={activeTab === tab ? "page" : undefined} className={`${activeTab === tab ? "text-black" : "text-black/40"} relative flex min-w-0 flex-col items-center justify-center gap-1 text-[9px] font-medium`}>{activeTab === tab ? <span className="absolute top-0 h-0.5 w-7 rounded-full bg-black" /> : null}<Icon size={18} strokeWidth={activeTab === tab ? 2.2 : 1.8} /><span className="max-w-full truncate px-0.5">{label}</span></Link>)}</div></nav>;
 }
 
 export function DashboardShell({
@@ -313,29 +316,29 @@ export function DashboardShell({
         <nav className="mt-10">
           <p className="px-3 text-[13px] text-black/40">Dashboard</p>
           <div className="mt-2 grid gap-1 text-[14px]">
-            <Link href={tabHref("overview")} className={`${activeTab === "overview" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Home size={18} />Vue d’ensemble</Link>
-            <Link href={tabHref("traffic")} className={`${activeTab === "traffic" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><BarChart3 size={18} />Statistiques</Link>
-            <Link href={tabHref("pages")} className={`${activeTab === "pages" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><FolderKanban size={18} />Pages du site</Link>
-            <Link href={tabHref("cms")} className={`${activeTab === "cms" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Database size={18} />CMS</Link>
-            <Link href={tabHref("assets")} className={`${activeTab === "assets" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Images size={18} />Assets</Link>
-            <Link href={tabHref("ai")} className={`${activeTab === "ai" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Bot size={18} />Agents IA</Link>
-            {project.role === "admin" ? <Link href={tabHref("recap")} className={`${activeTab === "recap" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><CalendarDays size={18} />Récap mensuel</Link> : null}
-            {project.role === "admin" ? <Link href={tabHref("settings")} className={`${activeTab === "settings" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Settings2 size={18} />Paramètres</Link> : null}
+            <Link prefetch={false} href={tabHref("overview")} className={`${activeTab === "overview" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Home size={18} />Vue d’ensemble</Link>
+            <Link prefetch={false} href={tabHref("traffic")} className={`${activeTab === "traffic" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><BarChart3 size={18} />Statistiques</Link>
+            <Link prefetch={false} href={tabHref("pages")} className={`${activeTab === "pages" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><FolderKanban size={18} />Pages du site</Link>
+            <Link prefetch={false} href={tabHref("cms")} className={`${activeTab === "cms" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Database size={18} />CMS</Link>
+            <Link prefetch={false} href={tabHref("assets")} className={`${activeTab === "assets" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Images size={18} />Assets</Link>
+            <Link prefetch={false} href={tabHref("ai")} className={`${activeTab === "ai" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Bot size={18} />Agents IA</Link>
+            {project.role === "admin" ? <Link prefetch={false} href={tabHref("recap")} className={`${activeTab === "recap" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><CalendarDays size={18} />Récap mensuel</Link> : null}
+            {project.role === "admin" ? <Link prefetch={false} href={tabHref("settings")} className={`${activeTab === "settings" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Settings2 size={18} />Paramètres</Link> : null}
           </div>
         </nav>
       </aside>
 
       <section className={activeTab === "cms" ? "min-h-0 min-w-0 flex-1 overflow-hidden lg:col-start-2 lg:row-start-1 lg:h-full" : "min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:row-start-1 lg:px-10 lg:py-11 xl:px-12"}>
         {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents key={`${project.ownerId}:${project.key}`} project={project} initialAnalytics={analytics} /> : activeTab === "recap" ? <MonthlyRecap project={project} data={recap} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
-        <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        {activeTab !== "traffic" ? <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="font-serif text-[27px] leading-tight tracking-[-0.05em] sm:text-[30px]">{activeTab === "pages" ? "Pages du site" : activeTab === "traffic" ? "Statistiques et trafic" : "Bonjour, voici votre site"}</h1>
-            <p className="mt-2 text-[13px] font-medium leading-5 text-black/60 sm:text-[14px]">{activeTab === "pages" ? `Gérez toutes les pages de ${project.name}.` : activeTab === "traffic" ? `Suivez les indicateurs disponibles pour ${project.name}.` : `Suivez le contenu, le trafic et la publication de ${project.name}.`}</p>
+            <h1 className="font-serif text-[27px] leading-tight tracking-[-0.05em] sm:text-[30px]">{activeTab === "pages" ? "Pages du site" : "Bonjour, voici votre site"}</h1>
+            <p className="mt-2 text-[13px] font-medium leading-5 text-black/60 sm:text-[14px]">{activeTab === "pages" ? `Gérez toutes les pages de ${project.name}.` : `Suivez le contenu, le trafic et la publication de ${project.name}.`}</p>
           </div>
           {project.role === "admin" ? <Link href={`/builder?project=${encodeURIComponent(project.key)}`} className="flex h-10 w-full items-center justify-center gap-2 rounded-[10px] bg-gradient-to-b from-[#323232] to-[#222] px-5 text-[13px] font-semibold text-white shadow-md sm:h-9 sm:w-auto sm:text-[14px]">
             <PencilLine size={15} />Nouvelle modification
           </Link> : null}
-        </header>
+        </header> : null}
 
         {activeTab === "overview" && project.role === "admin" ? <ProjectPreviewCard project={project} /> : null}
 
