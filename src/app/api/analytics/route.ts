@@ -35,21 +35,66 @@ async function context(request: Request) {
   return { supabase, projectKey, projectOwnerId, pages };
 }
 
-async function snapshot(input: Awaited<ReturnType<typeof context>>) {
+type TrackingEvent = {
+  page_path: string;
+  session_id: string;
+  visitor_id: string;
+  referrer: string;
+  device_type: "desktop" | "mobile" | "tablet";
+  country_code: string;
+  occurred_at: string;
+  last_seen_at: string;
+};
+
+function buildInternalAnalytics(events: TrackingEvent[]) {
+  const now = Date.now();
+  const days = Array.from({ length: 31 }, (_, index) => {
+    const value = new Date(now - (30 - index) * 86_400_000);
+    return value.toISOString().slice(0, 10);
+  });
+  const liveVisitorIds = new Set(events
+    .filter((event) => new Date(event.last_seen_at).getTime() >= now - 120_000)
+    .map((event) => event.visitor_id));
+  return {
+    liveVisitors: liveVisitorIds.size,
+    events,
+    series: days.map((day) => {
+      const daily = events.filter((event) => event.occurred_at.slice(0, 10) === day);
+      return {
+        day,
+        pageViews: daily.length,
+        uniqueVisitors: new Set(daily.map((event) => event.visitor_id)).size,
+      };
+    }),
+  };
+}
+
+async function snapshotData(input: Exclude<Awaited<ReturnType<typeof context>>, { error: NextResponse }>) {
+  const after = new Date(Date.now() - 30 * 86_400_000).toISOString();
   if ("error" in input) return input.error;
-  const [performanceResult, summaryResult, trackingResult] = await Promise.all([
+  const [performanceResult, summaryResult, trackingResult, eventsResult] = await Promise.all([
     input.supabase.from("project_page_performance").select("*").eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey).order("ga_page_views", { ascending: false }),
     input.supabase.from("project_analytics_summary").select("*").eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey).maybeSingle(),
     input.supabase.from("project_page_traffic_daily").select("page_path, day, page_views, unique_visitors, total_engagement_seconds, updated_at").eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey),
+    input.supabase.from("project_tracking_events").select("page_path, session_id, visitor_id, referrer, device_type, country_code, occurred_at, last_seen_at").eq("owner_id", input.projectOwnerId).eq("project_key", input.projectKey).gte("occurred_at", after).order("occurred_at", { ascending: true }),
   ]);
-  return NextResponse.json(buildEditorialPerformanceSnapshot({
+  const base = buildEditorialPerformanceSnapshot({
     pages: input.pages,
     performanceRows: performanceResult.data,
     trackingRows: trackingResult.data,
     summaryRow: summaryResult.data,
     performanceError: performanceResult.error?.message ?? summaryResult.error?.message,
     trackingError: trackingResult.error?.message,
-  }));
+  });
+  return {
+    ...base,
+    internalAnalytics: buildInternalAnalytics((eventsResult.data ?? []) as TrackingEvent[]),
+  };
+}
+
+async function snapshot(input: Awaited<ReturnType<typeof context>>) {
+  if ("error" in input) return input.error;
+  return NextResponse.json(await snapshotData(input));
 }
 
 export async function GET(request: Request) {

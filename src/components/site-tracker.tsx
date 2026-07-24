@@ -21,6 +21,20 @@ export function SiteTracker({ publishedSlug, pagePath }: { publishedSlug: string
 
   useEffect(() => {
     const visitorId = getAnonymousVisitorId();
+    const referrer = (() => {
+      if (!document.referrer) return "direct";
+      try {
+        const hostname = new URL(document.referrer).hostname.replace(/^www\./, "");
+        return hostname === window.location.hostname.replace(/^www\./, "") ? "direct" : hostname;
+      } catch {
+        return "direct";
+      }
+    })();
+    const deviceType = /iPad|Tablet/i.test(navigator.userAgent)
+      ? "tablet"
+      : /Mobi|Android|iPhone|iPod/i.test(navigator.userAgent)
+        ? "mobile"
+        : "desktop";
     const startedAt = performance.now();
     let visibleSince = document.visibilityState === "visible" ? performance.now() : null;
     let visibleMilliseconds = 0;
@@ -31,6 +45,8 @@ export function SiteTracker({ publishedSlug, pagePath }: { publishedSlug: string
       sessionId: sessionId.current,
       visitorId,
       engagementSeconds,
+      referrer,
+      deviceType,
     });
 
     const elapsedSeconds = () => {
