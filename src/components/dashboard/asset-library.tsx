@@ -1,10 +1,11 @@
 "use client";
 
-import { ImagePlus, LoaderCircle, Mail, MapPin, Palette, RefreshCw, Save, Search, Sparkles, Type, UploadCloud, X } from "lucide-react";
+import { Check, Copy, ImagePlus, LoaderCircle, Mail, MapPin, Palette, RefreshCw, Save, Search, Sparkles, Type, UploadCloud, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardAsset, DashboardProject } from "@/components/dashboard/dashboard-shell";
 import { prepareImageForUpload } from "@/lib/client-images";
+import { buildImagePrompt, IMAGE_SCENE_PROMPTS } from "@/lib/image-prompt-library";
 import { applySiteBrand, DEFAULT_SITE_BRAND, getSiteBrand, normalizeSiteBrand } from "@/lib/site-brand";
 import type { SiteBrandSettings } from "@/lib/site-template";
 
@@ -33,17 +34,41 @@ function synchronizedAccent(primary: string, previousAccent: string) {
   } catch { return previousAccent; }
 }
 
+async function copyToClipboard(value: string) {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return;
+    } catch {
+      // The fallback below also works on local or non-secure previews.
+    }
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  const copied = document.execCommand("copy");
+  textarea.remove();
+  if (!copied) throw new Error("Copie impossible");
+}
+
 export function AssetLibrary({ project, initialAssets }: { project: DashboardProject; initialAssets: DashboardAsset[] }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const darkLogoInputRef = useRef<HTMLInputElement>(null);
   const lightLogoInputRef = useRef<HTMLInputElement>(null);
+  const lastSceneIndexRef = useRef(-1);
+  const copyResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [assets, setAssets] = useState(initialAssets);
   const [selected, setSelected] = useState<DashboardAsset | null>(null);
   const [query, setQuery] = useState("");
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [message, setMessage] = useState("");
+  const [promptCopied, setPromptCopied] = useState(false);
   const [brand, setBrand] = useState<SiteBrandSettings>(() => getSiteBrand(project.pages));
   const [savedBrand, setSavedBrand] = useState<SiteBrandSettings>(() => getSiteBrand(project.pages));
   const [savingBrand, setSavingBrand] = useState(false);
@@ -56,6 +81,29 @@ export function AssetLibrary({ project, initialAssets }: { project: DashboardPro
     document.body.style.overflow = "hidden";
     return () => { document.removeEventListener("keydown", close); document.body.style.overflow = ""; };
   }, [selected]);
+
+  useEffect(() => () => {
+    if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+  }, []);
+
+  async function copyImagePrompt() {
+    const previous = lastSceneIndexRef.current;
+    const sceneIndex = previous < 0
+      ? Math.floor(Math.random() * IMAGE_SCENE_PROMPTS.length)
+      : (() => {
+          const candidate = Math.floor(Math.random() * (IMAGE_SCENE_PROMPTS.length - 1));
+          return candidate >= previous ? candidate + 1 : candidate;
+        })();
+    try {
+      await copyToClipboard(buildImagePrompt(sceneIndex));
+      lastSceneIndexRef.current = sceneIndex;
+      setPromptCopied(true);
+      if (copyResetTimerRef.current) clearTimeout(copyResetTimerRef.current);
+      copyResetTimerRef.current = setTimeout(() => setPromptCopied(false), 1800);
+    } catch {
+      setMessage("Le prompt n’a pas pu être copié. Autorisez l’accès au presse-papiers puis réessayez.");
+    }
+  }
 
   async function uploadFiles(files: File[]) {
     const images = files.filter((file) => file.type.startsWith("image/"));
@@ -124,7 +172,7 @@ export function AssetLibrary({ project, initialAssets }: { project: DashboardPro
         <div className="mt-5 grid gap-3 rounded-[10px] bg-black/[.025] p-4 text-[12px] text-black/55 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center"><MapPin size={16} className="hidden text-black/55 sm:block"/><label className="min-w-0 font-semibold text-black/55">Google Reviews<input value={brand.googleReviewsUrl ?? ""} onChange={(event) => updateBrand({ googleReviewsUrl: event.target.value })} placeholder="Lien Google Maps de l’établissement" className="mt-2 h-10 w-full rounded-[8px] border border-black/10 bg-white px-3 text-[12px] font-medium text-black outline-none"/></label><p className="sm:col-start-2">Le lien est sauvegardé maintenant ; la synchronisation des avis se branche ensuite au compte Google Business Profile.</p></div>
       </section>
 
-      <div className="mt-7 flex flex-col gap-5 sm:mt-9 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="font-serif text-[25px] tracking-[-.045em]">Images</h2><p className="mt-1 text-[12px] text-black/48">Photos utilisables dans les sections du site.</p></div><input ref={inputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => uploadFiles(Array.from(event.target.files ?? []))} /><div className="flex items-center gap-4"><span className="text-[11px] text-black/40">{filteredAssets.length} image(s)</span><button type="button" disabled={uploading} onClick={() => inputRef.current?.click()} className="flex h-11 items-center justify-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232,#222)] px-5 text-[13px] font-semibold text-white shadow-md disabled:opacity-60 sm:h-10">{uploading ? <LoaderCircle size={15} className="animate-spin" /> : <UploadCloud size={15} />}{uploading ? `${progress.current}/${progress.total}` : "Importer des photos"}</button></div></div>
+      <div className="mt-7 flex flex-col gap-5 sm:mt-9 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="font-serif text-[25px] tracking-[-.045em]">Images</h2><p className="mt-1 text-[12px] text-black/48">Photos utilisables dans les sections du site.</p></div><input ref={inputRef} type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={(event) => uploadFiles(Array.from(event.target.files ?? []))} /><div className="flex flex-wrap items-center gap-3"><button type="button" onClick={() => void copyImagePrompt()} className="flex h-11 items-center justify-center gap-2 rounded-[10px] border border-black/[0.1] bg-white px-4 text-[12px] font-semibold text-black shadow-[0_2px_7px_rgba(0,0,0,.06)] transition hover:bg-black/[0.025] sm:h-10">{promptCopied ? <Check size={15} className="text-[#159457]" /> : <Copy size={15} />}{promptCopied ? "Copié" : "Copier prompt"}</button><span className="text-[11px] text-black/40">{filteredAssets.length} image(s)</span><button type="button" disabled={uploading} onClick={() => inputRef.current?.click()} className="flex h-11 items-center justify-center gap-2 rounded-[10px] bg-[linear-gradient(180deg,#323232,#222)] px-5 text-[13px] font-semibold text-white shadow-md disabled:opacity-60 sm:h-10">{uploading ? <LoaderCircle size={15} className="animate-spin" /> : <UploadCloud size={15} />}{uploading ? `${progress.current}/${progress.total}` : "Importer des photos"}</button></div></div>
 
       <div className="mt-6 flex flex-col gap-2 border-y border-black/[0.07] py-3 sm:mt-8"><label className="flex h-10 w-full max-w-[360px] items-center gap-2 rounded-[8px] bg-[#f6f6f6] px-3 sm:h-9"><Search size={14} className="text-black/35" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Rechercher une image" className="min-w-0 flex-1 bg-transparent text-[12px] outline-none" /></label></div>
       {message ? <p className="mt-3 text-[11px] text-black/50">{message}</p> : null}
