@@ -83,7 +83,7 @@ function ProjectCard({
   const dashboardUrl = `/dashboard?project=${encodeURIComponent(project.key)}&tab=overview`;
 
   return (
-    <article className="relative min-w-0">
+    <article className="relative w-[85%] min-w-0">
       <Link
         href={dashboardUrl}
         className="block translate-y-0 outline-none transition-transform duration-300 ease-out hover:-translate-y-2 focus-visible:-translate-y-2 focus-visible:ring-2 focus-visible:ring-black/40"
