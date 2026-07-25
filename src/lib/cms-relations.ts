@@ -46,6 +46,7 @@ function serviceEntries(pages: SitePage[]) {
       );
       if (hero?.type !== "services-hub-hero") return null;
       return {
+        serviceId: page.id,
         title: hero.fields.title || page.title,
         description: hero.fields.subtitle,
         imageUrl: hero.fields.backgroundImageUrl,
@@ -146,6 +147,78 @@ function matchingServiceHref(title: string, services: HubService[]) {
         service.title.trim().toLocaleLowerCase("fr").includes(normalized),
     )?.href ?? "/prestations"
   );
+}
+
+function matchingService(
+  candidate: Pick<HubService, "serviceId" | "title" | "href">,
+  services: HubService[],
+) {
+  const byId = candidate.serviceId
+    ? services.find((service) => service.serviceId === candidate.serviceId)
+    : undefined;
+  if (byId) return byId;
+  const direct = services.find((service) => service.href === candidate.href);
+  if (direct) return direct;
+  const href = matchingServiceHref(candidate.title, services);
+  return services.find((service) => service.href === href);
+}
+
+function canonicalServiceSelection(
+  current: HubService[],
+  services: HubService[],
+) {
+  if (!services.length) return current;
+  const requestedCount = Math.max(1, current.length || 3);
+  const selected = uniqueBy(
+    current
+      .map((candidate) => matchingService(candidate, services))
+      .filter((service): service is HubService => Boolean(service)),
+    (service) => service.href,
+  );
+  const completed = uniqueBy(
+    [...selected, ...services],
+    (service) => service.href,
+  ).slice(0, requestedCount);
+  return completed.map((service) => ({ ...service }));
+}
+
+function applyGlobalReviewSettings<T>(value: T, brand: ReturnType<typeof getSiteBrand>): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => applyGlobalReviewSettings(item, brand)) as T;
+  }
+  if (!value || typeof value !== "object") return value;
+
+  const current = value as Record<string, unknown>;
+  const next = Object.fromEntries(
+    Object.entries(current).map(([key, item]) => [
+      key,
+      applyGlobalReviewSettings(item, brand),
+    ]),
+  ) as Record<string, unknown>;
+
+  if ("socialProof" in current) {
+    next.socialProof = {
+      ratingLabel: brand.googleReviewLabel,
+      reviewCount: brand.googleReviewCount,
+    };
+  }
+  if ("reviewRatingLabel" in current) {
+    next.reviewRatingLabel = brand.googleReviewLabel;
+  }
+  if ("reviewScore" in current) {
+    next.reviewScore = brand.googleReviewScore;
+  }
+  if ("reviewCount" in current) {
+    next.reviewCount = brand.googleReviewCount;
+  }
+  if ("reviewCta" in current) {
+    next.reviewCta = {
+      label: "Voir les avis",
+      href: brand.googleReviewsUrl || "#",
+    };
+  }
+
+  return next as T;
 }
 
 function realisationDetailEntries(pages: SitePage[]) {
@@ -482,10 +555,10 @@ export function synchronizeCmsRelations(
               href: "/prestations",
               label: "Voir nos prestations",
             },
-            services: section.fields.services.map((service) => ({
-              ...service,
-              href: matchingServiceHref(service.title, services),
-            })),
+            services: canonicalServiceSelection(
+              section.fields.services,
+              services,
+            ),
           },
         };
       }
@@ -658,14 +731,23 @@ export function synchronizeCmsRelations(
         };
       }
 
-      return {
+      const linkedSection = {
         ...section,
         fields: normalizeLinks(
           section.fields,
           validSlugs,
         ) as typeof section.fields,
       } as typeof section;
+      return linkedSection;
     }),
+  }));
+
+  pages = pages.map((page) => ({
+    ...page,
+    sections: page.sections.map((section) => ({
+      ...section,
+      fields: applyGlobalReviewSettings(section.fields, brand),
+    })) as SitePage["sections"],
   }));
 
   return pages;

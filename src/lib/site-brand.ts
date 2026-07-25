@@ -10,6 +10,9 @@ export const DEFAULT_SITE_BRAND: SiteBrandSettings = {
   phone: "06 00 00 00 00",
   address: "",
   googleReviewsUrl: "",
+  googleReviewLabel: "Excellent",
+  googleReviewScore: "4,8/5",
+  googleReviewCount: "500 avis",
   contactMode: "form",
 };
 
@@ -22,6 +25,12 @@ export function normalizeSiteBrand(value?: Partial<SiteBrandSettings>): SiteBran
     ctaVariant: value?.ctaVariant === "rounded" ? "rounded" : "pill",
     headingFont: value?.headingFont === "jakarta" ? "jakarta" : "new-york",
     contactMode: value?.contactMode === "qualifier" ? "qualifier" : "form",
+    googleReviewLabel:
+      value?.googleReviewLabel?.trim() || DEFAULT_SITE_BRAND.googleReviewLabel,
+    googleReviewScore:
+      value?.googleReviewScore?.trim() || DEFAULT_SITE_BRAND.googleReviewScore,
+    googleReviewCount:
+      value?.googleReviewCount?.trim() || DEFAULT_SITE_BRAND.googleReviewCount,
   };
 }
 

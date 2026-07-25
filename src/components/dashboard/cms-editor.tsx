@@ -14,11 +14,14 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CMS_SECTION_OWNERS,
+  fieldLabel,
   isDerivedCollectionField,
   isDerivedCollectionSection,
+  isSystemManagedField,
+  sectionLabel,
 } from "@/lib/content-sections";
 import { ArticleContentEditor } from "@/components/dashboard/article-content-editor";
 import {
@@ -44,7 +47,14 @@ type Path = Array<string | number>;
 type ContentColumn = { key: string; label: string; path: Path; image: boolean };
 
 const collections = [
-  { id: "all", label: "Tout le contenu", match: () => true },
+  {
+    id: "all",
+    label: "Tout le contenu",
+    match: (page: SitePage) =>
+      ["/realisations/", "/blog/", "/prestations/", "/secteurs/", "/zones/"].some(
+        (prefix) => page.slug.startsWith(prefix),
+      ),
+  },
   {
     id: "realisations",
     label: "Réalisations",
@@ -70,23 +80,32 @@ const collections = [
     label: "Zones d’intervention",
     match: (page: SitePage) => page.slug.startsWith("/zones/"),
   },
-  {
-    id: "pages",
-    label: "Pages",
-    match: (page: SitePage) =>
-      !["realisation", "blog", "prestation", "secteur", "/zones/"].some((part) =>
-        page.slug.includes(part),
-      ),
-  },
 ] as const;
 
 const hiddenKeys = new Set(["id", "type", "variant"]);
-const humanize = (value: string) =>
-  value
-    .replace(/([A-Z])/g, " $1")
-    .replace(/[-_]/g, " ")
-    .replace(/^./, (letter) => letter.toUpperCase());
 const isImage = (key: string) => /image|avatar|photo|logo/i.test(key);
+
+function columnLabel(labels: string[]) {
+  const field = labels.at(-1) ?? "Champ";
+  const itemNumber = labels.at(-2);
+  const group = labels.at(-3);
+  if (itemNumber && /^\d+$/.test(itemNumber) && group) {
+    const singular = new Map([
+      ["Prestations", "Prestation"],
+      ["Cartes", "Carte"],
+      ["Éléments", "Élément"],
+      ["Étapes", "Étape"],
+      ["Chiffres clés", "Chiffre clé"],
+      ["Points forts", "Point fort"],
+      ["Champs", "Champ"],
+      ["Images du bandeau", "Image"],
+      ["Comparaisons avant / après", "Comparaison"],
+      ["Contenu", "Bloc"],
+    ]).get(group) ?? group;
+    return `${singular} ${itemNumber} — ${field}`;
+  }
+  return field;
+}
 
 function setAtPath<T>(source: T, path: Path, value: JsonValue): T {
   if (path.length === 0) return value as T;
@@ -112,6 +131,29 @@ function getAtPath(source: unknown, path: Path): JsonValue | undefined {
   ) as JsonValue | undefined;
 }
 
+function orderedObjectEntries(value: { [key: string]: JsonValue }) {
+  const priority = new Map([
+    ["title", 0],
+    ["subtitle", 1],
+    ["description", 2],
+    ["text", 3],
+    ["label", 4],
+    ["backgroundImageUrl", 5],
+    ["heroImageUrl", 5],
+    ["imageUrl", 6],
+    ["imageAlt", 7],
+    ["heroImageAlt", 7],
+    ["alt", 7],
+  ]);
+  return Object.entries(value).sort(([leftKey, left], [rightKey, right]) => {
+    const leftPriority =
+      priority.get(leftKey) ?? (Array.isArray(left) ? 20 : 10);
+    const rightPriority =
+      priority.get(rightKey) ?? (Array.isArray(right) ? 20 : 10);
+    return leftPriority - rightPriority;
+  });
+}
+
 function collectColumns(
   value: JsonValue,
   path: Path = [],
@@ -119,6 +161,9 @@ function collectColumns(
   sectionType?: SitePage["sections"][number]["type"],
   sectionFieldPath: Path = [],
 ): ContentColumn[] {
+  if (sectionFieldPath.length > 0 && isSystemManagedField(sectionFieldPath)) {
+    return [];
+  }
   if (
     sectionType &&
     sectionFieldPath.length > 0 &&
@@ -137,13 +182,13 @@ function collectColumns(
     );
   }
   if (value && typeof value === "object") {
-    return Object.entries(value).flatMap(([key, child]) =>
+    return orderedObjectEntries(value).flatMap(([key, child]) =>
       hiddenKeys.has(key)
         ? []
         : collectColumns(
             child,
             [...path, key],
-            [...labels, humanize(key)],
+            [...labels, fieldLabel(key)],
             sectionType,
             [...sectionFieldPath, key],
           ),
@@ -154,7 +199,7 @@ function collectColumns(
     {
       key: path.join("."),
       path,
-      label: labels.slice(-3).join(" · "),
+      label: columnLabel(labels),
       image: isImage(lastKey),
     },
   ];
@@ -178,6 +223,15 @@ function slugifyEntry(value: string) {
       .replace(/^-+|-+$/g, "")
       .slice(0, 72) || "nouvelle-zone"
   );
+}
+
+function collectionForPage(page: SitePage) {
+  if (page.slug.startsWith("/realisations/")) return "realisations";
+  if (page.slug.startsWith("/blog/")) return "articles";
+  if (page.slug.startsWith("/prestations/")) return "prestations";
+  if (page.slug.startsWith("/secteurs/")) return "secteurs";
+  if (page.slug.startsWith("/zones/")) return "zones";
+  return "all";
 }
 
 function entryPresentation(page: SitePage, collectionId: string) {
@@ -247,6 +301,9 @@ function isEditableSection(
   if (collectionId === "zones") return section.type === "hero";
   if (section.type === "article-detail" && collectionId !== "articles")
     return false;
+  if (section.type === "sector-services" && collectionId === "prestations") {
+    return true;
+  }
   const owner = CMS_SECTION_OWNERS[section.type];
   if (!owner) return false;
   return owner === collectionId;
@@ -255,9 +312,11 @@ function isEditableSection(
 export function CmsEditor({
   project,
   canOpenBuilder,
+  onEditorOpenChange,
 }: {
   project: CmsProject;
   canOpenBuilder: boolean;
+  onEditorOpenChange?: (open: boolean) => void;
 }) {
   const [pages, setPages] = useState(project.pages);
   const [collectionId, setCollectionId] = useState("articles");
@@ -296,7 +355,7 @@ export function CmsEditor({
             ? collectColumns(
                 section.fields as unknown as JsonValue,
                 ["sections", index, "fields"],
-                [humanize(section.type)],
+                [sectionLabel(section.type, collectionId)],
                 section.type,
               )
             : [],
@@ -316,6 +375,11 @@ export function CmsEditor({
   const activeArticle =
     pages.find((page) => page.id === activeArticleId) ?? null;
   const activeEntry = pages.find((page) => page.id === activeEntryId) ?? null;
+
+  useEffect(() => {
+    onEditorOpenChange?.(Boolean(activeArticle || activeEntry));
+    return () => onEditorOpenChange?.(false);
+  }, [activeArticle, activeEntry, onEditorOpenChange]);
 
   function updateCell(pageId: string, path: Path, value: JsonValue) {
     setPages((current) =>
@@ -539,7 +603,13 @@ export function CmsEditor({
             pages={rows}
             collectionId={collectionId}
             collectionLabel={collection.label}
-            onOpen={(page) => setActiveEntryId(page.id)}
+            onOpen={(page) => {
+              if (collectionForPage(page) === "articles") {
+                setActiveArticleId(page.id);
+              } else {
+                setActiveEntryId(page.id);
+              }
+            }}
             onAddZone={addZone}
           />
           <div className="hidden">
@@ -871,7 +941,9 @@ function EntryDetailEditor({
   onChange: (path: Path, value: JsonValue) => void;
   onClose: () => void;
 }) {
-  const presentation = entryPresentation(page, collectionId);
+  const effectiveCollectionId =
+    collectionId === "all" ? collectionForPage(page) : collectionId;
+  const presentation = entryPresentation(page, effectiveCollectionId);
   const detailSectionIndex = page.sections.findIndex(
     (section) => section.type === "realisation-detail",
   );
@@ -891,7 +963,7 @@ function EntryDetailEditor({
   const zoneHero =
     zoneHeroIndex >= 0 ? page.sections[zoneHeroIndex] : undefined;
   const zoneCity =
-    collectionId === "zones"
+    effectiveCollectionId === "zones"
       ? (zoneHero?.type === "hero" ? zoneHero.fields.title : page.title)
           .replace(/^paysagiste\s+[àa]\s+/i, "")
           .trim()
@@ -913,7 +985,7 @@ function EntryDetailEditor({
 
   const editableSections = page.sections
     .map((section, index) => ({ section, index }))
-    .filter(({ section }) => isEditableSection(section, collectionId));
+    .filter(({ section }) => isEditableSection(section, effectiveCollectionId));
 
   return (
     <div className="absolute inset-0 z-50 flex min-h-0 flex-col bg-[#fafaf8]">
@@ -946,18 +1018,24 @@ function EntryDetailEditor({
         <div className="mx-auto grid max-w-[1120px] gap-5">
           <section className="rounded-[18px] border border-black/[0.07] bg-white p-5 sm:p-7">
             <h3 className="font-serif text-[21px]">Informations générales</h3>
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="mt-5 grid gap-4">
               <CmsTextField
                 label="Nom dans le CMS"
                 value={page.title}
                 onChange={(value) => onChange(["title"], value)}
               />
-              <CmsTextField
-                label="Slug"
-                value={page.slug}
-                onChange={(value) => onChange(["slug"], value)}
-              />
-              {collectionId === "zones" && zoneHero?.type === "hero" ? (
+              <div className="grid gap-2">
+                <span className="text-[10px] font-semibold text-black/50">
+                  Adresse de la page
+                </span>
+                <div className="flex min-h-11 items-center rounded-[10px] border border-black/[0.06] bg-black/[0.025] px-3 text-[12px] text-black/45">
+                  {page.slug}
+                </div>
+                <p className="text-[9px] leading-4 text-black/35">
+                  Cette adresse est générée et reliée automatiquement à la navigation.
+                </p>
+              </div>
+              {effectiveCollectionId === "zones" && zoneHero?.type === "hero" ? (
                 <CmsTextField
                   label="Ville"
                   value={zoneCity}
@@ -1009,7 +1087,7 @@ function EntryDetailEditor({
             const fields = collectColumns(
               section.fields as unknown as JsonValue,
               ["sections", index, "fields"],
-              [humanize(section.type)],
+              [sectionLabel(section.type, effectiveCollectionId)],
               section.type,
             ).filter(
               (field) =>
@@ -1026,13 +1104,27 @@ function EntryDetailEditor({
               >
                 <div>
                   <h3 className="font-serif text-[21px]">
-                    {humanize(section.type)}
+                    {sectionLabel(section.type, effectiveCollectionId)}
                   </h3>
                   <p className="mt-1 text-[9px] text-black/35">
-                    Texte, images et contenu propres à cette fiche.
+                    {section.type === "sector-extra-services"
+                      ? "Les prestations affichées sont synchronisées avec le CMS Prestations."
+                      : "Uniquement le contenu propre à cette fiche est modifiable ici."}
                   </p>
+                  {section.type === "sector-extra-services" ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {section.fields.services.map((service) => (
+                        <span
+                          key={service.href || service.title}
+                          className="rounded-full border border-black/[0.07] bg-black/[0.025] px-3 py-1.5 text-[10px] font-medium text-black/55"
+                        >
+                          {service.title}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <div className="mt-5 grid gap-5">
                   {fields.map((field) => {
                     const value = getAtPath(page, field.path);
                     if (value === undefined) return null;

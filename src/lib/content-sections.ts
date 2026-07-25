@@ -47,6 +47,112 @@ export const SECTION_LABELS: Record<SectionInstance["type"], string> = {
   "site-footer": "Pied de page",
 };
 
+const FIELD_LABELS: Record<string, string> = {
+  title: "Titre",
+  subtitle: "Sous-titre",
+  description: "Description",
+  text: "Texte",
+  label: "Libellé",
+  value: "Valeur",
+  question: "Question",
+  answer: "Réponse",
+  icon: "Icône",
+  imageUrl: "Image",
+  backgroundImageUrl: "Image d’arrière-plan",
+  heroImageUrl: "Image principale",
+  heroImageAlt: "Texte alternatif de l’image principale",
+  imageAlt: "Texte alternatif",
+  alt: "Texte alternatif",
+  author: "Auteur",
+  authorName: "Nom de l’auteur",
+  authorRole: "Rôle de l’auteur",
+  city: "Ville",
+  category: "Catégorie",
+  readingTime: "Temps de lecture",
+  updatedLabel: "Libellé de mise à jour",
+  updatedAt: "Date de mise à jour",
+  tocTitle: "Titre du sommaire",
+  listTitle: "Titre de la liste",
+  relatedTitle: "Titre des contenus associés",
+  formTitle: "Titre du formulaire",
+  submitLabel: "Texte du bouton d’envoi",
+  searchPlaceholder: "Texte de recherche",
+  loadMoreLabel: "Texte pour afficher la suite",
+  beforeAfterTitle: "Titre avant / après",
+  services: "Prestations",
+  cards: "Cartes",
+  items: "Éléments",
+  steps: "Étapes",
+  stats: "Chiffres clés",
+  highlights: "Points forts",
+  fields: "Champs",
+  tickerImages: "Images du bandeau",
+  beforeAfterSlides: "Comparaisons avant / après",
+  blocks: "Contenu",
+};
+
+const SYSTEM_FIELD_NAMES = new Set([
+  "href",
+  "serviceId",
+  "cta",
+  "primaryCta",
+  "secondaryCta",
+  "reviewCta",
+  "sidebarCta",
+  "socialProof",
+  "reviewRatingLabel",
+  "reviewScore",
+  "reviewCount",
+  "ratingLabel",
+  "breadcrumbs",
+  "navigation",
+  "serviceLinks",
+  "linkGroups",
+  "socialLinks",
+  "cardCtaLabel",
+  "relatedCardCtaLabel",
+  "relatedFilters",
+  "relatedProjects",
+  "relatedPosts",
+  "phone",
+  "email",
+  "address",
+  "brand",
+  "logoLabel",
+  "logoImageUrl",
+  "copyright",
+  "credit",
+]);
+
+export function sectionLabel(
+  type: SectionInstance["type"],
+  collectionId?: string,
+) {
+  if (type === "sector-services" && collectionId === "prestations") {
+    return "Bénéfices de la prestation";
+  }
+  if (type === "sector-services" && collectionId === "secteurs") {
+    return "Solutions pour ce secteur";
+  }
+  return SECTION_LABELS[type];
+}
+
+export function fieldLabel(key: string) {
+  return (
+    FIELD_LABELS[key] ??
+    key
+      .replace(/([A-Z])/g, " $1")
+      .replace(/[-_]/g, " ")
+      .replace(/^./, (letter) => letter.toUpperCase())
+  );
+}
+
+export function isSystemManagedField(path: Array<string | number>) {
+  return path.some(
+    (part) => typeof part === "string" && SYSTEM_FIELD_NAMES.has(part),
+  );
+}
+
 export function isCmsOwnedSection(type: SectionInstance["type"]) {
   return Boolean(CMS_SECTION_OWNERS[type]);
 }
@@ -65,9 +171,10 @@ const DERIVED_COLLECTION_FIELDS: Partial<
   "realisations-page": new Set(["heroImages", "filters", "projects"]),
   "realisation-detail": new Set(["relatedFilters", "relatedProjects"]),
   "service-areas": new Set(["areas"]),
-  testimonials: new Set(["images"]),
+  testimonials: new Set(["images", "reviews", "socialProof"]),
   "blog-advice": new Set(["posts"]),
   "blog-index": new Set(["posts"]),
+  "sector-extra-services": new Set(["services"]),
 };
 
 export function isDerivedCollectionField(

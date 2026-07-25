@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   Copy,
   ExternalLink,
@@ -117,16 +118,6 @@ function withBlockIds(blocks: ArticleBlock[]) {
   return blocks.map((block) =>
     block.id ? block : { ...block, id: crypto.randomUUID() },
   );
-}
-
-function normalizeSlug(value: string) {
-  const clean = value
-    .trim()
-    .replace(/^https?:\/\/[^/]+/i, "")
-    .replace(/^\/+/, "");
-  return clean.startsWith("blog/")
-    ? `/${clean}`
-    : `/blog/${clean.replace(/^blog\/?/, "")}`;
 }
 
 const inputClass =
@@ -299,6 +290,14 @@ export function ArticleContentEditor({
       aria-label={`Modifier ${fields.title}`}
     >
       <header className="flex min-h-[72px] shrink-0 items-center gap-4 border-b border-black/[0.08] bg-white px-5 sm:px-8">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-9 shrink-0 items-center gap-2 rounded-[9px] bg-[#f3f3f3] px-3 text-[11px] font-semibold"
+        >
+          <ArrowLeft size={14} />
+          Retour
+        </button>
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-semibold uppercase tracking-[.08em] text-black/35">
             CMS · Article
@@ -330,16 +329,10 @@ export function ArticleContentEditor({
                 className={inputClass}
               />
             </Field>
-            <Field label="Slug">
-              <input
-                value={page.slug}
-                onChange={(event) =>
-                  updatePage((next) => {
-                    next.slug = normalizeSlug(event.target.value);
-                  })
-                }
-                className={inputClass}
-              />
+            <Field label="Adresse de la page">
+              <div className="mt-1.5 flex h-10 w-full items-center rounded-[9px] border border-black/[0.06] bg-black/[0.025] px-3 text-[12px] text-black/45">
+                {page.slug}
+              </div>
             </Field>
             <Field label="Catégorie">
               <select

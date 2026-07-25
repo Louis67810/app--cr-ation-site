@@ -24,6 +24,9 @@ export type SiteBrandSettings = {
   phone: string;
   address: string;
   googleReviewsUrl?: string;
+  googleReviewLabel?: string;
+  googleReviewScore?: string;
+  googleReviewCount?: string;
   contactMode: "form" | "qualifier";
 };
 
@@ -330,6 +333,7 @@ export type SectorExtraServicesFields = {
   title: string;
   cta: Cta;
   services: Array<{
+    serviceId?: string;
     imageUrl: string;
     title: string;
     description: string;
@@ -359,6 +363,7 @@ export type AboutStoryFields = {
 };
 
 export type HubService = {
+  serviceId?: string;
   title: string;
   description: string;
   imageUrl: string;

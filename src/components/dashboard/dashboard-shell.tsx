@@ -275,6 +275,7 @@ export function DashboardShell({
   const [query, setQuery] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [publishMessage, setPublishMessage] = useState("");
+  const [cmsEditorOpen, setCmsEditorOpen] = useState(false);
   const checks = useMemo(() => projectChecks(project), [project]);
   const sectionCount = project.pages.reduce((total, page) => total + page.sections.length, 0);
   const validCount = checks.filter((item) => item.valid).length;
@@ -334,8 +335,8 @@ export function DashboardShell({
   }
 
   return (
-    <main className={`${activeTab === "cms" ? "fixed inset-0 flex h-dvh flex-col overflow-hidden pb-[calc(108px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_minmax(0,1fr)] lg:pb-0" : "min-h-screen pb-[calc(108px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_1fr] lg:pb-0"} bg-white text-[#1c1c1c]`}>
-      <aside className={`${activeTab === "cms" ? "lg:col-start-1 lg:row-start-1 lg:h-dvh lg:overflow-hidden lg:border-r" : "lg:sticky lg:top-0 lg:col-start-1 lg:row-start-1 lg:h-screen lg:border-r"} hidden border-black/10 bg-[#fcf9f4] px-4 py-4 lg:block`}>
+    <main className={`${activeTab === "cms" ? `fixed inset-0 flex h-dvh flex-col overflow-hidden ${cmsEditorOpen ? "pb-0 lg:block" : "pb-[calc(108px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_minmax(0,1fr)] lg:pb-0"}` : "min-h-screen pb-[calc(108px+env(safe-area-inset-bottom))] lg:grid lg:grid-cols-[212px_1fr] lg:pb-0"} bg-white text-[#1c1c1c]`}>
+      <aside className={`${cmsEditorOpen ? "lg:hidden" : activeTab === "cms" ? "lg:col-start-1 lg:row-start-1 lg:h-dvh lg:overflow-hidden lg:border-r" : "lg:sticky lg:top-0 lg:col-start-1 lg:row-start-1 lg:h-screen lg:border-r"} hidden border-black/10 bg-[#fcf9f4] px-4 py-4 lg:block`}>
         <Link
           prefetch={false}
           href="/dashboard?tab=projects"
@@ -367,8 +368,8 @@ export function DashboardShell({
         </nav>
       </aside>
 
-      <section className={activeTab === "cms" ? "min-h-0 min-w-0 flex-1 overflow-hidden lg:col-start-2 lg:row-start-1 lg:h-full" : "min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:row-start-1 lg:px-10 lg:py-11 xl:px-12"}>
-        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents key={`${project.ownerId}:${project.key}`} project={project} initialAnalytics={analytics} /> : activeTab === "recap" ? <MonthlyRecap project={project} data={recap} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
+      <section className={activeTab === "cms" ? `min-h-0 min-w-0 flex-1 overflow-hidden lg:row-start-1 lg:h-full ${cmsEditorOpen ? "lg:col-start-1" : "lg:col-start-2"}` : "min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:row-start-1 lg:px-10 lg:py-11 xl:px-12"}>
+        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} onEditorOpenChange={setCmsEditorOpen} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents key={`${project.ownerId}:${project.key}`} project={project} initialAnalytics={analytics} /> : activeTab === "recap" ? <MonthlyRecap project={project} data={recap} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
         {activeTab !== "traffic" ? <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-serif text-[27px] leading-tight tracking-[-0.05em] sm:text-[30px]">{activeTab === "pages" ? "Pages du site" : "Bonjour, voici votre site"}</h1>
@@ -437,7 +438,7 @@ export function DashboardShell({
         </section> : null}
         </>}
       </section>
-      <MobileDashboardNav projects={projects} project={project} activeTab={activeTab} />
+      {!cmsEditorOpen ? <MobileDashboardNav projects={projects} project={project} activeTab={activeTab} /> : null}
     </main>
   );
 }
