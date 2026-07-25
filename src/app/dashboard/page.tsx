@@ -49,6 +49,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       ? "overview"
       : "projects";
   const loadProjectLibrary = requestedTab === "projects";
+  const loadSelectedProject =
+    requestedTab !== "projects" && requestedTab !== "prospecting";
 
   // Keep project switching light: the full page document is fetched only for the selected project.
   const projectSelection = `owner_id, project_key, project_name, published_slug, published_at, created_at, updated_at${loadProjectLibrary ? ", pages" : ""}`;
@@ -78,7 +80,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const selected = projects.find((project) => project.key === requestedKey) ?? projects[0];
   const activeTab = (requestedTab === "settings" || requestedTab === "recap") && selected.role !== "admin" ? "overview" : requestedTab;
 
-  if (!loadProjectLibrary && !selected.isDemo) {
+  if (loadSelectedProject && !selected.isDemo) {
     const { data: selectedContent } = await supabase
       .from("site_projects")
       .select("pages")

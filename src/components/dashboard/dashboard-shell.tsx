@@ -248,7 +248,6 @@ function MobileDashboardNav({ projects, project, activeTab }: { projects: Dashbo
     ["cms", "CMS", Database],
     ["assets", "Assets", Images],
     ["ai", "IA", Bot],
-    ["prospecting", "Prospects", UsersRound],
     ...(project.role === "admin" ? [["recap", "Récap", CalendarDays] as [DashboardTab, string, typeof Home]] : []),
     ...(project.role === "admin" ? [["settings", "Réglages", Settings2] as [DashboardTab, string, typeof Home]] : []),
   ];
@@ -310,7 +309,7 @@ export function DashboardShell({
     }
   }
 
-  if (activeTab === "projects") {
+  if (activeTab === "projects" || activeTab === "prospecting") {
     return (
       <main className="min-h-screen bg-white text-[#1c1c1c] lg:grid lg:grid-cols-[212px_minmax(0,1fr)]">
         <aside className="hidden h-screen border-r border-black/10 bg-[#fcf9f4] px-4 py-4 lg:sticky lg:top-0 lg:block">
@@ -320,18 +319,52 @@ export function DashboardShell({
               <Link
                 prefetch={false}
                 href="/dashboard?tab=projects"
-                aria-current="page"
-                className="relative flex h-8 items-center gap-3 rounded-lg bg-black/5 px-3 pl-9 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black"
+                aria-current={activeTab === "projects" ? "page" : undefined}
+                className={`${activeTab === "projects" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}
               >
                 <FolderKanban size={18} />
                 Projets
+              </Link>
+              <Link
+                prefetch={false}
+                href="/dashboard?tab=prospecting"
+                aria-current={activeTab === "prospecting" ? "page" : undefined}
+                className={`${activeTab === "prospecting" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}
+              >
+                <UsersRound size={18} />
+                Prospection
               </Link>
             </div>
           </nav>
         </aside>
 
         <section className="min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:px-10 lg:py-11 xl:px-12">
-          <ProjectsLibrary projects={projects} />
+          <nav
+            aria-label="Navigation de l’espace"
+            className="mb-7 flex gap-1 rounded-[10px] bg-black/[0.035] p-1 lg:hidden"
+          >
+            <Link
+              prefetch={false}
+              href="/dashboard?tab=projects"
+              className={`${activeTab === "projects" ? "bg-white text-black shadow-sm" : "text-black/45"} flex h-9 flex-1 items-center justify-center gap-2 rounded-[8px] text-[12px] font-medium`}
+            >
+              <FolderKanban size={15} />
+              Projets
+            </Link>
+            <Link
+              prefetch={false}
+              href="/dashboard?tab=prospecting"
+              className={`${activeTab === "prospecting" ? "bg-white text-black shadow-sm" : "text-black/45"} flex h-9 flex-1 items-center justify-center gap-2 rounded-[8px] text-[12px] font-medium`}
+            >
+              <UsersRound size={15} />
+              Prospection
+            </Link>
+          </nav>
+          {activeTab === "projects" ? (
+            <ProjectsLibrary projects={projects} />
+          ) : (
+            <ProspectingDashboard />
+          )}
         </section>
       </main>
     );
@@ -365,7 +398,6 @@ export function DashboardShell({
             <Link prefetch={false} href={tabHref("cms")} className={`${activeTab === "cms" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Database size={18} />CMS</Link>
             <Link prefetch={false} href={tabHref("assets")} className={`${activeTab === "assets" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Images size={18} />Assets</Link>
             <Link prefetch={false} href={tabHref("ai")} className={`${activeTab === "ai" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Bot size={18} />Agents IA</Link>
-            <Link prefetch={false} href={tabHref("prospecting")} className={`${activeTab === "prospecting" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><UsersRound size={18} />Prospection</Link>
             {project.role === "admin" ? <Link prefetch={false} href={tabHref("recap")} className={`${activeTab === "recap" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><CalendarDays size={18} />Récap mensuel</Link> : null}
             {project.role === "admin" ? <Link prefetch={false} href={tabHref("settings")} className={`${activeTab === "settings" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Settings2 size={18} />Paramètres</Link> : null}
           </div>
@@ -373,7 +405,7 @@ export function DashboardShell({
       </aside>
 
       <section className={activeTab === "cms" ? `min-h-0 min-w-0 flex-1 overflow-hidden lg:row-start-1 lg:h-full ${cmsEditorOpen ? "lg:col-start-1" : "lg:col-start-2"}` : "min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:row-start-1 lg:px-10 lg:py-11 xl:px-12"}>
-        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} onEditorOpenChange={setCmsEditorOpen} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents key={`${project.ownerId}:${project.key}`} project={project} initialAnalytics={analytics} /> : activeTab === "prospecting" ? <ProspectingDashboard /> : activeTab === "recap" ? <MonthlyRecap project={project} data={recap} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
+        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} onEditorOpenChange={setCmsEditorOpen} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents key={`${project.ownerId}:${project.key}`} project={project} initialAnalytics={analytics} /> : activeTab === "recap" ? <MonthlyRecap project={project} data={recap} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
         {activeTab !== "traffic" ? <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-serif text-[27px] leading-tight tracking-[-0.05em] sm:text-[30px]">{activeTab === "pages" ? "Pages du site" : "Bonjour, voici votre site"}</h1>
