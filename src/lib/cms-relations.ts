@@ -34,6 +34,75 @@ function uniqueBy<T>(items: T[], key: (item: T) => string) {
   });
 }
 
+const assetMatchStopWords = new Set([
+  "avec",
+  "dans",
+  "des",
+  "les",
+  "pour",
+  "une",
+  "votre",
+  "vos",
+  "notre",
+  "nos",
+  "aux",
+  "sur",
+  "par",
+  "plus",
+  "secteur",
+  "paysagiste",
+  "paysagisme",
+  "espace",
+  "espaces",
+  "exterieur",
+  "exterieurs",
+]);
+
+function searchableWords(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 4 && !assetMatchStopWords.has(word));
+}
+
+function sectorTickerAssets(
+  page: SitePage,
+  title: string,
+  subtitle: string,
+  assets: ProjectImageAsset[],
+) {
+  if (assets.length === 0) return null;
+
+  const queryWords = new Set(
+    searchableWords(`${page.title} ${page.slug} ${title} ${subtitle}`),
+  );
+  const ranked = assets
+    .map((asset, index) => {
+      const searchable = searchableWords(
+        `${asset.title ?? ""} ${asset.alt_text ?? ""} ${asset.original_name ?? ""}`,
+      );
+      const score = searchable.reduce(
+        (total, word) => total + (queryWords.has(word) ? 1 : 0),
+        0,
+      );
+      return { asset, index, score };
+    })
+    .sort((left, right) => right.score - left.score || left.index - right.index);
+
+  const matching = ranked.filter(({ score }) => score > 0);
+  const selected = matching.length > 0 ? matching : ranked;
+
+  return selected.map(({ asset }) => ({
+    imageUrl: asset.public_url,
+    alt:
+      asset.alt_text?.trim() ||
+      asset.title?.trim() ||
+      "Photographie liée à ce secteur",
+  }));
+}
+
 function serviceEntries(pages: SitePage[]) {
   return pages
     .filter(
@@ -448,7 +517,8 @@ export function synchronizeCmsRelations(
     ],
     (city) => city.toLocaleLowerCase("fr"),
   );
-  const cleanAssetUrls = visibleProjectImageAssets(sourceAssets)
+  const cleanAssets = visibleProjectImageAssets(sourceAssets);
+  const cleanAssetUrls = cleanAssets
     .map((asset) => asset.public_url)
     .slice(0, 12);
   const homePage = pages.find((page) => page.slug === "/");
@@ -508,6 +578,23 @@ export function synchronizeCmsRelations(
   pages = pages.map((page) => ({
     ...page,
     sections: page.sections.map((section) => {
+      if (section.type === "sector-hero") {
+        const tickerImages = sectorTickerAssets(
+          page,
+          section.fields.title,
+          section.fields.subtitle,
+          cleanAssets,
+        );
+        return tickerImages
+          ? {
+              ...section,
+              fields: {
+                ...section.fields,
+                tickerImages,
+              },
+            }
+          : section;
+      }
       if (section.type === "site-header") {
         return {
           ...section,

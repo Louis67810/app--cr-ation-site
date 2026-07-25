@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   const previousPages = Array.isArray(previousProject?.pages) ? previousProject.pages as SitePage[] : null;
   const { data: assetRows } = await supabase
     .from("project_assets")
-    .select("public_url, original_name, title, storage_path")
+    .select("public_url, original_name, title, alt_text, storage_path")
     .eq("owner_id", projectOwnerId)
     .eq("project_key", projectKey)
     .order("created_at", { ascending: false });

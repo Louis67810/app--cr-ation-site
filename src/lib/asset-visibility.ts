@@ -2,6 +2,7 @@ export type ProjectImageAsset = {
   public_url: string;
   original_name?: string | null;
   title?: string | null;
+  alt_text?: string | null;
   storage_path?: string | null;
 };
 
