@@ -343,7 +343,7 @@ export function ProjectsLibrary({
         </div>
       ) : null}
 
-      <div className="mt-10 grid gap-x-7 gap-y-12 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <div className="mt-10 grid gap-x-6 gap-y-12 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {sortedProjects.map((project) => (
           <ProjectCard
             key={`${project.ownerId}:${project.key}`}
