@@ -42,7 +42,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (!userId) redirect("/login");
 
   const resolvedSearchParams = await searchParams;
-  const allowedTabs: DashboardTab[] = ["projects", "overview", "traffic", "pages", "cms", "assets", "ai", "recap", "settings"];
+  const allowedTabs: DashboardTab[] = ["projects", "overview", "traffic", "pages", "cms", "assets", "ai", "prospecting", "recap", "settings"];
   const requestedTab = allowedTabs.includes(resolvedSearchParams.tab as DashboardTab)
     ? resolvedSearchParams.tab as DashboardTab
     : resolvedSearchParams.project

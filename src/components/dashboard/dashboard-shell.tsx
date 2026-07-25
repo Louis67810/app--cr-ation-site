@@ -23,6 +23,7 @@ import {
   Search,
   Settings2,
   Sparkles,
+  UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -40,8 +41,9 @@ const GlobalSectionsEditor = dynamic(() => import("@/components/dashboard/global
 const AiAgents = dynamic(() => import("@/components/dashboard/ai-agents").then((module) => module.AiAgents), { loading: DeferredPanel });
 const MonthlyRecap = dynamic(() => import("@/components/dashboard/monthly-recap").then((module) => module.MonthlyRecap), { loading: DeferredPanel });
 const AnalyticsDashboard = dynamic(() => import("@/components/dashboard/analytics-dashboard").then((module) => module.AnalyticsDashboard), { loading: DeferredPanel });
+const ProspectingDashboard = dynamic(() => import("@/components/dashboard/prospecting-dashboard").then((module) => module.ProspectingDashboard), { loading: DeferredPanel });
 
-export type DashboardTab = "projects" | "overview" | "traffic" | "pages" | "cms" | "assets" | "ai" | "recap" | "settings";
+export type DashboardTab = "projects" | "overview" | "traffic" | "pages" | "cms" | "assets" | "ai" | "prospecting" | "recap" | "settings";
 
 export type MonthlyRecapEvent = { id: string; event_type: "page_created" | "article_created" | "realisation_created" | "project_published"; entity_title: string; created_at: string };
 export type MonthlyRecapSettings = { recipient_email: string; enabled: boolean; send_day: number };
@@ -246,6 +248,7 @@ function MobileDashboardNav({ projects, project, activeTab }: { projects: Dashbo
     ["cms", "CMS", Database],
     ["assets", "Assets", Images],
     ["ai", "IA", Bot],
+    ["prospecting", "Prospects", UsersRound],
     ...(project.role === "admin" ? [["recap", "Récap", CalendarDays] as [DashboardTab, string, typeof Home]] : []),
     ...(project.role === "admin" ? [["settings", "Réglages", Settings2] as [DashboardTab, string, typeof Home]] : []),
   ];
@@ -362,6 +365,7 @@ export function DashboardShell({
             <Link prefetch={false} href={tabHref("cms")} className={`${activeTab === "cms" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Database size={18} />CMS</Link>
             <Link prefetch={false} href={tabHref("assets")} className={`${activeTab === "assets" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Images size={18} />Assets</Link>
             <Link prefetch={false} href={tabHref("ai")} className={`${activeTab === "ai" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Bot size={18} />Agents IA</Link>
+            <Link prefetch={false} href={tabHref("prospecting")} className={`${activeTab === "prospecting" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><UsersRound size={18} />Prospection</Link>
             {project.role === "admin" ? <Link prefetch={false} href={tabHref("recap")} className={`${activeTab === "recap" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><CalendarDays size={18} />Récap mensuel</Link> : null}
             {project.role === "admin" ? <Link prefetch={false} href={tabHref("settings")} className={`${activeTab === "settings" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}><Settings2 size={18} />Paramètres</Link> : null}
           </div>
@@ -369,7 +373,7 @@ export function DashboardShell({
       </aside>
 
       <section className={activeTab === "cms" ? `min-h-0 min-w-0 flex-1 overflow-hidden lg:row-start-1 lg:h-full ${cmsEditorOpen ? "lg:col-start-1" : "lg:col-start-2"}` : "min-w-0 px-4 py-7 sm:px-8 lg:col-start-2 lg:row-start-1 lg:px-10 lg:py-11 xl:px-12"}>
-        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} onEditorOpenChange={setCmsEditorOpen} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents key={`${project.ownerId}:${project.key}`} project={project} initialAnalytics={analytics} /> : activeTab === "recap" ? <MonthlyRecap project={project} data={recap} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
+        {activeTab === "cms" ? <CmsEditor project={project} canOpenBuilder={project.role === "admin"} onEditorOpenChange={setCmsEditorOpen} /> : activeTab === "assets" ? <AssetLibrary project={project} initialAssets={assets} /> : activeTab === "ai" ? <AiAgents key={`${project.ownerId}:${project.key}`} project={project} initialAnalytics={analytics} /> : activeTab === "prospecting" ? <ProspectingDashboard /> : activeTab === "recap" ? <MonthlyRecap project={project} data={recap} /> : activeTab === "settings" ? <ProjectSettings project={project} initialInvitations={invitations} initialAnalyticsConnection={analyticsConnection} /> : <>
         {activeTab !== "traffic" ? <header id="vue-ensemble" className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-serif text-[27px] leading-tight tracking-[-0.05em] sm:text-[30px]">{activeTab === "pages" ? "Pages du site" : "Bonjour, voici votre site"}</h1>
