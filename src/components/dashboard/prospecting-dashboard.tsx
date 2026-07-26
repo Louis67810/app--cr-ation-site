@@ -39,6 +39,8 @@ export type Prospect = {
   rating: number | null;
   reviewCount: number;
   performance: number | null;
+  accessibility: number | null;
+  bestPractices: number | null;
   ssl: boolean | null;
   seo: number | null;
   opportunity: number | null;
@@ -418,8 +420,6 @@ export function ProspectingDashboard() {
             </thead>
             <tbody className="font-[var(--font-inter)] text-[12px]">
               {prospects.map((prospect, index) => {
-                const destination = prospect.website || prospect.mapsUrl;
-
                 return (
                   <tr
                     key={prospect.id}
@@ -430,30 +430,20 @@ export function ProspectingDashboard() {
                       {index + 1}
                     </td>
                     <td className="px-4">
-                      {destination ? (
-                        <a
-                          href={destination}
-                          target="_blank"
-                          rel="noreferrer"
-                          onClick={(event) => event.stopPropagation()}
-                          title={`Ouvrir ${prospect.company}`}
-                          className="flex min-w-0 items-start gap-2 rounded-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#003441]/35"
-                        >
+                      <div className="flex min-w-0 items-start gap-2 rounded-md outline-none transition-colors">
+                        {prospect.website || prospect.mapsUrl ? (
                           <ExternalLink
                             size={12}
                             className="mt-0.5 shrink-0 text-[#003441]/40 transition-colors group-hover:text-[#003441]"
                           />
-                          <ProspectIdentity prospect={prospect} />
-                        </a>
-                      ) : (
-                        <div className="flex min-w-0 items-start gap-2">
+                        ) : (
                           <MapPin
                             size={12}
                             className="mt-0.5 shrink-0 text-[#003441]/40"
                           />
-                          <ProspectIdentity prospect={prospect} />
-                        </div>
-                      )}
+                        )}
+                        <ProspectIdentity prospect={prospect} />
+                      </div>
                     </td>
                     <td className="px-4">
                       {prospect.phone ? (

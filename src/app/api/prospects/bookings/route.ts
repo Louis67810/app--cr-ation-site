@@ -8,21 +8,6 @@ function clean(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function localDateTimeToUtc(date: string, time: string, timeZone: string) {
-  const candidate = new Date(`${date}T${time}:00Z`);
-  if (Number.isNaN(candidate.getTime())) return null;
-
-  const offsetName = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    timeZoneName: "longOffset",
-  })
-    .formatToParts(candidate)
-    .find((part) => part.type === "timeZoneName")?.value;
-  const match = offsetName?.match(/GMT([+-]\d{2}:\d{2})/);
-  const zoned = new Date(`${date}T${time}:00${match?.[1] ?? "+00:00"}`);
-  return Number.isNaN(zoned.getTime()) ? null : zoned;
-}
-
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getClaims();
@@ -36,8 +21,7 @@ export async function POST(request: Request) {
   const attendeeName = clean(body.attendeeName);
   const attendeeEmail = clean(body.attendeeEmail);
   const attendeePhone = clean(body.attendeePhone);
-  const date = clean(body.date);
-  const time = clean(body.time);
+  const start = clean(body.start);
   const timeZone = clean(body.timeZone) || "Europe/Paris";
   const apiKey = process.env.CALCOM_API_KEY;
   const eventTypeId = Number(process.env.CALCOM_EVENT_TYPE_ID);
@@ -51,15 +35,18 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   }
-  if (!placeId || !attendeeName || !attendeeEmail || !date || !time) {
+  if (!placeId || !attendeeName || !attendeeEmail || !start) {
     return NextResponse.json(
-      { error: "Le nom, l’e-mail, la date et l’heure sont obligatoires." },
+      { error: "Le nom, l’e-mail et le créneau sont obligatoires." },
       { status: 400 },
     );
   }
 
-  const localStart = localDateTimeToUtc(date, time, timeZone);
-  if (!localStart || localStart.getTime() < Date.now()) {
+  const selectedStart = new Date(start);
+  if (
+    Number.isNaN(selectedStart.getTime()) ||
+    selectedStart.getTime() < Date.now()
+  ) {
     return NextResponse.json(
       { error: "Choisissez un créneau futur valide." },
       { status: 400 },
@@ -74,7 +61,7 @@ export async function POST(request: Request) {
       "cal-api-version": "2026-02-25",
     },
     body: JSON.stringify({
-      start: localStart.toISOString(),
+      start: selectedStart.toISOString(),
       eventTypeId,
       attendee: {
         name: attendeeName,

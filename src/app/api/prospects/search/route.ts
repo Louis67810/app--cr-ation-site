@@ -26,6 +26,8 @@ type PageSpeedResponse = {
     finalUrl?: string;
     categories?: {
       performance?: { score?: number };
+      accessibility?: { score?: number };
+      "best-practices"?: { score?: number };
       seo?: { score?: number };
     };
   };
@@ -34,6 +36,8 @@ type PageSpeedResponse = {
 
 type PageSpeedAudit = {
   performance: number | null;
+  accessibility: number | null;
+  bestPractices: number | null;
   seo: number | null;
   finalUrl: string;
   status: "complete" | "failed";
@@ -113,6 +117,8 @@ async function auditPage(
       endpoint.searchParams.set("url", website);
       endpoint.searchParams.set("strategy", "mobile");
       endpoint.searchParams.append("category", "performance");
+      endpoint.searchParams.append("category", "accessibility");
+      endpoint.searchParams.append("category", "best-practices");
       endpoint.searchParams.append("category", "seo");
       if (withApiKey) endpoint.searchParams.set("key", apiKey);
 
@@ -156,6 +162,8 @@ async function auditPage(
       });
       return {
         performance: null,
+        accessibility: null,
+        bestPractices: null,
         seo: null,
         finalUrl: website,
         status: "failed",
@@ -164,12 +172,24 @@ async function auditPage(
 
     const performanceScore =
       payload.lighthouseResult.categories?.performance?.score;
+    const accessibilityScore =
+      payload.lighthouseResult.categories?.accessibility?.score;
+    const bestPracticesScore =
+      payload.lighthouseResult.categories?.["best-practices"]?.score;
     const seoScore = payload.lighthouseResult.categories?.seo?.score;
 
     return {
       performance:
         typeof performanceScore === "number"
           ? clampScore(performanceScore * 100)
+          : null,
+      accessibility:
+        typeof accessibilityScore === "number"
+          ? clampScore(accessibilityScore * 100)
+          : null,
+      bestPractices:
+        typeof bestPracticesScore === "number"
+          ? clampScore(bestPracticesScore * 100)
           : null,
       seo:
         typeof seoScore === "number" ? clampScore(seoScore * 100) : null,
@@ -183,6 +203,8 @@ async function auditPage(
     });
     return {
       performance: null,
+      accessibility: null,
+      bestPractices: null,
       seo: null,
       finalUrl: website,
       status: "failed",
@@ -390,6 +412,8 @@ async function handleSearch(request: Request) {
         ? await auditPage(website, pageSpeedApiKey)
         : {
             performance: null,
+            accessibility: null,
+            bestPractices: null,
             seo: null,
             finalUrl: "",
             status: "failed" as const,
@@ -424,6 +448,8 @@ async function handleSearch(request: Request) {
         rating,
         reviewCount,
         performance: audit.performance,
+        accessibility: audit.accessibility,
+        bestPractices: audit.bestPractices,
         ssl,
         seo: audit.seo,
         opportunity,
@@ -659,6 +685,14 @@ export async function GET() {
           typeof stored.reviewCount === "number" ? stored.reviewCount : 0,
         performance:
           typeof stored.performance === "number" ? stored.performance : null,
+        accessibility:
+          typeof stored.accessibility === "number"
+            ? stored.accessibility
+            : null,
+        bestPractices:
+          typeof stored.bestPractices === "number"
+            ? stored.bestPractices
+            : null,
         ssl: typeof stored.ssl === "boolean" ? stored.ssl : null,
         seo: typeof stored.seo === "number" ? stored.seo : null,
         opportunity:
