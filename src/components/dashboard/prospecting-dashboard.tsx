@@ -57,6 +57,16 @@ type SearchResponse = {
   error?: string;
 };
 
+type CitySuggestion = {
+  name: string;
+  code: string;
+  postalCode: string;
+  department: string;
+  departmentCode: string;
+  population: number | null;
+  searchCount: number;
+};
+
 const statusOptions: ProspectStatus[] = [
   "Nouveau",
   "À contacter",
@@ -103,10 +113,22 @@ function displayWebsite(website: string) {
   return website.replace(/^https?:\/\//, "").replace(/\/$/, "");
 }
 
+function sortProspects(prospects: Prospect[]) {
+  return [...prospects].sort((first, second) => {
+    if (first.opportunity === null) return 1;
+    if (second.opportunity === null) return -1;
+    return second.opportunity - first.opportunity;
+  });
+}
+
 export function ProspectingDashboard() {
   const [prospects, setProspects] = useState<Prospect[]>([]);
+  const [isLoadingSaved, setIsLoadingSaved] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [city, setCity] = useState("");
+  const [citySuggestions, setCitySuggestions] = useState<CitySuggestion[]>([]);
+  const [citySuggestionsOpen, setCitySuggestionsOpen] = useState(false);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
   const [sector, setSector] = useState("Paysagistes");
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
@@ -119,6 +141,66 @@ export function ProspectingDashboard() {
     skippedPreviouslySeen: number;
     deduplicationReady: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadSavedProspects() {
+      try {
+        const response = await fetch("/api/prospects/search", {
+          cache: "no-store",
+        });
+        const payload = (await response.json()) as SearchResponse;
+        if (active && response.ok && payload.prospects) {
+          setProspects(sortProspects(payload.prospects));
+        }
+      } catch {
+        // The empty state remains available if saved prospects cannot load.
+      } finally {
+        if (active) setIsLoadingSaved(false);
+      }
+    }
+
+    void loadSavedProspects();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!searchOpen || city.trim().length < 2) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setIsLoadingCities(true);
+      try {
+        const response = await fetch(
+          `/api/prospects/cities?q=${encodeURIComponent(city.trim())}`,
+          { signal: controller.signal, cache: "no-store" },
+        );
+        const payload = (await response.json()) as {
+          cities?: CitySuggestion[];
+        };
+        if (response.ok) {
+          setCitySuggestions(payload.cities ?? []);
+          setCitySuggestionsOpen(true);
+        }
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setCitySuggestions([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) setIsLoadingCities(false);
+      }
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [city, searchOpen]);
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -183,7 +265,15 @@ export function ProspectingDashboard() {
         );
       }
 
-      setProspects(payload.prospects);
+      setProspects((currentProspects) => {
+        const byId = new Map(
+          currentProspects.map((prospect) => [prospect.id, prospect]),
+        );
+        for (const prospect of payload.prospects ?? []) {
+          byId.set(prospect.id, prospect);
+        }
+        return sortProspects(Array.from(byId.values()));
+      });
       setLastSearch(payload.meta);
       setSearchOpen(false);
     } catch (error) {
@@ -208,11 +298,18 @@ export function ProspectingDashboard() {
           <p className="font-serif text-[14px] leading-5 text-black/50 sm:text-[16px]">
             Identifiez et priorisez les entreprises à contacter.
           </p>
+          {prospects.length > 0 ? (
+            <span className="rounded-full bg-black/[0.045] px-3 py-1 text-[10px] font-semibold text-black/45">
+              {prospects.length} enregistré{prospects.length > 1 ? "s" : ""}
+            </span>
+          ) : null}
         </div>
         <button
           type="button"
           onClick={() => {
             setSearchError("");
+            setCitySuggestions([]);
+            setIsLoadingCities(false);
             setSearchOpen(true);
           }}
           className="flex h-9 w-full items-center justify-center gap-2 rounded-[10px] bg-gradient-to-b from-[#323232] to-[#222] px-5 text-[13px] font-semibold text-white shadow-[0_2px_4px_-1px_rgba(13,13,13,.5),0_0_0_1px_#333,inset_0_.5px_1px_rgba(255,255,255,.15)] transition-transform hover:-translate-y-px sm:w-auto"
@@ -444,7 +541,7 @@ export function ProspectingDashboard() {
           </table>
         </div>
 
-        {prospects.length === 0 ? (
+        {prospects.length === 0 && !isLoadingSaved ? (
           <div className="flex min-h-[280px] flex-col items-center justify-center px-6 text-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#003441]/[0.06] text-[#003441]">
               <Search size={20} />
@@ -508,7 +605,7 @@ export function ProspectingDashboard() {
 
             <form onSubmit={searchProspects} className="px-7 py-7 sm:px-9">
               <div className="grid gap-5 sm:grid-cols-2">
-                <label className="block">
+                <label className="relative block">
                   <span className="mb-2 block text-[12px] font-semibold text-black/70">
                     Ville
                   </span>
@@ -519,7 +616,22 @@ export function ProspectingDashboard() {
                     />
                     <input
                       value={city}
-                      onChange={(event) => setCity(event.target.value)}
+                      onChange={(event) => {
+                        const nextCity = event.target.value;
+                        setCity(nextCity);
+                        if (nextCity.trim().length < 2) {
+                          setCitySuggestions([]);
+                          setIsLoadingCities(false);
+                        }
+                        setCitySuggestionsOpen(true);
+                      }}
+                      onFocus={() => setCitySuggestionsOpen(true)}
+                      onBlur={() => {
+                        window.setTimeout(
+                          () => setCitySuggestionsOpen(false),
+                          150,
+                        );
+                      }}
                       required
                       minLength={2}
                       maxLength={80}
@@ -527,7 +639,55 @@ export function ProspectingDashboard() {
                       placeholder="Ex. Périgueux"
                       className="h-12 w-full rounded-[11px] border border-black/10 bg-[#fafafa] pl-11 pr-4 text-[13px] text-[#1c1c1c] outline-none transition focus:border-[#003441]/35 focus:ring-4 focus:ring-[#003441]/[0.06]"
                     />
+                    {isLoadingCities ? (
+                      <LoaderCircle
+                        size={14}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-black/30"
+                      />
+                    ) : null}
                   </div>
+
+                  {citySuggestionsOpen &&
+                  city.trim().length >= 2 &&
+                  (citySuggestions.length > 0 || isLoadingCities) ? (
+                    <div className="absolute left-0 right-0 top-[78px] z-20 overflow-hidden rounded-[12px] border border-black/10 bg-white py-1.5 shadow-[0_18px_45px_rgba(0,0,0,.13)]">
+                      {citySuggestions.map((suggestion) => (
+                        <button
+                          key={suggestion.code}
+                          type="button"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            setCity(suggestion.name);
+                            setCitySuggestionsOpen(false);
+                          }}
+                          className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-black/[0.035]"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-[12px] font-semibold text-[#1c1c1c]">
+                              {suggestion.name}
+                              {suggestion.postalCode
+                                ? ` · ${suggestion.postalCode}`
+                                : ""}
+                            </span>
+                            <span className="mt-0.5 block truncate text-[10px] text-black/40">
+                              {suggestion.department ||
+                                suggestion.departmentCode}
+                            </span>
+                          </span>
+                          <span
+                            className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-semibold ${
+                              suggestion.searchCount > 0
+                                ? "bg-[#003441]/8 text-[#003441]"
+                                : "bg-black/[0.035] text-black/30"
+                            }`}
+                          >
+                            {suggestion.searchCount} recherche
+                            {suggestion.searchCount > 1 ? "s" : ""}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </label>
 
                 <label className="block">
@@ -607,11 +767,15 @@ function ProspectIdentity({ prospect }: { prospect: Prospect }) {
         <MapPin size={9} className="shrink-0" />
         {prospect.address || `${prospect.activity} · ${prospect.city}`}
       </p>
-      <p className="mt-0.5 truncate text-[9px] text-[#003441]/55 underline-offset-2 group-hover:underline">
-        {prospect.website
-          ? displayWebsite(prospect.website)
-          : "Aucun site trouvé · Ouvrir dans Google Maps"}
-      </p>
+      {prospect.website ? (
+        <p className="mt-0.5 truncate text-[9px] text-[#003441]/55 underline-offset-2 group-hover:underline">
+          {displayWebsite(prospect.website)}
+        </p>
+      ) : (
+        <span className="mt-1 inline-flex rounded-full bg-[#9e252f]/8 px-2 py-0.5 text-[9px] font-semibold text-[#9e252f]">
+          Aucun site internet · très forte opportunité
+        </span>
+      )}
     </div>
   );
 }

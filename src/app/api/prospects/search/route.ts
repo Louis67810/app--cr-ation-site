@@ -43,6 +43,14 @@ function normalizeText(value: unknown, fallback = "") {
   return typeof value === "string" ? value.trim() : fallback;
 }
 
+function normalizeCityKey(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
 function clampScore(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
@@ -314,7 +322,7 @@ async function handleSearch(request: Request) {
   let pageToken: string | undefined;
   let skippedPreviouslySeen = 0;
 
-  for (let page = 0; page < 2 && uniquePlaces.size < 10; page += 1) {
+  for (let page = 0; page < 3 && uniquePlaces.size < 20; page += 1) {
     const placesResponse = await fetch(
       "https://places.googleapis.com/v1/places:searchText",
       {
@@ -334,7 +342,7 @@ async function handleSearch(request: Request) {
           pageSize: 20,
           ...(pageToken ? { pageToken } : {}),
         }),
-        signal: AbortSignal.timeout(12_000),
+        signal: AbortSignal.timeout(8_000),
       },
     );
 
@@ -366,7 +374,7 @@ async function handleSearch(request: Request) {
         continue;
       }
       uniquePlaces.set(placeKey, place);
-      if (uniquePlaces.size >= 10) break;
+      if (uniquePlaces.size >= 20) break;
     }
 
     pageToken = placesPayload.nextPageToken;
@@ -375,7 +383,7 @@ async function handleSearch(request: Request) {
 
   const prospects = await mapWithConcurrency(
     Array.from(uniquePlaces.values()),
-    10,
+    20,
     async (place, index) => {
       const website = place.websiteUri ?? "";
       const audit = website
@@ -447,6 +455,8 @@ async function handleSearch(request: Request) {
           city,
           sector,
           website: prospect.website || null,
+          snapshot: prospect,
+          status: prospect.status,
           discovered_at: new Date().toISOString(),
         })),
         { onConflict: "owner_id,place_id", ignoreDuplicates: true },
@@ -458,6 +468,23 @@ async function handleSearch(request: Request) {
         message: memoryWriteError.message,
       });
     }
+  }
+
+  const { error: searchRunError } = await supabase
+    .from("prospect_search_runs")
+    .insert({
+      owner_id: userId,
+      city,
+      city_key: normalizeCityKey(city),
+      sector,
+      result_count: prospects.length,
+    });
+
+  if (searchRunError) {
+    console.warn("[prospects/search] Search history write failed", {
+      code: searchRunError.code,
+      message: searchRunError.message,
+    });
   }
 
   console.info("[prospects/search] Search completed", {
@@ -514,4 +541,93 @@ export async function POST(request: Request) {
       { status: timedOut ? 504 : 500 },
     );
   }
+}
+
+export async function GET() {
+  const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getClaims();
+
+  if (!authData?.claims?.sub) {
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+
+  const userId = String(authData.claims.sub);
+  const { data, error } = await supabase
+    .from("prospect_discoveries")
+    .select("*")
+    .eq("owner_id", userId)
+    .order("discovered_at", { ascending: false })
+    .limit(500);
+
+  if (error) {
+    console.warn("[prospects/search] Stored prospects unavailable", {
+      code: error.code,
+      message: error.message,
+    });
+    return NextResponse.json({ prospects: [] });
+  }
+
+  const prospects = (data ?? [])
+    .map((row) => {
+      const snapshot =
+        row.snapshot &&
+        typeof row.snapshot === "object" &&
+        !Array.isArray(row.snapshot)
+          ? row.snapshot
+          : {};
+      const stored = snapshot as Record<string, unknown>;
+
+      return {
+        ...stored,
+        id:
+          typeof stored.id === "string" ? stored.id : String(row.place_id),
+        company:
+          typeof stored.company === "string"
+            ? stored.company
+            : String(row.company),
+        city:
+          typeof stored.city === "string" ? stored.city : String(row.city),
+        activity:
+          typeof stored.activity === "string"
+            ? stored.activity
+            : String(row.sector),
+        address:
+          typeof stored.address === "string" ? stored.address : "",
+        website:
+          typeof stored.website === "string"
+            ? stored.website
+            : String(row.website ?? ""),
+        mapsUrl:
+          typeof stored.mapsUrl === "string" ? stored.mapsUrl : "",
+        contact:
+          typeof stored.contact === "string" ? stored.contact : "",
+        phone: typeof stored.phone === "string" ? stored.phone : "",
+        email: typeof stored.email === "string" ? stored.email : "",
+        rating:
+          typeof stored.rating === "number" ? stored.rating : null,
+        reviewCount:
+          typeof stored.reviewCount === "number" ? stored.reviewCount : 0,
+        performance:
+          typeof stored.performance === "number" ? stored.performance : null,
+        ssl: typeof stored.ssl === "boolean" ? stored.ssl : null,
+        seo: typeof stored.seo === "number" ? stored.seo : null,
+        opportunity:
+          typeof stored.opportunity === "number" ? stored.opportunity : null,
+        status:
+          typeof row.status === "string" ? row.status : "Nouveau",
+        auditStatus:
+          stored.auditStatus === "complete" ||
+          stored.auditStatus === "failed" ||
+          stored.auditStatus === "unavailable"
+            ? stored.auditStatus
+            : "unavailable",
+      };
+    })
+    .sort((first, second) => {
+      if (first.opportunity === null) return 1;
+      if (second.opportunity === null) return -1;
+      return second.opportunity - first.opportunity;
+    });
+
+  return NextResponse.json({ prospects });
 }
