@@ -38,7 +38,7 @@ type Prospect = {
   performance: number | null;
   ssl: boolean | null;
   seo: number | null;
-  opportunity: number;
+  opportunity: number | null;
   status: ProspectStatus;
   auditStatus: "complete" | "failed" | "unavailable";
 };
@@ -50,6 +50,9 @@ type SearchResponse = {
     sector: string;
     found: number;
     audited: number;
+    pageSpeedFailed: number;
+    skippedPreviouslySeen: number;
+    deduplicationReady: boolean;
   };
   error?: string;
 };
@@ -70,7 +73,10 @@ function metricColor(value: number | null) {
   return "text-[#d52626]";
 }
 
-function opportunityStyle(value: number) {
+function opportunityStyle(value: number | null) {
+  if (value === null) {
+    return "border-black/10 bg-black/[0.025] text-black/35";
+  }
   if (value >= 70) {
     return "border-[#9e252f]/35 bg-[#9e252f]/8 text-[#9e252f]";
   }
@@ -109,6 +115,9 @@ export function ProspectingDashboard() {
     sector: string;
     found: number;
     audited: number;
+    pageSpeedFailed: number;
+    skippedPreviouslySeen: number;
+    deduplicationReady: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -143,7 +152,11 @@ export function ProspectingDashboard() {
       const response = await fetch("/api/prospects/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ city, sector }),
+        body: JSON.stringify({
+          city,
+          sector,
+          excludedPlaceIds: prospects.map((prospect) => prospect.id),
+        }),
       });
       const responseText = await response.text();
       let payload: SearchResponse;
@@ -161,6 +174,12 @@ export function ProspectingDashboard() {
       if (!response.ok || !payload.prospects || !payload.meta) {
         throw new Error(
           payload.error ?? "La recherche de prospects a échoué.",
+        );
+      }
+
+      if (payload.prospects.length === 0) {
+        throw new Error(
+          "Aucun nouveau prospect n’a été trouvé dans cette recherche. Essayez une ville voisine ou un autre secteur.",
         );
       }
 
@@ -215,6 +234,22 @@ export function ProspectingDashboard() {
           </span>
           <span className="h-1 w-1 rounded-full bg-black/20" />
           <span>{lastSearch.audited} site(s) analysé(s) sur mobile</span>
+          {lastSearch.pageSpeedFailed > 0 ? (
+            <>
+              <span className="h-1 w-1 rounded-full bg-black/20" />
+              <span className="text-[#a85f00]">
+                {lastSearch.pageSpeedFailed} audit(s) indisponible(s)
+              </span>
+            </>
+          ) : null}
+          {lastSearch.skippedPreviouslySeen > 0 ? (
+            <>
+              <span className="h-1 w-1 rounded-full bg-black/20" />
+              <span>
+                {lastSearch.skippedPreviouslySeen} doublon(s) écarté(s)
+              </span>
+            </>
+          ) : null}
           <span className="ml-auto text-[#003441]">
             Triés par opportunité
           </span>
@@ -365,8 +400,13 @@ export function ProspectingDashboard() {
                     <td className="px-4 text-center">
                       <span
                         className={`inline-flex min-w-9 items-center justify-center rounded-[8px] border px-2 py-1.5 text-[12px] font-semibold ${opportunityStyle(prospect.opportunity)}`}
+                        title={
+                          prospect.opportunity === null
+                            ? "PageSpeed n’a pas pu analyser ce site"
+                            : "Score d’opportunité"
+                        }
                       >
-                        {prospect.opportunity}
+                        {prospect.opportunity ?? "—"}
                       </span>
                     </td>
                     <td className="px-4">

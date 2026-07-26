@@ -17,6 +17,7 @@ type PlacesTextSearchResponse = {
     userRatingCount?: number;
     businessStatus?: string;
   }>;
+  nextPageToken?: string;
   error?: { message?: string };
 };
 
@@ -28,7 +29,7 @@ type PageSpeedResponse = {
       seo?: { score?: number };
     };
   };
-  error?: { message?: string };
+  error?: { code?: number; message?: string; status?: string };
 };
 
 type PageSpeedAudit = {
@@ -60,11 +61,14 @@ function scoreOpportunity({
   ssl: boolean | null;
   rating: number | null;
   reviewCount: number;
-}) {
+}): number | null {
   if (!hasWebsite) return 100;
+  if (performance === null && seo === null) return null;
 
-  const performanceGap = performance === null ? 50 : 100 - performance;
-  const seoGap = seo === null ? 50 : 100 - seo;
+  const performanceGap = performance === null ? 0 : 100 - performance;
+  const seoGap = seo === null ? 0 : 100 - seo;
+  const availableWeight =
+    (performance === null ? 0 : 0.55) + (seo === null ? 0 : 0.35);
   const securityGap = ssl === false ? 10 : 0;
   const businessQualityBonus =
     rating !== null && rating >= 4.5 && reviewCount >= 10
@@ -74,8 +78,8 @@ function scoreOpportunity({
         : 0;
 
   return clampScore(
-    performanceGap * 0.55 +
-      seoGap * 0.35 +
+    (performanceGap * 0.55 + seoGap * 0.35) /
+      Math.max(availableWeight / 0.9, 0.01) +
       securityGap +
       businessQualityBonus,
   );
@@ -93,23 +97,55 @@ async function auditPage(
   website: string,
   apiKey: string,
 ): Promise<PageSpeedAudit> {
-  const endpoint = new URL(
-    "https://www.googleapis.com/pagespeedonline/v5/runPagespeed",
-  );
-  endpoint.searchParams.set("url", website);
-  endpoint.searchParams.set("key", apiKey);
-  endpoint.searchParams.set("strategy", "mobile");
-  endpoint.searchParams.append("category", "performance");
-  endpoint.searchParams.append("category", "seo");
-
   try {
-    const response = await fetch(endpoint, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(12_000),
-    });
-    const payload = (await response.json()) as PageSpeedResponse;
+    async function requestAudit(withApiKey: boolean) {
+      const endpoint = new URL(
+        "https://www.googleapis.com/pagespeedonline/v5/runPagespeed",
+      );
+      endpoint.searchParams.set("url", website);
+      endpoint.searchParams.set("strategy", "mobile");
+      endpoint.searchParams.append("category", "performance");
+      endpoint.searchParams.append("category", "seo");
+      if (withApiKey) endpoint.searchParams.set("key", apiKey);
+
+      const response = await fetch(endpoint, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(25_000),
+      });
+      const responseText = await response.text();
+      let payload: PageSpeedResponse = {};
+      try {
+        payload = JSON.parse(responseText) as PageSpeedResponse;
+      } catch {
+        // The HTTP status and a short response excerpt are logged below.
+      }
+      return { response, payload, responseText };
+    }
+
+    let result = await requestAudit(true);
+    if (
+      !result.response.ok &&
+      [400, 401, 403].includes(result.response.status)
+    ) {
+      console.warn("[prospects/search] PageSpeed key rejected, retrying", {
+        website,
+        status: result.response.status,
+        message: result.payload.error?.message,
+      });
+      result = await requestAudit(false);
+    }
+
+    const { response, payload, responseText } = result;
 
     if (!response.ok || !payload.lighthouseResult) {
+      console.warn("[prospects/search] PageSpeed audit failed", {
+        website,
+        status: response.status,
+        message:
+          payload.error?.message ??
+          responseText.slice(0, 240) ??
+          "Empty PageSpeed response",
+      });
       return {
         performance: null,
         seo: null,
@@ -132,7 +168,11 @@ async function auditPage(
       finalUrl: payload.lighthouseResult.finalUrl || website,
       status: "complete",
     };
-  } catch {
+  } catch (error) {
+    console.warn("[prospects/search] PageSpeed audit unavailable", {
+      website,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return {
       performance: null,
       seo: null,
@@ -172,9 +212,17 @@ async function handleSearch(request: Request) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  let body: { city?: unknown; sector?: unknown };
+  let body: {
+    city?: unknown;
+    sector?: unknown;
+    excludedPlaceIds?: unknown;
+  };
   try {
-    body = (await request.json()) as { city?: unknown; sector?: unknown };
+    body = (await request.json()) as {
+      city?: unknown;
+      sector?: unknown;
+      excludedPlaceIds?: unknown;
+    };
   } catch {
     return NextResponse.json(
       { error: "La demande de recherche est invalide." },
@@ -184,6 +232,14 @@ async function handleSearch(request: Request) {
 
   const city = normalizeText(body.city);
   const sector = normalizeText(body.sector, "Paysagistes");
+  const userId = String(authData.claims.sub);
+  const seenPlaceIds = new Set(
+    Array.isArray(body.excludedPlaceIds)
+      ? body.excludedPlaceIds
+          .filter((value): value is string => typeof value === "string")
+          .slice(0, 500)
+      : [],
+  );
 
   if (city.length < 2 || city.length > 80) {
     return NextResponse.json(
@@ -230,56 +286,95 @@ async function handleSearch(request: Request) {
 
   console.info("[prospects/search] Places search started", { city, sector });
 
-  const placesResponse = await fetch(
-    "https://places.googleapis.com/v1/places:searchText",
-    {
-      method: "POST",
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": placesApiKey,
-        "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.rating,places.userRatingCount,places.businessStatus",
-      },
-      body: JSON.stringify({
-        textQuery: `${sector} à ${city}`,
-        languageCode: "fr",
-        regionCode: "FR",
-        includePureServiceAreaBusinesses: true,
-        pageSize: 10,
-      }),
-      signal: AbortSignal.timeout(12_000),
-    },
-  );
+  const { data: previousDiscoveries, error: previousDiscoveriesError } =
+    await supabase
+      .from("prospect_discoveries")
+      .select("place_id")
+      .eq("owner_id", userId)
+      .limit(5000);
+  const deduplicationReady = !previousDiscoveriesError;
 
-  const placesPayload =
-    (await placesResponse.json()) as PlacesTextSearchResponse;
-
-  if (!placesResponse.ok) {
-    return NextResponse.json(
-      {
-        error:
-          placesPayload.error?.message ??
-          "Google Places n’a pas pu effectuer la recherche.",
-      },
-      { status: placesResponse.status },
-    );
+  if (previousDiscoveriesError) {
+    console.warn("[prospects/search] Prospect memory unavailable", {
+      code: previousDiscoveriesError.code,
+      message: previousDiscoveriesError.message,
+    });
+  } else {
+    for (const discovery of previousDiscoveries ?? []) {
+      if (typeof discovery.place_id === "string") {
+        seenPlaceIds.add(discovery.place_id);
+      }
+    }
   }
 
-  const uniquePlaces = Array.from(
-    new Map(
-      (placesPayload.places ?? [])
-        .filter(
-          (place) =>
-            place.displayName?.text &&
-            (!place.businessStatus || place.businessStatus === "OPERATIONAL"),
-        )
-        .map((place) => [place.id ?? place.displayName?.text, place]),
-    ).values(),
-  ).slice(0, 10);
+  const uniquePlaces = new Map<
+    string,
+    NonNullable<PlacesTextSearchResponse["places"]>[number]
+  >();
+  let pageToken: string | undefined;
+  let skippedPreviouslySeen = 0;
+
+  for (let page = 0; page < 2 && uniquePlaces.size < 10; page += 1) {
+    const placesResponse = await fetch(
+      "https://places.googleapis.com/v1/places:searchText",
+      {
+        method: "POST",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": placesApiKey,
+          "X-Goog-FieldMask":
+            "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.rating,places.userRatingCount,places.businessStatus,nextPageToken",
+        },
+        body: JSON.stringify({
+          textQuery: `${sector} à ${city}`,
+          languageCode: "fr",
+          regionCode: "FR",
+          includePureServiceAreaBusinesses: true,
+          pageSize: 20,
+          ...(pageToken ? { pageToken } : {}),
+        }),
+        signal: AbortSignal.timeout(12_000),
+      },
+    );
+
+    const placesPayload =
+      (await placesResponse.json()) as PlacesTextSearchResponse;
+
+    if (!placesResponse.ok) {
+      return NextResponse.json(
+        {
+          error:
+            placesPayload.error?.message ??
+            "Google Places n’a pas pu effectuer la recherche.",
+        },
+        { status: placesResponse.status },
+      );
+    }
+
+    for (const place of placesPayload.places ?? []) {
+      const placeKey = place.id ?? place.displayName?.text;
+      if (
+        !placeKey ||
+        !place.displayName?.text ||
+        (place.businessStatus && place.businessStatus !== "OPERATIONAL")
+      ) {
+        continue;
+      }
+      if (seenPlaceIds.has(placeKey)) {
+        skippedPreviouslySeen += 1;
+        continue;
+      }
+      uniquePlaces.set(placeKey, place);
+      if (uniquePlaces.size >= 10) break;
+    }
+
+    pageToken = placesPayload.nextPageToken;
+    if (!pageToken) break;
+  }
 
   const prospects = await mapWithConcurrency(
-    uniquePlaces,
+    Array.from(uniquePlaces.values()),
     10,
     async (place, index) => {
       const website = place.websiteUri ?? "";
@@ -333,11 +428,37 @@ async function handleSearch(request: Request) {
   );
 
   prospects.sort((first, second) => {
+    if (first.opportunity === null) return 1;
+    if (second.opportunity === null) return -1;
     if (second.opportunity !== first.opportunity) {
       return second.opportunity - first.opportunity;
     }
     return second.reviewCount - first.reviewCount;
   });
+
+  if (prospects.length > 0) {
+    const { error: memoryWriteError } = await supabase
+      .from("prospect_discoveries")
+      .upsert(
+        prospects.map((prospect) => ({
+          owner_id: userId,
+          place_id: prospect.id,
+          company: prospect.company,
+          city,
+          sector,
+          website: prospect.website || null,
+          discovered_at: new Date().toISOString(),
+        })),
+        { onConflict: "owner_id,place_id", ignoreDuplicates: true },
+      );
+
+    if (memoryWriteError) {
+      console.warn("[prospects/search] Prospect memory write failed", {
+        code: memoryWriteError.code,
+        message: memoryWriteError.message,
+      });
+    }
+  }
 
   console.info("[prospects/search] Search completed", {
     city,
@@ -346,6 +467,8 @@ async function handleSearch(request: Request) {
     audited: prospects.filter(
       (prospect) => prospect.auditStatus === "complete",
     ).length,
+    skippedPreviouslySeen,
+    deduplicationReady,
   });
 
   return NextResponse.json({
@@ -357,6 +480,11 @@ async function handleSearch(request: Request) {
       audited: prospects.filter(
         (prospect) => prospect.auditStatus === "complete",
       ).length,
+      pageSpeedFailed: prospects.filter(
+        (prospect) => prospect.auditStatus === "failed",
+      ).length,
+      skippedPreviouslySeen,
+      deduplicationReady,
       sortedBy: "opportunity_desc",
     },
   });
