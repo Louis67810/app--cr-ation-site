@@ -543,6 +543,56 @@ export async function POST(request: Request) {
   }
 }
 
+export async function PATCH(request: Request) {
+  const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getClaims();
+  const userId = authData?.claims?.sub ? String(authData.claims.sub) : "";
+
+  if (!userId) {
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+
+  const allowedStatuses = new Set([
+    "Nouveau",
+    "À contacter",
+    "Contacté",
+    "À relancer",
+    "Qualifié",
+    "Rendez-vous",
+    "Refusé",
+  ]);
+  let body: { id?: unknown; status?: unknown };
+  try {
+    body = (await request.json()) as { id?: unknown; status?: unknown };
+  } catch {
+    return NextResponse.json({ error: "Requête invalide." }, { status: 400 });
+  }
+
+  const id = typeof body.id === "string" ? body.id.trim() : "";
+  const status = typeof body.status === "string" ? body.status.trim() : "";
+  if (!id || !allowedStatuses.has(status)) {
+    return NextResponse.json(
+      { error: "Prospect ou statut invalide." },
+      { status: 400 },
+    );
+  }
+
+  const { error } = await supabase
+    .from("prospect_discoveries")
+    .update({ status })
+    .eq("owner_id", userId)
+    .eq("place_id", id);
+
+  if (error) {
+    return NextResponse.json(
+      { error: "Le statut n’a pas été enregistré." },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({ ok: true });
+}
+
 export async function GET() {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getClaims();

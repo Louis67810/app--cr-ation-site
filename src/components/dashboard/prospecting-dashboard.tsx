@@ -14,15 +14,18 @@ import {
   X,
 } from "lucide-react";
 
-type ProspectStatus =
+import { ProspectCallWorkspace } from "@/components/dashboard/prospect-call-workspace";
+
+export type ProspectStatus =
   | "Nouveau"
   | "À contacter"
   | "Contacté"
   | "À relancer"
   | "Qualifié"
+  | "Rendez-vous"
   | "Refusé";
 
-type Prospect = {
+export type Prospect = {
   id: string;
   company: string;
   activity: string;
@@ -73,6 +76,7 @@ const statusOptions: ProspectStatus[] = [
   "Contacté",
   "À relancer",
   "Qualifié",
+  "Rendez-vous",
   "Refusé",
 ];
 
@@ -97,6 +101,7 @@ function opportunityStyle(value: number | null) {
 }
 
 function statusStyle(status: ProspectStatus) {
+  if (status === "Rendez-vous") return "bg-[#003441] text-white";
   if (status === "Qualifié") return "bg-[#dff7eb] text-[#187a4c]";
   if (status === "À contacter") return "bg-[#e9eefc] text-[#3857a5]";
   if (status === "Contacté") return "bg-[#e5f6f4] text-[#0a6d65]";
@@ -123,6 +128,7 @@ function sortProspects(prospects: Prospect[]) {
 
 export function ProspectingDashboard() {
   const [prospects, setProspects] = useState<Prospect[]>([]);
+  const [selectedProspectId, setSelectedProspectId] = useState("");
   const [isLoadingSaved, setIsLoadingSaved] = useState(true);
   const [searchOpen, setSearchOpen] = useState(false);
   const [city, setCity] = useState("");
@@ -221,6 +227,13 @@ export function ProspectingDashboard() {
         prospect.id === id ? { ...prospect, status } : prospect,
       ),
     );
+    void fetch("/api/prospects/search", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    }).catch(() => {
+      // Keep the interface responsive if persistence is temporarily unavailable.
+    });
   }
 
   async function searchProspects(event: FormEvent<HTMLFormElement>) {
@@ -285,6 +298,17 @@ export function ProspectingDashboard() {
     } finally {
       setIsSearching(false);
     }
+  }
+
+  if (selectedProspectId) {
+    return (
+      <ProspectCallWorkspace
+        prospects={prospects}
+        initialProspectId={selectedProspectId}
+        onBack={() => setSelectedProspectId("")}
+        onStatusChange={updateStatus}
+      />
+    );
   }
 
   return (
@@ -399,7 +423,8 @@ export function ProspectingDashboard() {
                 return (
                   <tr
                     key={prospect.id}
-                    className="group h-[70px] border-b border-[#003441]/8 odd:bg-[#003441]/[0.025] last:border-b-0 hover:bg-[#003441]/[0.055]"
+                    onClick={() => setSelectedProspectId(prospect.id)}
+                    className="group h-[70px] cursor-pointer border-b border-[#003441]/8 odd:bg-[#003441]/[0.025] last:border-b-0 hover:bg-[#003441]/[0.055]"
                   >
                     <td className="px-4 text-center text-[#003441]/45">
                       {index + 1}
@@ -410,6 +435,7 @@ export function ProspectingDashboard() {
                           href={destination}
                           target="_blank"
                           rel="noreferrer"
+                          onClick={(event) => event.stopPropagation()}
                           title={`Ouvrir ${prospect.company}`}
                           className="flex min-w-0 items-start gap-2 rounded-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#003441]/35"
                         >
@@ -433,6 +459,7 @@ export function ProspectingDashboard() {
                       {prospect.phone ? (
                         <a
                           href={phoneHref(prospect.phone)}
+                          onClick={(event) => event.stopPropagation()}
                           title={`Appeler ${prospect.phone}`}
                           className="flex items-center gap-1.5 font-medium text-[#00a86b] underline-offset-2 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00a86b]/30"
                         >
@@ -447,6 +474,7 @@ export function ProspectingDashboard() {
                       {prospect.email ? (
                         <a
                           href={`mailto:${prospect.email}`}
+                          onClick={(event) => event.stopPropagation()}
                           className="flex items-center gap-1.5 truncate underline-offset-2 hover:text-[#003441] hover:underline"
                         >
                           <Mail
@@ -512,12 +540,14 @@ export function ProspectingDashboard() {
                       >
                         <select
                           value={prospect.status}
-                          onChange={(event) =>
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => {
+                            event.stopPropagation();
                             updateStatus(
                               prospect.id,
                               event.target.value as ProspectStatus,
-                            )
-                          }
+                            );
+                          }}
                           aria-label={`Modifier le statut de ${prospect.company}`}
                           className="h-8 min-w-[104px] cursor-pointer appearance-none bg-transparent py-1 pl-3 pr-7 text-[11px] font-semibold outline-none"
                         >
