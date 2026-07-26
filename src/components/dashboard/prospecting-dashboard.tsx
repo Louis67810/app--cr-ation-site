@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import {
   ChevronDown,
   ExternalLink,
@@ -7,7 +10,13 @@ import {
   Search,
 } from "lucide-react";
 
-type ProspectStatus = "Nouveau" | "À contacter" | "Qualifié";
+type ProspectStatus =
+  | "Nouveau"
+  | "À contacter"
+  | "Contacté"
+  | "À relancer"
+  | "Qualifié"
+  | "Refusé";
 
 type Prospect = {
   company: string;
@@ -24,6 +33,15 @@ type Prospect = {
   opportunity: number;
   status: ProspectStatus;
 };
+
+const statusOptions: ProspectStatus[] = [
+  "Nouveau",
+  "À contacter",
+  "Contacté",
+  "À relancer",
+  "Qualifié",
+  "Refusé",
+];
 
 const demoProspects: Prospect[] = [
   {
@@ -152,10 +170,31 @@ function opportunityStyle(value: number) {
 function statusStyle(status: ProspectStatus) {
   if (status === "Qualifié") return "bg-[#dff7eb] text-[#187a4c]";
   if (status === "À contacter") return "bg-[#e9eefc] text-[#3857a5]";
+  if (status === "Contacté") return "bg-[#e5f6f4] text-[#0a6d65]";
+  if (status === "À relancer") return "bg-[#fff0d7] text-[#a45b00]";
+  if (status === "Refusé") return "bg-[#f5e8e9] text-[#9e252f]";
   return "bg-[#ffbd35] text-[#3b2900]";
 }
 
+function websiteHref(website: string) {
+  return website.startsWith("http") ? website : `https://${website}`;
+}
+
+function phoneHref(phone: string) {
+  return `tel:${phone.replace(/[^\d+]/g, "")}`;
+}
+
 export function ProspectingDashboard() {
+  const [prospects, setProspects] = useState(demoProspects);
+
+  function updateStatus(index: number, status: ProspectStatus) {
+    setProspects((currentProspects) =>
+      currentProspects.map((prospect, prospectIndex) =>
+        prospectIndex === index ? { ...prospect, status } : prospect,
+      ),
+    );
+  }
+
   return (
     <div className="pb-16">
       <header className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
@@ -193,7 +232,7 @@ export function ProspectingDashboard() {
               <col className="w-[64px]" />
               <col className="w-[64px]" />
               <col className="w-[104px]" />
-              <col className="w-[118px]" />
+              <col className="w-[128px]" />
             </colgroup>
             <thead className="bg-[#003441] font-serif text-[12px] text-white">
               <tr className="h-14">
@@ -221,48 +260,62 @@ export function ProspectingDashboard() {
               </tr>
             </thead>
             <tbody className="font-[var(--font-inter)] text-[12px]">
-              {demoProspects.map((prospect, index) => (
+              {prospects.map((prospect, index) => (
                 <tr
                   key={prospect.company}
-                  className="h-[67px] border-b border-[#003441]/8 odd:bg-[#003441]/[0.025] last:border-b-0 hover:bg-[#003441]/[0.055]"
+                  className="group h-[67px] border-b border-[#003441]/8 odd:bg-[#003441]/[0.025] last:border-b-0 hover:bg-[#003441]/[0.055]"
                 >
                   <td className="px-4 text-center text-[#003441]/45">
                     {index + 1}
                   </td>
                   <td className="px-4">
-                    <div className="flex min-w-0 items-start gap-2">
+                    <a
+                      href={websiteHref(prospect.website)}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={`Ouvrir le site de ${prospect.company}`}
+                      className="flex min-w-0 items-start gap-2 rounded-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#003441]/35"
+                    >
                       <ExternalLink
                         size={12}
-                        className="mt-0.5 shrink-0 text-[#003441]/45"
+                        className="mt-0.5 shrink-0 text-[#003441]/40 transition-colors group-hover:text-[#003441]"
                       />
                       <div className="min-w-0">
-                        <p className="truncate text-[13px] font-semibold text-[#1c1c1c]">
+                        <p className="truncate text-[13px] font-semibold text-[#1c1c1c] transition-colors group-hover:text-[#003441]">
                           {prospect.company}
                         </p>
                         <p className="mt-1 flex items-center gap-1 truncate text-[10px] text-black/45">
                           <MapPin size={9} className="shrink-0" />
                           {prospect.activity} · {prospect.city}
                         </p>
-                        <p className="mt-0.5 truncate text-[9px] text-[#003441]/55">
+                        <p className="mt-0.5 truncate text-[9px] text-[#003441]/55 underline-offset-2 group-hover:underline">
                           {prospect.website}
                         </p>
                       </div>
-                    </div>
+                    </a>
                   </td>
                   <td className="px-4 font-medium text-black/70">
                     {prospect.contact}
                   </td>
                   <td className="px-4">
-                    <span className="flex items-center gap-1.5 font-medium text-[#00a86b]">
+                    <a
+                      href={phoneHref(prospect.phone)}
+                      title={`Appeler ${prospect.phone}`}
+                      className="flex items-center gap-1.5 font-medium text-[#00a86b] underline-offset-2 hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#00a86b]/30"
+                    >
                       <Phone size={12} />
                       {prospect.phone}
-                    </span>
+                    </a>
                   </td>
                   <td className="px-4 text-black/60">
-                    <span className="flex items-center gap-1.5 truncate">
+                    <a
+                      href={`mailto:${prospect.email}`}
+                      title={`Écrire à ${prospect.email}`}
+                      className="flex items-center gap-1.5 truncate underline-offset-2 hover:text-[#003441] hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#003441]/25"
+                    >
                       <Mail size={12} className="shrink-0 text-black/35" />
                       {prospect.email}
-                    </span>
+                    </a>
                   </td>
                   <td className="px-4 text-black/55">
                     {prospect.technology}
@@ -289,10 +342,30 @@ export function ProspectingDashboard() {
                   </td>
                   <td className="px-4">
                     <span
-                      className={`inline-flex items-center gap-1 rounded-[9px] px-3 py-2 text-[11px] font-semibold ${statusStyle(prospect.status)}`}
+                      className={`relative inline-flex items-center rounded-[9px] pr-1 ${statusStyle(prospect.status)}`}
                     >
-                      {prospect.status}
-                      <ChevronDown size={12} />
+                      <select
+                        value={prospect.status}
+                        onChange={(event) =>
+                          updateStatus(
+                            index,
+                            event.target.value as ProspectStatus,
+                          )
+                        }
+                        aria-label={`Modifier le statut de ${prospect.company}`}
+                        className="h-8 min-w-[104px] cursor-pointer appearance-none bg-transparent py-1 pl-3 pr-7 text-[11px] font-semibold outline-none"
+                      >
+                        {statusOptions.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown
+                        size={12}
+                        aria-hidden="true"
+                        className="pointer-events-none absolute right-2"
+                      />
                     </span>
                   </td>
                 </tr>
@@ -303,8 +376,9 @@ export function ProspectingDashboard() {
       </div>
 
       <p className="mt-4 text-[11px] leading-5 text-black/40">
-        Données de démonstration. La recherche Google, l’analyse des sites et
-        les actions d’appel seront connectées dans l’étape suivante.
+        Données de démonstration. Les liens du site, du téléphone et de l’e-mail
+        sont interactifs. Les statuts seront persistés dès la connexion de la
+        table Prospects à Supabase.
       </p>
     </div>
   );
