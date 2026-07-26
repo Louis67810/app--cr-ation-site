@@ -105,7 +105,7 @@ async function auditPage(
   try {
     const response = await fetch(endpoint, {
       cache: "no-store",
-      signal: AbortSignal.timeout(25_000),
+      signal: AbortSignal.timeout(12_000),
     });
     const payload = (await response.json()) as PageSpeedResponse;
 
@@ -164,7 +164,7 @@ async function mapWithConcurrency<T, R>(
   return output;
 }
 
-export async function POST(request: Request) {
+async function handleSearch(request: Request) {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getClaims();
 
@@ -228,6 +228,8 @@ export async function POST(request: Request) {
     );
   }
 
+  console.info("[prospects/search] Places search started", { city, sector });
+
   const placesResponse = await fetch(
     "https://places.googleapis.com/v1/places:searchText",
     {
@@ -244,9 +246,9 @@ export async function POST(request: Request) {
         languageCode: "fr",
         regionCode: "FR",
         includePureServiceAreaBusinesses: true,
-        pageSize: 12,
+        pageSize: 10,
       }),
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(12_000),
     },
   );
 
@@ -274,11 +276,11 @@ export async function POST(request: Request) {
         )
         .map((place) => [place.id ?? place.displayName?.text, place]),
     ).values(),
-  ).slice(0, 12);
+  ).slice(0, 10);
 
   const prospects = await mapWithConcurrency(
     uniquePlaces,
-    3,
+    10,
     async (place, index) => {
       const website = place.websiteUri ?? "";
       const audit = website
@@ -337,6 +339,15 @@ export async function POST(request: Request) {
     return second.reviewCount - first.reviewCount;
   });
 
+  console.info("[prospects/search] Search completed", {
+    city,
+    sector,
+    found: prospects.length,
+    audited: prospects.filter(
+      (prospect) => prospect.auditStatus === "complete",
+    ).length,
+  });
+
   return NextResponse.json({
     prospects,
     meta: {
@@ -349,4 +360,30 @@ export async function POST(request: Request) {
       sortedBy: "opportunity_desc",
     },
   });
+}
+
+export async function POST(request: Request) {
+  try {
+    return await handleSearch(request);
+  } catch (error) {
+    console.error("[prospects/search] Search failed", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    const timedOut =
+      error instanceof Error &&
+      (error.name === "TimeoutError" ||
+        error.name === "AbortError" ||
+        error.message.toLowerCase().includes("timeout"));
+
+    return NextResponse.json(
+      {
+        error: timedOut
+          ? "Google met trop de temps à répondre. Relancez la recherche dans quelques secondes."
+          : "La recherche n’a pas pu être terminée. Réessayez dans quelques secondes.",
+      },
+      { status: timedOut ? 504 : 500 },
+    );
+  }
 }

@@ -145,7 +145,18 @@ export function ProspectingDashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ city, sector }),
       });
-      const payload = (await response.json()) as SearchResponse;
+      const responseText = await response.text();
+      let payload: SearchResponse;
+
+      try {
+        payload = JSON.parse(responseText) as SearchResponse;
+      } catch {
+        throw new Error(
+          response.status === 504
+            ? "La recherche a dépassé le temps maximal. Relancez-la dans quelques secondes."
+            : "Le serveur n’a pas renvoyé une réponse valide. Réessayez dans quelques secondes.",
+        );
+      }
 
       if (!response.ok || !payload.prospects || !payload.meta) {
         throw new Error(
