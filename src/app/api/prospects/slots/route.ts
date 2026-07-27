@@ -62,12 +62,12 @@ export async function GET(request: NextRequest) {
   endpoint.searchParams.set("timeZone", "Europe/Paris");
 
   const response = await fetch(endpoint, {
-    cache: "no-store",
+    next: { revalidate: 30 },
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "cal-api-version": "2024-09-04",
     },
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(12_000),
   });
   const responseText = await response.text();
   let payload: CalSlotPayload = {};

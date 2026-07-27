@@ -205,13 +205,14 @@ export function ProspectCallWorkspace({
   }, [records]);
 
   useEffect(() => {
-    if (activeTab !== "booking" || slotsState !== "idle") return;
+    if (slotsState !== "idle") return;
 
     const controller = new AbortController();
     async function loadSlots() {
       setSlotsState("loading");
       setSlotsMessage("");
       const start = new Date();
+      start.setMinutes(Math.floor(start.getMinutes() / 15) * 15, 0, 0);
       const end = new Date(start);
       end.setDate(end.getDate() + 30);
       try {
@@ -245,7 +246,7 @@ export function ProspectCallWorkspace({
     }
     void loadSlots();
     return () => controller.abort();
-  }, [activeTab, slotsState]);
+  }, [slotsState]);
 
   if (!prospect) return null;
 
@@ -407,7 +408,7 @@ export function ProspectCallWorkspace({
             Retour
           </button>
         </div>
-        <div className="grid grid-cols-5 items-center gap-8">
+        <div className="grid grid-cols-5 items-center gap-6">
             <SessionMetric label="Appels" value={String(metrics.calls)} />
             <SessionMetric
               label="Décrochés"
@@ -438,7 +439,7 @@ export function ProspectCallWorkspace({
             {prospect.address || `${prospect.activity} · ${prospect.city}`}
           </p>
 
-          <div className="mt-7 grid grid-cols-1 gap-3 2xl:grid-cols-2">
+          <div className="mt-7 grid grid-cols-1 gap-3">
             <AnalysisCard
               title="Potentiel commercial"
               score={prospect.opportunity}
@@ -540,10 +541,10 @@ export function ProspectCallWorkspace({
             />
           </div>
 
-          <div className="mt-6 overflow-hidden rounded-[14px] border border-black/10 bg-[#f4f4f2]">
-            <div className="flex h-10 items-center justify-between border-b border-black/[0.07] bg-white px-4 text-[10px] font-semibold text-black/55">
-              Aperçu du site
-              {prospect.website ? (
+          {prospect.website ? (
+            <div className="mt-6 overflow-hidden rounded-[14px] border border-black/10 bg-[#f4f4f2]">
+              <div className="flex h-10 items-center justify-between border-b border-black/[0.07] bg-white px-4 text-[10px] font-semibold text-black/55">
+                Aperçu du site
                 <a
                   href={prospect.website}
                   target="_blank"
@@ -552,22 +553,15 @@ export function ProspectCallWorkspace({
                 >
                   <ExternalLink size={13} />
                 </a>
-              ) : null}
-            </div>
-            {prospect.website ? (
+              </div>
               <iframe
                 title={`Aperçu du site de ${prospect.company}`}
                 src={prospect.website}
                 className="h-[330px] w-full bg-white"
                 loading="lazy"
               />
-            ) : (
-              <div className="flex h-[250px] items-center justify-center px-8 text-center text-[11px] leading-5 text-black/40">
-                Cette entreprise n’a pas de site : c’est une opportunité
-                prioritaire.
-              </div>
-            )}
-          </div>
+            </div>
+          ) : null}
         </aside>
 
         <section className="flex min-h-[650px] flex-col items-center justify-center px-6 py-10">
@@ -579,25 +573,13 @@ export function ProspectCallWorkspace({
             <div className="relative flex h-full w-full items-end justify-center overflow-hidden">
               <span className="absolute top-[46px] h-[99px] w-[99px] rounded-full bg-black/10" />
               <span className="absolute -bottom-[64px] h-[162px] w-[162px] rounded-full bg-black/[0.07]" />
-              <UserRound
-                size={76}
-                strokeWidth={1.1}
-                className="relative z-10 mb-[55px] text-[#003441]"
-              />
             </div>
           </div>
           <p className="mt-7 font-serif text-[26px] tracking-[-0.03em]">
             {prospect.company}
           </p>
-          <p className="mt-3 text-[14px] text-black/45">
-            {prospect.phone || "Aucun numéro disponible"}
-          </p>
           <div
-            className={`mt-5 flex h-[62px] items-center gap-[3px] rounded-full border px-5 transition-colors ${
-              callState === "active"
-                ? "border-[#003441]/15 bg-[#003441]/[0.035]"
-                : "border-black/[0.07] bg-black/[0.018]"
-            }`}
+            className="mt-5 flex h-[62px] items-center gap-[3px]"
             aria-label={
               callState === "active"
                 ? "Niveau sonore du microphone"
@@ -791,9 +773,9 @@ export function ProspectCallWorkspace({
 
 function SessionMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0">
+    <div className="flex min-w-0 items-center gap-2 whitespace-nowrap">
       <p className="truncate font-serif text-[11px] text-black/50">{label}</p>
-      <p className="mt-1 text-[13px] font-semibold tabular-nums text-[#1c1c1c]">
+      <p className="text-[13px] font-semibold tabular-nums text-[#1c1c1c]">
         {value}
       </p>
     </div>
