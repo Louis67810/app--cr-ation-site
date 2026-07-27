@@ -205,8 +205,6 @@ export function ProspectCallWorkspace({
   }, [records]);
 
   useEffect(() => {
-    if (slotsState !== "idle") return;
-
     const controller = new AbortController();
     async function loadSlots() {
       setSlotsState("loading");
@@ -246,7 +244,7 @@ export function ProspectCallWorkspace({
     }
     void loadSlots();
     return () => controller.abort();
-  }, [slotsState]);
+  }, []);
 
   if (!prospect) return null;
 
@@ -465,44 +463,46 @@ export function ProspectCallWorkspace({
                 { label: "Statut", value: prospect.status },
               ]}
             />
-            <AnalysisCard
-              title="Qualité du site"
-              score={qualityScore}
-              accent="#f05a67"
-              values={[
-                {
-                  label: "Mobile",
-                  value: prospect.performance?.toString() ?? "—",
-                  score: prospect.performance,
-                },
-                {
-                  label: "Accessibilité",
-                  value: prospect.accessibility?.toString() ?? "—",
-                  score: prospect.accessibility,
-                },
-                {
-                  label: "Bonnes pratiques",
-                  value: prospect.bestPractices?.toString() ?? "—",
-                  score: prospect.bestPractices,
-                },
-                {
-                  label: "SEO",
-                  value: prospect.seo?.toString() ?? "—",
-                  score: prospect.seo,
-                },
-                {
-                  label: "SSL",
-                  value:
-                    prospect.ssl === null
-                      ? "—"
-                      : prospect.ssl
-                        ? "100"
-                        : "0",
-                  score:
-                    prospect.ssl === null ? null : prospect.ssl ? 100 : 0,
-                },
-              ]}
-            />
+            {prospect.website ? (
+              <AnalysisCard
+                title="Qualité du site"
+                score={qualityScore}
+                accent="#f05a67"
+                values={[
+                  {
+                    label: "Mobile",
+                    value: prospect.performance?.toString() ?? "—",
+                    score: prospect.performance,
+                  },
+                  {
+                    label: "Accessibilité",
+                    value: prospect.accessibility?.toString() ?? "—",
+                    score: prospect.accessibility,
+                  },
+                  {
+                    label: "Bonnes pratiques",
+                    value: prospect.bestPractices?.toString() ?? "—",
+                    score: prospect.bestPractices,
+                  },
+                  {
+                    label: "SEO",
+                    value: prospect.seo?.toString() ?? "—",
+                    score: prospect.seo,
+                  },
+                  {
+                    label: "SSL",
+                    value:
+                      prospect.ssl === null
+                        ? "—"
+                        : prospect.ssl
+                          ? "100"
+                          : "0",
+                    score:
+                      prospect.ssl === null ? null : prospect.ssl ? 100 : 0,
+                  },
+                ]}
+              />
+            ) : null}
           </div>
 
           <div className="mt-6 space-y-2 border-y border-black/[0.08] py-5 text-[12px]">
@@ -802,7 +802,7 @@ function AnalysisCard({
 
   return (
     <div className="rounded-[8px] border border-black/10 bg-white p-3 shadow-[0_4px_3px_rgba(0,0,0,.02),0_2px_2px_rgba(0,0,0,.03)]">
-      <p className="text-[11px] font-medium text-[#f05a00]">{title}</p>
+      <p className="text-[12px] font-medium text-[#f05a00]">{title}</p>
       <div className="mt-3 flex items-center gap-3">
         <div
           className="relative flex size-12 shrink-0 items-center justify-center rounded-full"
@@ -822,13 +822,13 @@ function AnalysisCard({
           {values.map((item) => (
             <div
               key={item.label}
-              className="flex min-w-0 items-center justify-between gap-1 rounded-[4px] border border-black/[0.07] px-1.5 py-1"
+              className="flex min-w-0 items-center justify-between gap-1.5 rounded-[4px] border border-black/[0.07] px-2 py-1.5"
             >
-              <span className="truncate text-[7px] text-black/55">
+              <span className="truncate text-[9px] text-black/55">
                 {item.label}
               </span>
               <span
-                className={`truncate text-[8px] font-semibold ${
+                className={`truncate text-[10px] font-semibold ${
                   item.negative
                     ? "text-[#e55500]"
                     : typeof item.score === "number"
