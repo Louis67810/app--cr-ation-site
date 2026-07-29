@@ -42,7 +42,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (!userId) redirect("/login");
 
   const resolvedSearchParams = await searchParams;
-  const allowedTabs: DashboardTab[] = ["projects", "overview", "traffic", "pages", "cms", "assets", "ai", "prospecting", "recap", "settings"];
+  const allowedTabs: DashboardTab[] = ["projects", "appointments", "overview", "traffic", "pages", "cms", "assets", "ai", "prospecting", "recap", "settings"];
   const requestedTab = allowedTabs.includes(resolvedSearchParams.tab as DashboardTab)
     ? resolvedSearchParams.tab as DashboardTab
     : resolvedSearchParams.project
@@ -50,7 +50,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       : "projects";
   const loadProjectLibrary = requestedTab === "projects";
   const loadSelectedProject =
-    requestedTab !== "projects" && requestedTab !== "prospecting";
+    requestedTab !== "projects" &&
+    requestedTab !== "prospecting" &&
+    requestedTab !== "appointments";
 
   // Keep project switching light: the full page document is fetched only for the selected project.
   const projectSelection = `owner_id, project_key, project_name, published_slug, published_at, created_at, updated_at${loadProjectLibrary ? ", pages" : ""}`;

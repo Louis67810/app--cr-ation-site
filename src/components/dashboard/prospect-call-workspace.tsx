@@ -365,6 +365,7 @@ export function ProspectCallWorkspace({
           attendeeName: String(form.get("attendeeName") ?? ""),
           attendeeEmail: String(form.get("attendeeEmail") ?? ""),
           attendeePhone: String(form.get("attendeePhone") ?? ""),
+          sourceWebsite: prospect.website,
           start: selectedSlot,
           timeZone: "Europe/Paris",
         }),

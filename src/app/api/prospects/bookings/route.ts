@@ -102,9 +102,38 @@ export async function POST(request: Request) {
     .eq("owner_id", userId)
     .eq("place_id", placeId);
 
+  const bookingData =
+    payload.data && typeof payload.data === "object"
+      ? (payload.data as Record<string, unknown>)
+      : payload;
+  const bookingUid =
+    clean(bookingData.uid) ||
+    clean(bookingData.id) ||
+    clean(bookingData.bookingUid);
+  const sourceWebsite = clean(body.sourceWebsite);
+  const { error: appointmentError } = await supabase
+    .from("prospect_appointments")
+    .insert({
+      owner_id: userId,
+      place_id: placeId,
+      prospect_name: clean(body.prospectName) || attendeeName,
+      attendee_name: attendeeName,
+      attendee_email: attendeeEmail,
+      attendee_phone: attendeePhone,
+      starts_at: selectedStart.toISOString(),
+      time_zone: timeZone,
+      booking_uid: bookingUid || null,
+      source_website: sourceWebsite || null,
+      status: "scheduled",
+      updated_at: new Date().toISOString(),
+    });
+
   return NextResponse.json({
     ok: true,
     message: "Le rendez-vous est créé et l’invitation a été envoyée.",
     booking: payload.data ?? payload,
+    warning: appointmentError
+      ? "Le rendez-vous Cal.com est créé, mais la migration Rendez-vous doit encore être appliquée dans Supabase."
+      : null,
   });
 }

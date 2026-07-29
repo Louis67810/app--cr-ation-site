@@ -42,8 +42,9 @@ const AiAgents = dynamic(() => import("@/components/dashboard/ai-agents").then((
 const MonthlyRecap = dynamic(() => import("@/components/dashboard/monthly-recap").then((module) => module.MonthlyRecap), { loading: DeferredPanel });
 const AnalyticsDashboard = dynamic(() => import("@/components/dashboard/analytics-dashboard").then((module) => module.AnalyticsDashboard), { loading: DeferredPanel });
 const ProspectingDashboard = dynamic(() => import("@/components/dashboard/prospecting-dashboard").then((module) => module.ProspectingDashboard), { loading: DeferredPanel });
+const AppointmentsDashboard = dynamic(() => import("@/components/dashboard/appointments-dashboard").then((module) => module.AppointmentsDashboard), { loading: DeferredPanel });
 
-export type DashboardTab = "projects" | "overview" | "traffic" | "pages" | "cms" | "assets" | "ai" | "prospecting" | "recap" | "settings";
+export type DashboardTab = "projects" | "appointments" | "overview" | "traffic" | "pages" | "cms" | "assets" | "ai" | "prospecting" | "recap" | "settings";
 
 export type MonthlyRecapEvent = { id: string; event_type: "page_created" | "article_created" | "realisation_created" | "project_published"; entity_title: string; created_at: string };
 export type MonthlyRecapSettings = { recipient_email: string; enabled: boolean; send_day: number };
@@ -309,7 +310,7 @@ export function DashboardShell({
     }
   }
 
-  if (activeTab === "projects" || activeTab === "prospecting") {
+  if (activeTab === "projects" || activeTab === "prospecting" || activeTab === "appointments") {
     return (
       <main className="min-h-screen bg-white text-[#1c1c1c] lg:grid lg:grid-cols-[212px_minmax(0,1fr)]">
         <aside className="hidden h-screen border-r border-black/10 bg-[#fcf9f4] px-4 py-4 lg:sticky lg:top-0 lg:block">
@@ -333,6 +334,15 @@ export function DashboardShell({
               >
                 <UsersRound size={18} />
                 Prospection
+              </Link>
+              <Link
+                prefetch={false}
+                href="/dashboard?tab=appointments"
+                aria-current={activeTab === "appointments" ? "page" : undefined}
+                className={`${activeTab === "appointments" ? "relative bg-black/5 before:absolute before:left-0 before:h-4 before:w-1 before:rounded-full before:bg-black" : "hover:bg-black/5"} flex h-8 items-center gap-3 rounded-lg px-3 pl-9`}
+              >
+                <CalendarDays size={18} />
+                Rendez-vous
               </Link>
             </div>
           </nav>
@@ -359,9 +369,19 @@ export function DashboardShell({
               <UsersRound size={15} />
               Prospection
             </Link>
+            <Link
+              prefetch={false}
+              href="/dashboard?tab=appointments"
+              className={`${activeTab === "appointments" ? "bg-white text-black shadow-sm" : "text-black/45"} flex h-9 flex-1 items-center justify-center gap-2 rounded-[8px] text-[12px] font-medium`}
+            >
+              <CalendarDays size={15} />
+              Rendez-vous
+            </Link>
           </nav>
           {activeTab === "projects" ? (
             <ProjectsLibrary projects={projects} />
+          ) : activeTab === "appointments" ? (
+            <AppointmentsDashboard />
           ) : (
             <ProspectingDashboard />
           )}
